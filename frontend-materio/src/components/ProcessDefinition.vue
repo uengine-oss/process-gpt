@@ -1,6 +1,6 @@
 <template>
     <div>
-        <vue-bpmn :key="processDefinition.length"
+        <vue-bpmn
                 :bpmn="bpmn"
                 :options="options"
                 v-on:error="handleError"
@@ -11,9 +11,10 @@
 </template>
 
 <script>
-import VueBpmn from './Bpmn.vue';
 import partialParse from "partial-json-parser";
 import { VectorStorage } from "vector-storage";
+
+import VueBpmn from './Bpmn.vue';
 
 export default {
     name: "ProcessDefinition",
@@ -25,9 +26,28 @@ export default {
         bpmn: Object
     },
     data: () => ({
+        options: {
+            propertiesPanel: {},
+            additionalModules: [],
+            moddleExtensions: []
+        }
     }),
     created() {
         this.init();
+    },
+    methods:{
+        init() {
+            console.log(this.bpmn);
+        },
+        handleError() {
+            console.error('failed to show diagram', err);
+        },
+        handleShown() {
+            console.log('diagram shown');
+        },
+        handleLoading() {
+            console.log('diagram loading');
+        },
     },
 }
 </script>

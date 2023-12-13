@@ -1,20 +1,25 @@
 import AIGenerator from "./AIGenerator";
 
-export default class ProcessDefinitionGenerator extends AIGenerator{
+export default class ProcessDefinitionGenerator extends AIGenerator {
 
-    constructor(client, language){
+    constructor(client, language) {
         super(client, language);
 
-        this.contexts = null
+        this.contexts = null;
 
-        let organizationChartConversion = JSON.parse(localStorage.getItem("organization-chart-conversation"))
+        let organizationChartConversion = JSON.parse(localStorage.getItem("organization-chart-conversation"));
 
-        let organizationChart = organizationChartConversion.map(message => message.role + ":" + message.content + "\n").reduce((a,b)=>a+b, "" )
+        if (!organizationChartConversion) {
+            return;
+        }
+
+        let organizationChart = organizationChartConversion.map(message => 
+            message.role + ":" + message.content + "\n"
+        ).reduce((a,b) => a+b, "");
 
         this.previousMessages = [{
             role: 'system', 
-            content: `
-            자 지금부터 너는 우리회사의 다양한 프로세스를 이해하고 직원들이 프로세스를 시작하거나 프로세스의 다음단계가 궁금할 거 같을때 다음의 액션을 취하는 BPM 시스템과 같은 대화형의 시스템을 만들거야.
+            content: `자 지금부터 너는 우리회사의 다양한 프로세스를 이해하고 직원들이 프로세스를 시작하거나 프로세스의 다음단계가 궁금할 거 같을때 다음의 액션을 취하는 BPM 시스템과 같은 대화형의 시스템을 만들거야.
 
             - 프로세스정의: 내가 업무진행중 프로세스 변경을 이렇게하자고 말하면 해당 프로세스 정의가 그때부터 바뀌는거야. 
             
@@ -92,19 +97,19 @@ export default class ProcessDefinitionGenerator extends AIGenerator{
 
 
 `
-            }];
+        }];
     }
 
     setContexts(contexts){
-      this.contexts = contexts;
-      
-      contexts.forEach(context=>{
-        this.previousMessages[0].content += context + "\n\n"
-      })
+        this.contexts = contexts;
+        
+        contexts.forEach(context=>{
+            this.previousMessages[0].content += context + "\n\n"
+        })
     }
 
     createPrompt(){
-       return this.client.newMessage
+        return this.client.newMessage
     }
 
 }

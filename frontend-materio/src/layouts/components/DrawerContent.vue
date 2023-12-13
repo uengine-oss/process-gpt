@@ -1,19 +1,17 @@
 <script setup>
 import { VerticalNavLink, VerticalNavSectionTitle } from '@layouts'
 
-// import { VectorStorage } from "vector-storage";
-// import partialParse from "partial-json-parser";
-// const openAIToken = localStorage.getItem("openAIToken");
-// const vectorStore = new VectorStorage({ openAIApiKey: openAIToken });
-// const results = await vectorStore.similaritySearch({
-//     query: "processDefinitionName:"
-// });
-// let processList = [];
-// results.similarItems.forEach(item => {
-//     const jsonProcess = partialParse(item.text);
-//     processList.push(jsonProcess);
-// });
-// console.log(processList)
+import partialParse from "partial-json-parser";
+let definitions = [];
+let chatList = partialParse(localStorage.getItem("process-definition-conversation"));
+chatList = chatList.filter(chat => chat.role == "system");
+chatList.forEach(chat => {
+    var arr = chat.content.split("--- json ---");
+    var content = arr.pop().replace(/<[^>]*>?/g, "\n");
+    const definition = partialParse(content);
+    definitions.push(definition);
+});
+
 </script>
 
 <template>
@@ -33,14 +31,14 @@ import { VerticalNavLink, VerticalNavSectionTitle } from '@layouts'
                 icon: 'mdi-plus'
             }"
         />
-        <!-- <VerticalNavLink
-            v-for="process in processList"
-            :key="process.processDefinition"
+        <VerticalNavLink
+            v-for="definition in definitions"
+            :key="definition.processDefinitionId"
             :item="{
-                title: process.processDefinitionName,
-                to: `/process/${process.processDefinition}`,
+                title: definition.processDefinitionName,
+                to: `/definitions/${definition.processDefinitionId}`,
             }"
-        /> -->
+        />
         
         <VerticalNavSectionTitle :item="{ heading: '프로세스 실행' }" />
         <VerticalNavLink

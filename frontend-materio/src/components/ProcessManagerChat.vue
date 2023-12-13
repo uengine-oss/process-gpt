@@ -1,35 +1,29 @@
 <template>
     <div>
-
-        <vue-bpmn v-if="bpmn" :key="bpmn.length"
-                    :bpmn="bpmn"
-                    :options="options"
-                    v-on:error="handleError"
-                    v-on:shown="handleShown"
-                    v-on:loading="handleLoading"
-            ></vue-bpmn>
-
-        <v-card class="chat-open-box">
-
-
-
-            <v-card-text class="message-box" ref="messages">
-
-
-
+        <process-definition
+                v-if="bpmn"
+                :bpmn="bpmn"
+                :processDefinition="processDefinition"
+        ></process-definition>
+        
+        <v-card class="chat-open-box"
+                :style="bpmn ? 'min-height: 55vh;' : ''"
+        >
+            <v-card-text class="message-box"
+                    :style="bpmn ? 'height: 45vh;' : ''"
+            >
                 <div v-for="(message, index) in messages"
                         :key="index"
                 >
                     <div v-if="message.role == 'user'"
                             class="d-flex justify-end my-2"
                     >
-                        <div class="user-message">
-
-                            
-
-                            {{ message.text }} 
-                        </div>
-                        <div class="ml-1">
+                        <v-sheet class="user-message pa-3"
+                                color="primary"
+                        >
+                            <div v-html="message.content"></div>
+                        </v-sheet>
+                        <div class="ml-2">
                             <v-avatar size="48">
                                 <v-icon>
                                     mdi-account-circle
@@ -54,38 +48,23 @@
                                 System
                             </div>
                         </div>
-                        <div class="d-flex system-message">
-                            <div v-html="message.text"></div>
-                        </div>
-                        <br>
-                    </div>
-                </div>
-
-                <div v-if="loading" class="d-flex justify-start my-2">
-                    <div class="mr-2">
-                        <v-avatar size="48">
-                            <v-icon>
-                                mdi-account-circle
-                            </v-icon>
-                        </v-avatar>
-                        <div class="subtitle-2 text-center">
-                            System
-                        </div>
-                    </div>
-                    <div class="d-flex system-message">
-                        <v-progress-circular
-                                indeterminate
-                                color="grey"
-                        ></v-progress-circular>
+                        <v-sheet class="system-message pa-3"
+                                color="grey-200"
+                        >
+                            <v-progress-circular
+                                    v-if="message.isLoading"
+                                    indeterminate
+                                    color="grey"
+                            ></v-progress-circular>
+                            <div v-html="message.content"></div>
+                        </v-sheet>
                     </div>
                 </div>
             </v-card-text>
 
             <v-card-actions class="chat-box">
-
                 <v-textarea
                         v-model="newMessage"
-                        @keydown.enter="sendMessage"
                         label="Send Message"
                         rows="1"
                         auto-grow
@@ -107,30 +86,24 @@
 </template>
 
 <script>
-import ChatGenerator from "./ai/ProcessDefinitionGenerator.js";
-
-import BaseRepository from "./repository/BaseRepository";
-import axios from "@axios";
-import VueBpmn from './Bpmn.vue';
 import partialParse from "partial-json-parser";
 import { VectorStorage } from "vector-storage"
+import axios from "@axios";
+
+import BaseRepository from "./repository/BaseRepository";
+import ChatGenerator from "./ai/ProcessDefinitionGenerator.js";
+import ProcessDefinition from './ProcessDefinition.vue';
 
 export default {
     name: 'ProcessManagerChat',
     components: {
-        VueBpmn
+        ProcessDefinition
     },
     data: () => ({
         messages: [],
         newMessage: "",
         generator: null,
-        loading: false,
-        openChatBox: false,
         processDefinition: null,
-        // bpmn: `
-        // <?xml version="1.0" encoding="UTF-8"?><bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" id="Definitions_1" targetNamespace="http://bpmn.io/schema/bpmn" exporter="Custom BPMN Modeler" exporterVersion="1.0"><bpmn:process id="VacationRequestProcess" isExecutable="true"><bpmn:task id="VacationRequest" name="휴가 신청"/><bpmn:task id="VacationApproval" name="휴가 승인"/><bpmn:task id="VacationCheck" name="휴가 승인 확인 및 잔여일수 체크"/><bpmn:sequenceFlow id="SequenceFlow_VacationRequest_VacationApproval" sourceRef="VacationRequest" targetRef="VacationApproval"/><bpmn:sequenceFlow id="SequenceFlow_VacationApproval_VacationCheck" sourceRef="VacationApproval" targetRef="VacationCheck"/></bpmn:process><bpmndi:BPMNDiagram id="BPMNDiagram_1"><bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="VacationRequestProcess"><bpmndi:BPMNShape id="BPMNShape_VacationRequest" bpmnElement="VacationRequest"><dc:Bounds xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" x="100" y="100" width="100" height="80"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="BPMNShape_VacationApproval" bpmnElement="VacationApproval"><dc:Bounds xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" x="250" y="100" width="100" height="80"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="BPMNShape_VacationCheck" bpmnElement="VacationCheck"><dc:Bounds xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" x="400" y="100" width="100" height="80"/></bpmndi:BPMNShape><bpmndi:BPMNEdge id="BPMNEdge_VacationRequest_VacationApproval" bpmnElement="SequenceFlow_VacationRequest_VacationApproval"><di:waypoint xmlns:di="http://www.omg.org/spec/DD/20100524/DI" x="150" y="140"/><di:waypoint xmlns:di="http://www.omg.org/spec/DD/20100524/DI" x="250" y="140"/></bpmndi:BPMNEdge><bpmndi:BPMNEdge id="BPMNEdge_VacationApproval_VacationCheck" bpmnElement="SequenceFlow_VacationApproval_VacationCheck"><di:waypoint xmlns:di="http://www.omg.org/spec/DD/20100524/DI" x="150" y="140"/><di:waypoint xmlns:di="http://www.omg.org/spec/DD/20100524/DI" x="250" y="140"/></bpmndi:BPMNEdge></bpmndi:BPMNPlane></bpmndi:BPMNDiagram></bpmn:definitions>
-        // `
-
         bpmn: null
     }),
     created() {
@@ -140,64 +113,64 @@ export default {
         });
         this.init();
     },
-    watch: {
-        messages() {
-            this.$nextTick(() => {
-                let messages = this.$refs.messages;
-                messages.scrollTo({ top: messages.scrollHeight, behavior: 'smooth' });
-            });
-        },
-    },
     methods:{
-        handleClick() {
-            this.openChatBox = !this.openChatBox;
-        },
         init() {
-            
+            this.loadMessages();
+
+            if (this.$route.params && this.$route.params.id) {
+                const chatItem = this.messages.find(chat => 
+                    chat.role == "system" && chat.content.includes(this.$route.params.id)
+                )
+                this.bpmn = chatItem.bpmn;
+            }
         },
 
         sendMessage() {
             if (this.newMessage !== "") {
-                this.loading = true;
+                if(this.newMessage.includes("\n")) {
+                    this.newMessage = this.newMessage.replace(/\n/g, "<br/>");
+                }
+                
                 this.init();
                 
-                this.messages.push(
-                    {
-                        role: "user",
-                        text: this.newMessage
-                    }
-                );
+                this.messages.push({
+                    role: "user",
+                    content: this.newMessage
+                });
 
                 this.generator.generate();
     
-
                 this.messages.push({
                     role:'system',
-                    text: '.'
+                    content: '...',
+                    isLoading: true,
                 });
 
                 this.newMessage = "";
             }
         },
 
-        onModelCreated(response){
+        onModelCreated(response) {
+            let messageWriting = this.messages[this.messages.length -1];
+            messageWriting.content = response;
 
-            let messageWriting = this.messages[this.messages.length -1]
-            messageWriting.text = response
+            if (response.includes("\n")) {
+                messageWriting.content = response.replace(/\n/g, "<br/>");
+            }
 
-            let jsonProcess = this.extractProcessJson(response)
+            let jsonProcess = this.extractProcessJson(response);
 
             if (jsonProcess) {
 
-                console.log(jsonProcess)
+                console.log(jsonProcess);
 
-                this.processDefinition = partialParse(jsonProcess)
+                this.processDefinition = partialParse(jsonProcess);
 
-                messageWriting.bpmn = this.createBpmnXml(this.processDefinition)
-                this.bpmn = messageWriting.bpmn
-            
-                console.log(messageWriting.bpmn)
+                messageWriting.bpmn = this.createBpmnXml(this.processDefinition);
+                
+                this.bpmn = messageWriting.bpmn;
 
+                console.log(messageWriting.bpmn);
             }
 
         },
@@ -339,89 +312,31 @@ export default {
 
         onGenerationFinished(responses){
             console.log(responses);
+            let messageWriting = this.messages[this.messages.length -1];
+            delete messageWriting.isLoading;
 
-
-            this.loading = false;
             if(this.processDefinition){
-                this.saveDefinition(this.processDefinition)
+                this.saveDefinition(this.processDefinition);
             }
 
-            // responses.forEach(response=> {
-            //     console.log(response);
+            this.saveMessages();
+        },
 
-            //     if (response.error) {
-            //         message = {
-            //             role:'system',
-            //             text: response.error.speak ? response.error.speak : response.error
-            //         };
+        saveMessages() {
+            window.localStorage.setItem("process-definition-conversation", JSON.stringify(this.messages));
+        },
 
-            //         this.messages.push(message);
+        loadMessages() {
+            this.messages = JSON.parse(window.localStorage.getItem("process-definition-conversation"));
+            if (!this.messages) {
+                this.messages = [];
+            }
+            this.generator.previousMessages = [...this.generator.previousMessages, ...this.messages];
 
-            //     }
-            //     else if (response.command) {
-            //         if (response.thoughts) {
-            //             // if (response.thoughts.plan && response.thoughts.plan.length > 0) {
-            //             //     response.thoughts.plan.forEach((planMsg, index) => {
-            //             //         message = {
-            //             //             role:'system',
-            //             //             text: planMsg
-            //             //         };
-
-            //             //         if (index == response.thoughts.plan.length-1) {
-            //             //             message.command = response.command
-            //             //         }
-
-            //             //         this.messages.push(message);
-            //             //     })
-            //             // }
-
-            //             if (response.thoughts.criticism) {
-            //                 message = {
-            //                     role:'system',
-            //                     text: response.thoughts.criticism,
-            //                 };
-
-            //                 this.messages.push(message);
-            //             }
-
-            //             if (response.thoughts.speak) {
-            //                 message = {
-            //                     role:'system',
-            //                     text: response.thoughts.speak,
-            //                     command: response.command
-            //                 };
-
-            //                 this.messages.push(message);
-
-            //             }
-            //         }
-
-            //         if (!message && response.command) {
-            //             message = {
-            //                 role:'system',
-            //                 text: response.command.name + "을 다음의 아규먼트로 실행합니다: "
-            //                     + JSON.stringify(response.command.args),
-            //                 command: response.command
-            //             };
-
-            //             this.messages.push(message);
-            //         }
-            //     }
-            //     else if (response.markdown) {
-            //         message = {
-            //             role:'system',
-            //             text: response.markdown.replace(/(?:\r\n|\r|\n)/g, '<br />')
-            //         };
-
-            //         this.messages.push(message);
-
-            //     }
-            // });
+            // console.log(this.generator.previousMessages);
         },
 
         onError(error) {
-            this.loading = false;
-
             if (error.code === "invalid_api_key") {
                 var apiKey = prompt("API Key 를 입력하세요.");
                 localStorage.setItem("openAIToken", apiKey);
@@ -439,125 +354,33 @@ export default {
             }
         },
 
-        async doit(message) {
-            this.loading = true;
-
-            if (message.command.method === 'GET') {
-                var path = message.command.path;
-                this.$router.push(`${path}`);
-                this.loading = false;
-
-            } else {
-                await this.submit(message).then((res) => {
-                    if (res.data) {
-                        this.formatMarkdown(JSON.stringify(res.data));
-                    } else {
-                        this.formatMarkdown(JSON.stringify(res));
-                    }
-                }).catch(error => {
-                    if (error.response) {
-                        this.onError(error);
-                    } else {
-                        this.loading = false;
-                        var message = {
-                            role: 'system',
-                            text: error
-                        }
-                        this.messages.push(message);
-                    }
-                })
-            }
-        },
-
-        async submit(message) {
-            var path = message.command.path;
-            if (path.charAt(0) === '/') {
-                path = path.substr(1);
-            }
-            var value = message.command.args;
-            var repository = new BaseRepository(axios, path);
-
-            if (message.command.method === 'POST') {
-                return await repository.save(value, true);
-            } else if (message.command.method === 'PUT') {
-                return await repository.save(value, false);
-            } else if (message.command.method === 'DELETE') {
-                return await repository.delete(value);
-            }
-        },
-
-        async formatMarkdown(value) {
-            this.generator.previousMessages = [{
-                role: 'system',
-                content: `
-You should only respond in JSON format as described below
-
-RESPONSE FORMAT:
-[{
-    "markdown": "generated markdown text"
-}]
-                `
-            }];
-            this.newMessage = `
-Generate the following values in markdown text format:
-${value}
-`;
-
-            await this.generator.generate();
-
-            this.newMessage = "";
-        },
-
     }
 }
 </script>
 
 <style scoped>
-/* .chat-open-btn {
-    position: fixed;
-    z-index: 999;
-    bottom: 15px;
-    right: 15px;
-} */
-
-/* .chatgpt-icon {
-    width: 30px;
-    height: 30px;
-} */
+.bpmn-area {
+    min-height: 34vh;
+}
 
 .chat-open-box {
-    position: fixed;
-    z-index: 999;
-    top: 300px;
-    bottom: 20px;
-    width: 1211px;
-    height: 500px;
+    /* z-index: 999; */
+    min-height: 84vh;
 }
 
 .user-message {
-    background: #9155FD;
-    color: #ffffff;
-    font-weight: bold;
-    padding: 12px;
     border-radius: 20px;
-    max-width: 90%;
+    max-width: 95%;
 }
 
 .system-message {
-    background: #eeeeee;
-    font-weight: bold;
-    padding: 12px;
     border-radius: 20px;
-    max-width: 90%;
-}
-
-.system-message > div {
-    max-width: 180px;
+    max-width: 95%;
 }
 
 .message-box {
     overflow-y: auto;
-    max-height: 80%;
+    max-height: 74vh;
 }
 
 .chat-box {
