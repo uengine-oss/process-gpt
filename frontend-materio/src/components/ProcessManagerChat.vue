@@ -1,17 +1,20 @@
 <template>
     <div>
-        <v-card class="chat-open-box">
 
-
-            <v-card-text class="message-box" ref="messages">
-
-                <vue-bpmn v-if="bpmn" :key="bpmn.length"
+        <vue-bpmn v-if="bpmn" :key="bpmn.length"
                     :bpmn="bpmn"
                     :options="options"
                     v-on:error="handleError"
                     v-on:shown="handleShown"
                     v-on:loading="handleLoading"
-                ></vue-bpmn>
+            ></vue-bpmn>
+
+        <v-card class="chat-open-box">
+
+
+
+            <v-card-text class="message-box" ref="messages">
+
 
 
                 <div v-for="(message, index) in messages"
@@ -525,9 +528,10 @@ ${value}
 .chat-open-box {
     position: fixed;
     z-index: 999;
+    top: 300px;
     bottom: 20px;
     width: 1211px;
-    height: 600px;
+    height: 500px;
 }
 
 .user-message {
