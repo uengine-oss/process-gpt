@@ -191,15 +191,51 @@ export default {
             bpmn.setAttribute('exporter', 'Custom BPMN Modeler');
             bpmn.setAttribute('exporterVersion', '1.0');
 
+
+            // 콜라보레이션 및 참가자 요소 생성
+            const collaboration = xmlDoc.createElementNS('http://www.omg.org/spec/BPMN/20100524/MODEL', 'bpmn:collaboration');
+            collaboration.setAttribute('id', 'Collaboration_1');
+            const participant = xmlDoc.createElementNS('http://www.omg.org/spec/BPMN/20100524/MODEL', 'bpmn:participant');
+            participant.setAttribute('id', 'Participant_' + jsonProcess.processDefinitionId);
+            participant.setAttribute('name', jsonProcess.processDefinitionName);
+            participant.setAttribute('processRef', 'Process_' + jsonProcess.processDefinitionId);
+            collaboration.appendChild(participant);
+            bpmn.appendChild(collaboration);
+
             // Process 요소 생성
             const process = xmlDoc.createElementNS('http://www.omg.org/spec/BPMN/20100524/MODEL', 'bpmn:process');
             process.setAttribute('id', jsonProcess.processDefinitionId)  //.replace(/\s+/g, '_'));
             process.setAttribute('isExecutable', 'true');
 
+            bpmn.appendChild(process);
+
+            // 레인셋 생성
+            const laneSet = xmlDoc.createElementNS('http://www.omg.org/spec/BPMN/20100524/MODEL', 'bpmn:laneSet');
+            laneSet.setAttribute('id', 'LaneSet_' + jsonProcess.processDefinitionId);
+            process.appendChild(laneSet);
+
+            // 레인 생성 및 역할 할당
+            if(jsonProcess.roles)
+            jsonProcess.roles.forEach(role => {
+                const lane = xmlDoc.createElementNS('http://www.omg.org/spec/BPMN/20100524/MODEL', 'bpmn:lane');
+                lane.setAttribute('id', 'Lane_' + role.name.replace(/\s+/g, '_'));
+                lane.setAttribute('name', role.name);
+                laneSet.appendChild(lane);
+
+                // 해당 역할에 매핑된 활동들을 레인에 할당
+                jsonProcess.activities.forEach(activity => {
+                    if (activity.role === role.name) {
+                        const flowNodeRef = xmlDoc.createElementNS('http://www.omg.org/spec/BPMN/20100524/MODEL', 'bpmn:flowNodeRef');
+                        flowNodeRef.textContent = activity.id;
+                        lane.appendChild(flowNodeRef);
+                    }
+                });
+            });
+            
             // 각 활동 (Activity) 요소 생성
             if(jsonProcess.activities)
             jsonProcess.activities.forEach(activity => {
-                const task = xmlDoc.createElementNS('http://www.omg.org/spec/BPMN/20100524/MODEL', 'bpmn:task');
+                const task = xmlDoc.createElementNS('http://www.omg.org/spec/BPMN/20100524/MODEL', 'bpmn:userTask');
                 task.setAttribute('id', activity.id);
                 task.setAttribute('name', activity.name);
                 process.appendChild(task);
@@ -215,19 +251,34 @@ export default {
                 process.appendChild(sequenceFlow);
             });
 
-            bpmn.appendChild(process);
+//            bpmn.appendChild(process);
 
             // BPMNDiagram 요소 추가
             const bpmnDiagram = xmlDoc.createElementNS('http://www.omg.org/spec/BPMN/20100524/DI', 'bpmndi:BPMNDiagram');
-            bpmnDiagram.setAttribute('id', 'BPMNDiagram_1');
+            bpmnDiagram.setAttribute('id', 'BPMNDiagram_' + jsonProcess.processDefinitionId);
             const bpmnPlane = xmlDoc.createElementNS('http://www.omg.org/spec/BPMN/20100524/DI', 'bpmndi:BPMNPlane');
-            bpmnPlane.setAttribute('id', 'BPMNPlane_1');
-            bpmnPlane.setAttribute('bpmnElement', process.getAttribute('id'));
+            bpmnPlane.setAttribute('id', 'BPMNPlane_' + jsonProcess.processDefinitionId);
+            bpmnPlane.setAttribute('bpmnElement', collaboration.getAttribute('id'));
             bpmnDiagram.appendChild(bpmnPlane);
 
-            // 시각적 요소 생성 (BPMNShape 및 BPMNEdge)
-            // 주의: 여기서는 간단한 예제로 위치와 크기를 고정값으로 설정합니다.
+            // 레인의 시각적 표현 추가
+            if(jsonProcess.roles)
+            jsonProcess.roles.forEach((role, index) => {
+                const laneShape = xmlDoc.createElementNS('http://www.omg.org/spec/BPMN/20100524/DI', 'bpmndi:BPMNShape');
+                laneShape.setAttribute('id', 'BPMNShape_Lane_' + role.name.replace(/\s+/g, '_'));
+                laneShape.setAttribute('bpmnElement', 'Lane_' + role.name.replace(/\s+/g, '_'));
 
+                const laneBounds = xmlDoc.createElementNS('http://www.omg.org/spec/DD/20100524/DC', 'dc:Bounds');
+                laneBounds.setAttribute('x', 100);
+                laneBounds.setAttribute('y', 100 + index * 100);
+                laneBounds.setAttribute('width', 600);
+                laneBounds.setAttribute('height', 100);
+
+                laneShape.appendChild(laneBounds);
+                bpmnPlane.appendChild(laneShape);
+            });
+
+            // 활동 및 시퀀스 플로우의 시각적 표현 추가
             if(jsonProcess.activities)
             jsonProcess.activities.forEach((activity, index) => {
                 const shape = xmlDoc.createElementNS('http://www.omg.org/spec/BPMN/20100524/DI', 'bpmndi:BPMNShape');
@@ -235,36 +286,73 @@ export default {
                 shape.setAttribute('bpmnElement', activity.id);
 
                 const bounds = xmlDoc.createElementNS('http://www.omg.org/spec/DD/20100524/DC', 'dc:Bounds');
-                bounds.setAttribute('x', 100 + (index * 150)); // 예제 위치
-                bounds.setAttribute('y', 100);
-                bounds.setAttribute('width', 100);
-                bounds.setAttribute('height', 80);
+                bounds.setAttribute('x', 150 + index * 100); // 위치 예제
+                bounds.setAttribute('y', 120 + index * 60); // 위치 예제
+                bounds.setAttribute('width', 80);
+                bounds.setAttribute('height', 60);
 
                 shape.appendChild(bounds);
                 bpmnPlane.appendChild(shape);
             });
 
-            // 시퀀스 플로우 시각적 요소
             if(jsonProcess.sequences)
             jsonProcess.sequences.forEach(sequence => {
                 const edge = xmlDoc.createElementNS('http://www.omg.org/spec/BPMN/20100524/DI', 'bpmndi:BPMNEdge');
                 edge.setAttribute('id', 'BPMNEdge_' + sequence.source + '_' + sequence.target);
                 edge.setAttribute('bpmnElement', 'SequenceFlow_' + sequence.source + '_' + sequence.target);
 
-                // 예제 waypoint
+                // Waypoint 예제 (실제 좌표는 활동의 위치에 따라 조정되어야 함)
                 const waypoint1 = xmlDoc.createElementNS('http://www.omg.org/spec/DD/20100524/DI', 'di:waypoint');
-                waypoint1.setAttribute('x', 150);
-                waypoint1.setAttribute('y', 140);
+                waypoint1.setAttribute('x', 200); // 예제 좌표
+                waypoint1.setAttribute('y', 150); // 예제 좌표
+                edge.appendChild(waypoint1);
 
                 const waypoint2 = xmlDoc.createElementNS('http://www.omg.org/spec/DD/20100524/DI', 'di:waypoint');
-                waypoint2.setAttribute('x', 250);
-                waypoint2.setAttribute('y', 140);
-
-                edge.appendChild(waypoint1);
+                waypoint2.setAttribute('x', 300); // 예제 좌표
+                waypoint2.setAttribute('y', 150); // 예제 좌표
                 edge.appendChild(waypoint2);
 
                 bpmnPlane.appendChild(edge);
             });
+
+            // // 시각적 요소 생성 (BPMNShape 및 BPMNEdge)
+            // if(jsonProcess.activities)
+            // jsonProcess.activities.forEach((activity, index) => {
+            //     const shape = xmlDoc.createElementNS('http://www.omg.org/spec/BPMN/20100524/DI', 'bpmndi:BPMNShape');
+            //     shape.setAttribute('id', 'BPMNShape_' + activity.id);
+            //     shape.setAttribute('bpmnElement', activity.id);
+
+            //     const bounds = xmlDoc.createElementNS('http://www.omg.org/spec/DD/20100524/DC', 'dc:Bounds');
+            //     bounds.setAttribute('x', 100 + (index * 150)); // 예제 위치
+            //     bounds.setAttribute('y', 100);
+            //     bounds.setAttribute('width', 100);
+            //     bounds.setAttribute('height', 80);
+
+            //     shape.appendChild(bounds);
+            //     bpmnPlane.appendChild(shape);
+            // });
+
+            // // 시퀀스 플로우 시각적 요소
+            // if(jsonProcess.sequences)
+            // jsonProcess.sequences.forEach(sequence => {
+            //     const edge = xmlDoc.createElementNS('http://www.omg.org/spec/BPMN/20100524/DI', 'bpmndi:BPMNEdge');
+            //     edge.setAttribute('id', 'BPMNEdge_' + sequence.source + '_' + sequence.target);
+            //     edge.setAttribute('bpmnElement', 'SequenceFlow_' + sequence.source + '_' + sequence.target);
+
+            //     // 예제 waypoint
+            //     const waypoint1 = xmlDoc.createElementNS('http://www.omg.org/spec/DD/20100524/DI', 'di:waypoint');
+            //     waypoint1.setAttribute('x', 150);
+            //     waypoint1.setAttribute('y', 140);
+
+            //     const waypoint2 = xmlDoc.createElementNS('http://www.omg.org/spec/DD/20100524/DI', 'di:waypoint');
+            //     waypoint2.setAttribute('x', 250);
+            //     waypoint2.setAttribute('y', 140);
+
+            //     edge.appendChild(waypoint1);
+            //     edge.appendChild(waypoint2);
+
+            //     bpmnPlane.appendChild(edge);
+            // });
 
             bpmn.appendChild(bpmnDiagram);
 

@@ -1,5 +1,10 @@
 <template>
+
     <div>
+
+        <organization-chart :nodes="organizationChart" :key="organizationChart.length"/>
+
+
         <v-card class="chat-open-box">
             <v-alert
                     type="info"
@@ -89,12 +94,30 @@ import ChatGenerator from "./ai/OrganizationChartGenerator.js";
 export default {
     name: 'OrganizationChartChat',
     components: {
+        OrganizationChart
     },
     data: () => ({
         messages: [],
         newMessage: "",
         generator: null,
-        loading: false,
+        processDefinition: null,
+        bpmn: null,
+        organizationChart: [
+
+        //{ "id": "개발팀", "name": "개발팀", "tags": ["group"], "description": "" }, { "id": "jyjang@uengine.org", "stpid": "개발팀", "name": "장진영", "title": "CTO" }, { "id": "BPM팀", "name": "BPM팀", "tags": ["group"], "description": "" }, { "id": "sanghoon@uengine.org", "stpid": "BPM팀", "name": "김상훈" }, { "id": "이수헌", "stpid": "BPM팀", "name": "이수헌" }, { "id": "양성원", "stpid": "BPM팀", "name": "양성원" }, { "id": "오순영", "stpid": "BPM팀", "name": "오순영", "title": "회계담당" }, { "id": "인사팀", "name": "인사팀", "tags": ["group"], "description": "" }, { "id": "서원주", "stpid": "인사팀", "name": "서원주" }, { "id": "강서구", "stpid": "인사팀", "name": "강서구" }, { "id": "교육팀", "name": "교육팀", "tags": ["group"], "description": "" }, { "id": "sjjung@uengine.org", "stpid": "교육팀", "name": "정석진", "title": "팀장" }, { "id": "배동재", "stpid": "교육팀", "name": "배동재" }, { "id": "김근영", "stpid": "교육팀", "name": "김근영", "title": "회계담당" }
+         //{ "id": "개발팀", "name": "개발팀", "description": "개발팀" }, { "id": "jyjang@uengine.org", "name": "장진영", "pid": "개발팀", "role": "CTO", "img": "https://randomuser.me/api/portraits/women/6.jpg" }, { "id": "BPM팀", "name": "BPM팀", "description": "BPM팀" }, { "id": "sanghoon@uengine.org", "name": "김상훈", "pid": "BPM팀" }, { "id": "이수헌", "name": "이수헌", "pid": "BPM팀" }, { "id": "양성원", "name": "양성원", "pid": "BPM팀" }, { "id": "오순영", "name": "오순영", "pid": "BPM팀", "role": "회계담당" }, { "id": "인사팀", "name": "인사팀", "description": "인사팀" }, { "id": "서원주", "name": "서원주", "pid": "인사팀" }, { "id": "강서구", "name": "강서구", "pid": "인사팀" }, { "id": "교육팀", "name": "교육팀", "description": "교육팀" }, { "id": "sjjung@uengine.org", "name": "정석진", "pid": "교육팀", "role": "팀장" }, { "id": "배동재", "name": "배동재", "pid": "교육팀" }, { "id": "김근영", "name": "김근영", "pid": "교육팀", "role": "회계담당" } 
+        //{ id: "devs", name: "개발팀", description: "Top Management" }, { id: "BPM", pid: "devs", name: "BPM팀", description: "BPM Team" }, { id: "HR", name: "인사팀", description: "Human Resource" }, { id: "education", name: "교육팀", description: "Education Team" }, { id: 1, stpid: "devs", name: "장진영", title: "CTO", email: "jyjang@uengine.org" }, { id: 2, stpid: "BPM", name: "김상훈", email: "sanghoon@uengine.org" }, { id: 3, stpid: "BPM", name: "이수헌"}, { id: 4, stpid: "BPM", name: "양성원"}, { id: 5, stpid: "BPM", name: "오순영", title: "회계담당" }, { id: 6, stpid: "HR", name: "서원주"}, { id: 7, stpid: "HR", name: "강서구"}, { id: 8, stpid: "education", name: "정석진", title: "팀장", email: "sjjung@uengine.org" }, { id: 9, stpid: "education", name: "배동재"}, { id: 10, stpid: "education", name: "김근영", title: "회계담당" } 
+
+                    // { id: 1, name: "Denny Curtis", title: "CEO", img: "https://cdn.balkan.app/shared/2.jpg" },
+                    // { id: 2, pid: 1, name: "Ashley Barnett", title: "Sales Manager", img: "https://cdn.balkan.app/shared/3.jpg" },
+                    // { id: 3, pid: 1, name: "Caden Ellison", title: "Dev Manager", img: "https://cdn.balkan.app/shared/4.jpg" },
+                    // { id: 4, pid: 2, name: "Elliot Patel", title: "Sales", img: "https://cdn.balkan.app/shared/5.jpg" },
+                    // { id: 5, pid: 2, name: "Lynn Hussain", title: "Sales", img: "https://cdn.balkan.app/shared/6.jpg" },
+                    // { id: 6, pid: 3, name: "Tanner May", title: "Developer", img: "https://cdn.balkan.app/shared/7.jpg" },
+                    // { id: 7, pid: 3, name: "Fran Parsons", title: "Developer", img: "https://cdn.balkan.app/shared/8.jpg" }
+
+
+        ]
     }),
     created() {
         this.generator = new ChatGenerator(this, {
@@ -140,18 +163,50 @@ export default {
 
         onModelCreated(response){
             let messageWriting = this.messages[this.messages.length -1];
-            messageWriting.content = response;
-
             if (response.includes("\n")) {
                 messageWriting.content = response.replace(/\n/g, "<br/>");
             }
+            messageWriting.content = response;
+
+            this.drawChart(messageWriting.content)
+
         },
 
+        drawChart(message){
+            let obj = partialParse(message)
 
-        onGenerationFinished(responses) {
+            if(obj.organizationChart){
+                this.organizationChart = obj.organizationChart
+
+                this.organizationChart.forEach(node=>node.img=`https://randomuser.me/api/portraits/women/${Math.round(Math.random() * 90)}.jpg`)
+
+            }
+        },
+
+        onGenerationFinished(responses){
             // console.log(responses);
             let messageWriting = this.messages[this.messages.length -1];
             delete messageWriting.isLoading;
+
+            if(this.processDefinition){
+                this.saveDefinition(this.processDefinition)
+            }
+        },
+
+        saveMessages(){
+            window.localStorage.setItem("organization-chart-conversation", JSON.stringify(this.messages))
+            window.localStorage.setItem("organization-chart", JSON.stringify(this.organizationChart))
+        },
+        loadMessages(){
+            this.messages = JSON.parse(window.localStorage.getItem("organization-chart-conversation"))
+            if(!this.messages)
+                this.messages = []
+
+            this.organizationChart = JSON.parse(window.localStorage.getItem("organization-chart"))
+            if(!this.organizationChart)
+                this.organizationChart = []
+
+            this.generator.previousMessages = [...this.generator.previousMessages, ...this.messages]
 
             this.saveMessages();
         },

@@ -9,6 +9,7 @@
         "build:icons": "node src/@iconify/build-icons.js"
     },
     "dependencies": {
+        "@balkangraph/orgchart.js": "^8.13.20",
         "@casl/ability": "^6.2.0",
         "@casl/vue": "^2.2.0",
         "@floating-ui/dom": "1.0.0",
