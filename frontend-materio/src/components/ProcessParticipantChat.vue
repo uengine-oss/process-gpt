@@ -472,9 +472,10 @@ ${value}
 .chat-open-box {
     position: fixed;
     z-index: 999;
+    top: 80px;
     bottom: 20px;
     width: 1211px;
-    height: 600px;
+    height: 650px;
 }
 
 .user-message {
