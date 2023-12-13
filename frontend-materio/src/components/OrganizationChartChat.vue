@@ -91,6 +91,11 @@
 <script>
 import ChatGenerator from "./ai/OrganizationChartGenerator.js";
 
+import OrganizationChart from "./ui/OrganizationChart.vue"
+import partialParse from "partial-json-parser";
+import { VectorStorage } from "vector-storage";
+import OrgChart from '@balkangraph/orgchart.js';
+
 export default {
     name: 'OrganizationChartChat',
     components: {
