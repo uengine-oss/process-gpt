@@ -38,7 +38,7 @@ export default {
     },
     
     data: () => ({
-        path: "todolists"
+        path: "todolist"
     }),
     created(){
     },

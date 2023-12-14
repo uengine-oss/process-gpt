@@ -34,7 +34,7 @@ export default {
     cards: [
       {
           text: "Todolist",
-          link: "/todolists",
+          link: "/todolist",
       },
     ],
   }),

@@ -5,6 +5,6 @@ import org.springframework.data.rest.core.annotation.RepositoryRestResource;
 import processgpt.domain.*;
 
 //<<< PoEAA / Repository
-@RepositoryRestResource(collectionResourceRel = "todolists", path = "todolists")
+@RepositoryRestResource(collectionResourceRel = "todolist", path = "todolist")
 public interface TodolistRepository
     extends PagingAndSortingRepository<Todolist, String> {}

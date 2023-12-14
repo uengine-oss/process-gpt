@@ -13,7 +13,7 @@ import processgpt.domain.*;
 //<<< Clean Arch / Inbound Adaptor
 
 @RestController
-// @RequestMapping(value="/todolists")
+// @RequestMapping(value="/todolist")
 @Transactional
 public class TodolistController {
 
@@ -21,7 +21,7 @@ public class TodolistController {
     TodolistRepository todolistRepository;
 
     @RequestMapping(
-        value = "todolists/{id}//todolist/{id}",
+        value = "todolist/{id}//todolist/{id}",
         method = RequestMethod.PUT,
         produces = "application/json;charset=UTF-8"
     )

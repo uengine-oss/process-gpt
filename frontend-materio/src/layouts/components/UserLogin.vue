@@ -1,12 +1,13 @@
 <template>
     <div>
-        <v-btn v-if="!isLogin"
-                color="primary"
+        <v-avatar v-if="!isLogin" 
+                style="cursor: pointer;"
+                color="grey"
                 variant="tonal"
-                @click="openLoginDialog"
+                @click="loginPage()"
         >
-            Login
-        </v-btn>
+            <v-icon>mdi-account</v-icon>
+        </v-avatar>
 
         <v-badge v-else
                 dot
@@ -72,30 +73,20 @@
                 <!-- !SECTION -->
             </v-avatar>
         </v-badge>
-
-        <!-- Login -->
-        <v-dialog v-model="loginDialog" width="500">
-            <Login />
-        </v-dialog>
     </div>
 </template>
 
 <script>
     import StorageBase from "@/components/storage/CommonStorageBase.vue";
-    import Login from "@/components/oauth/LoginByAcebase.vue";
 
     export default {
         mixins: [StorageBase],
-        components: {
-            Login
-        },
         data: () => ({
-            userName: "",
-            loginDialog: false,
+            userName: "",            
         }),
         methods: {
-            openLoginDialog() {
-                this.loginDialog = true;
+            loginPage() {
+                this.loginUser();
             },
         }
     }

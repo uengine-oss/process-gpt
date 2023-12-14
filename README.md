@@ -40,7 +40,7 @@ mvn spring-boot:run
 ```
 - todolist
 ```
- http :8088/todolists id="id" activityId="activityId" activityName="activityName" startDate="startDate" endDate="endDate" dueDate="dueDate" processDefinitionId="processDefinitionId" processInstanceId="processInstanceId" userId="userId" 
+ http :8088/todolist id="id" activityId="activityId" activityName="activityName" startDate="startDate" endDate="endDate" dueDate="dueDate" processDefinitionId="processDefinitionId" processInstanceId="processInstanceId" userId="userId" 
 ```
 
 

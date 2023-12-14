@@ -1,6 +1,6 @@
 ---
 paths:
-  '/todolists/{id}//todolist/{id}':
+  '/todolist/{id}//todolist/{id}':
     put:
       requestBody:
         content:
@@ -63,9 +63,9 @@ paths:
       operationId: UpdateTodolist
       summary: UpdateTodolist
       description: UpdateTodolist
-    summary: DeleteTodolist operation on todolists
-  '/todolists/{id}//todolist':
-    summary: CreateTodolist operation on todolists
+    summary: DeleteTodolist operation on todolist
+  '/todolist/{id}//todolist':
+    summary: CreateTodolist operation on todolist
     post:
       requestBody:
         content:
@@ -128,11 +128,11 @@ paths:
       operationId: CreateTodolist
       summary: CreateTodolist
       description: CreateTodolist
-  /todolists:
-    summary: Global operations on todolists
+  /todolist:
+    summary: Global operations on todolist
     get:
       tags:
-        - todolists
+        - todolist
       responses:
         '200':
           content:
@@ -142,7 +142,7 @@ paths:
                 items:
                   $ref: '#/components/schemas/Todolist'
               examples:
-                todolists_json:
+                todolist_json:
                   value:
                     - id: A string
                       activityId: A string
@@ -153,9 +153,9 @@ paths:
                       processDefinitionId: A string
                       processInstanceId: A string
                       userId: A string
-          description: Get list of todolists
+          description: Get list of todolist
       operationId: GetTodolist
-      summary: Get list of todolists
+      summary: Get list of todolist
     post:
       requestBody:
         content:
@@ -196,8 +196,8 @@ paths:
           description: Changed Todolist
       operationId: Post Todolist
       summary: Post Todolist
-  '/todolists/{id}':
-    summary: Specific operation on todolists
+  '/todolist/{id}':
+    summary: Specific operation on todolist
     get:
       parameters:
         - examples:
@@ -227,7 +227,7 @@ paths:
                     processDefinitionId: A string
                     processInstanceId: A string
                     userId: A string
-          description: todolists with specified id
+          description: todolist with specified id
       operationId: GetTodolistById
       summary: Get Todolist by id
       description: Get Todolist by id

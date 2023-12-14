@@ -2,35 +2,46 @@
 <html lang="en">
 
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Process-GPT</title>
-  <link rel="stylesheet" type="text/css" href="/loader.css" />
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Process-GPT</title>
+    <link rel="stylesheet" type="text/css" href="/loader.css" />
+
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/acebase-client@latest/dist/browser.min.js"></script>
 </head>
 
 <body>
-  <div id="app">
-    <div id="loading-bg">
-      <div class="loading-logo">
-      </div>
-      <div class="loading">
-        <div class="effect-1 effects"></div>
-        <div class="effect-2 effects"></div>
-        <div class="effect-3 effects"></div>
-      </div>
+    <div id="app">
+        <div id="loading-bg">
+            <div class="loading-logo"></div>
+            <div class="loading">
+                <div class="effect-1 effects"></div>
+                <div class="effect-2 effects"></div>
+                <div class="effect-3 effects"></div>
+            </div>
+        </div>
     </div>
-  </div>
-  <script type="module" src="/src/main.js"></script>
-  <script>
-    const loaderColor = localStorage.getItem('Materio-initial-loader-bg') || '#FFFFFF'
-    const primaryColor = localStorage.getItem('Materio-initial-loader-color') || '#9155FD'
+    <script type="module" src="/src/main.js"></script>
+    <script>
+        window.$acebase = new AceBaseClient({
+            host: "cuddly-dollop-r699j7x5q62pxgp-5757.app.github.dev",
+            port: 443,
+            dbname: "mydb",
+            https: false,
+        });
+        window.$acebase.ready(() => {
+            console.log("Connected successfully");
+        });
 
-    if (loaderColor)
-      document.documentElement.style.setProperty('--initial-loader-bg', loaderColor)
-    if (primaryColor)
-      document.documentElement.style.setProperty('--initial-loader-color', primaryColor)
+        const loaderColor = localStorage.getItem('Materio-initial-loader-bg') || '#FFFFFF'
+        const primaryColor = localStorage.getItem('Materio-initial-loader-color') || '#9155FD'
 
-  </script>
+        if (loaderColor) {
+            document.documentElement.style.setProperty('--initial-loader-bg', loaderColor)
+        }
+        if (primaryColor) {
+            document.documentElement.style.setProperty('--initial-loader-color', primaryColor)
+        }
+    </script>
 </body>
-
 </html>
