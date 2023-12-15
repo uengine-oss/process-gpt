@@ -123,14 +123,12 @@ export default {
 
                 this.init();
                 
-                this.messages.push(
-                    {
-                        role: "user",
-                        content: this.newMessage
-                    }
-                );
+                this.messages.push({
+                    role: "user",
+                    content: this.newMessage
+                });
 
-                if(!this.generator.contexts){
+                if(!this.generator.contexts) {
                     let contexts = await this.queryFromVectorDB(this.newMessage)
                     this.generator.setContexts(contexts)
                 }

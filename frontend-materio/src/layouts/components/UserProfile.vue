@@ -2,7 +2,7 @@
     <div>
         <v-btn v-if="!isLogin"
                 color="primary"
-                variant="tonal"
+                variant="text"
                 @click="openLoginDialog"
         >
             Login
@@ -75,28 +75,56 @@
 
         <!-- Login -->
         <v-dialog v-model="loginDialog" width="500">
-            <Login />
+            <Login @login="login" />
         </v-dialog>
     </div>
 </template>
 
 <script>
-    import StorageBase from "@/components/storage/CommonStorageBase.vue";
+    import StorageBase from "@/components/storage/CommonStorageBase";
     import Login from "@/components/oauth/LoginByAcebase.vue";
 
     export default {
-        mixins: [StorageBase],
         components: {
             Login
         },
         data: () => ({
-            userName: "",
+            storage: null,
             loginDialog: false,
         }),
+        computed: {
+            isLogin() {
+                const token = this.storage.isLogin;
+                if (token) {
+                    return true;
+                }
+                return false;
+            },
+            userName() {
+                const name = this.storage.userInfo.name;
+                if (name) {
+                    return name;
+                }
+                return "";
+            },
+        },
+        async created() {
+            this.storage = new StorageBase(this);
+            await this.storage.loginUser();
+        },
         methods: {
             openLoginDialog() {
                 this.loginDialog = true;
             },
+            closeLoginDialog() {
+                this.loginDialog = false;
+            },
+            async login(token) {
+                if (token) {
+                    await this.storage.loginUser();
+                    this.closeLoginDialog();
+                }
+            }
         }
     }
 </script>

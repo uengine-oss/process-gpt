@@ -1,10 +1,8 @@
 <template>
 
     <div>
-
         <organization-chart :nodes="organizationChart" :key="organizationChart.length"/>
-
-
+        
         <v-card class="chat-open-box">
             <v-alert
                     type="info"

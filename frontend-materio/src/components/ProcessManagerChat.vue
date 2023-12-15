@@ -88,11 +88,11 @@
 <script>
 import partialParse from "partial-json-parser";
 import { VectorStorage } from "vector-storage"
-import axios from "@axios";
 
-import BaseRepository from "./repository/BaseRepository";
 import ChatGenerator from "./ai/ProcessDefinitionGenerator.js";
 import ProcessDefinition from './ProcessDefinition.vue';
+
+import StorageBase from "./storage/CommonStorageBase";
 
 export default {
     name: 'ProcessManagerChat',
@@ -104,9 +104,12 @@ export default {
         newMessage: "",
         generator: null,
         processDefinition: null,
-        bpmn: null
+        bpmn: null,
+        storage: null,
     }),
     created() {
+        this.storage = new StorageBase(this);
+
         this.generator = new ChatGenerator(this, {
             isStream: true,
             preferredLanguage: "Korean"
@@ -388,6 +391,16 @@ export default {
         },
 
         async saveDefinition(definition){
+            var me = this;
+            var putObj = {
+                lastModifiedTimeStamp: Date.now(),
+                lastModifiedUser: me.storage.userInfo.uid,
+                lastModifiedEmail: me.storage.userInfo.email,
+                definitionName: definition.processDefinitionName
+            }
+            
+            await me.storage.putObject(`db://definitions/${definition.processDefinitionId}/information`, putObj);
+
             // Create an instance of VectorStorage
             const vectorStore = new VectorStorage({ openAIApiKey: this.generator.getToken() });
 
@@ -399,7 +412,7 @@ export default {
         },
 
         onGenerationFinished(responses){
-            console.log(responses);
+            // console.log(responses);
             let messageWriting = this.messages[this.messages.length -1];
             delete messageWriting.isLoading;
 
@@ -410,8 +423,8 @@ export default {
             this.saveMessages();
         },
 
-        saveMessages() {
-            window.localStorage.setItem("process-definition-conversation", JSON.stringify(this.messages));
+        async saveMessages() {
+            // window.localStorage.setItem("process-definition-conversation", JSON.stringify(this.messages));
         },
 
         loadMessages() {

@@ -3,17 +3,7 @@ import { VerticalNavLink, VerticalNavSectionTitle } from '@layouts'
 
 import partialParse from "partial-json-parser";
 let definitions = [];
-let chatList = localStorage.getItem("process-definition-conversation");
-if (chatList) {
-    chatList = partialParse(chatList);
-    chatList = chatList.filter(chat => chat.role == "system");
-    chatList.forEach(chat => {
-        var arr = chat.content.split("--- json ---");
-        var content = arr.pop().replace(/<[^>]*>?/g, "\n");
-        const definition = partialParse(content);
-        definitions.push(definition);
-    });
-}
+
 </script>
 
 <template>

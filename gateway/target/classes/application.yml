@@ -20,7 +20,7 @@ spring:
         - id: todolist
           uri: http://localhost:8084
           predicates:
-            - Path=/todolists/**, 
+            - Path=/todolist/**, 
         - id: frontend
           uri: http://localhost:8080
           predicates:
@@ -56,7 +56,7 @@ spring:
         - id: todolist
           uri: http://todolist:8080
           predicates:
-            - Path=/todolists/**, 
+            - Path=/todolist/**, 
         - id: frontend
           uri: http://frontend:8080
           predicates:
