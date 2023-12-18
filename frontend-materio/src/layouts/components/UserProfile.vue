@@ -81,7 +81,7 @@
 </template>
 
 <script>
-    import StorageBase from "@/components/storage/CommonStorageBase";
+    import CommonStorageBase from "@/components/storage/CommonStorageBase";
     import Login from "@/components/oauth/LoginByAcebase.vue";
 
     export default {
@@ -109,7 +109,7 @@
             },
         },
         async created() {
-            this.storage = new StorageBase(this);
+            this.storage = new CommonStorageBase(this);
             await this.storage.loginUser();
         },
         methods: {

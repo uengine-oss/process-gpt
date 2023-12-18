@@ -117,7 +117,7 @@
             }
         },
         created() {
-            this.storage = new StorageBase(this);
+            this.storage = new CommonStorageBase(this);
         },
         methods: {
             async signInAcebase() {
