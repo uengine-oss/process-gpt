@@ -1,156 +1,113 @@
 <template>
     <div>
-        <v-card class="chat-open-box">
-            <v-card-text class="message-box" ref="messages">
-                <div v-for="(message, index) in messages"
-                        :key="index"
-                >
-                    <div v-if="message.role == 'user'"
-                            class="d-flex justify-end my-2"
-                    >
-                        <v-sheet class="user-message pa-3"
-                                color="primary"
-                        >
-                            <div v-html="message.content"></div>
-                        </v-sheet>
-                        <div class="ml-2">
-                            <v-avatar size="48">
-                                <v-icon>
-                                    mdi-account-circle
-                                </v-icon>
-                            </v-avatar>
-                            <div class="subtitle-2 text-center">
-                                User
-                            </div>
-                        </div>
-                    </div>
-
-                    <div v-else-if="message.role == 'system'"
-                            class="d-flex justify-start my-2"
-                    >
-                        <div class="mr-2">
-                            <v-avatar size="48">
-                                <v-icon>
-                                    mdi-account-circle
-                                </v-icon>
-                            </v-avatar>
-                            <div class="subtitle-2 text-center">
-                                System
-                            </div>
-                        </div>
-                        <v-sheet class="system-message pa-3"
-                                color="grey-200"
-                        >
-                            <div v-html="message.content"></div>
-                            <v-progress-circular
-                                    v-if="message.isLoading"
-                                    indeterminate
-                                    color="grey"
-                            ></v-progress-circular>
-                        </v-sheet>
-                        <vue-bpmn v-if="message.bpmn"
-                                :key="message.bpmn.length"
-                                :bpmn="message.bpmn"
-                                :options="options"
-                                v-on:error="handleError"
-                                v-on:shown="handleShown"
-                                v-on:loading="handleLoading"
-                        ></vue-bpmn>
-                    </div>
-                </div>
-            </v-card-text>
-
-            <v-card-actions class="chat-box">
-                <v-textarea
-                        v-model="newMessage"
-                        label="Send Message"
-                        rows="1"
-                        auto-grow
-                        autofocus
-                >
-                    <template v-slot:append-inner>
-                        <v-btn @click="sendMessage"
-                                color="primary"
-                                icon
-                                small
-                        >
-                            <v-icon>mdi-send</v-icon>
-                        </v-btn>
-                    </template>
-                </v-textarea>
-            </v-card-actions>
-        </v-card>
+        <Chat :messages="messages"
+            @sendMessage="beforeSendMessage"
+        />
     </div>
 </template>
 
 <script>
+import partialParse from "partial-json-parser";
+import { VectorStorage } from "vector-storage";
+
 import ChatGenerator from "./ai/ProcessInstanceGenerator.js";
 
-import BaseRepository from "./repository/BaseRepository";
-import axios from "@axios";
-import VueBpmn from './Bpmn.vue';
-import partialParse from "partial-json-parser";
-import { VectorStorage } from "vector-storage"
+import ChatModule from "./ChatModule.vue";
+import Chat from "./Chat.vue"
+
 
 export default {
+    mixins: [ChatModule],
     name: 'ProcessParticipantChat',
     components: {
-        VueBpmn
+        Chat
     },
     data: () => ({
-        messages: [],
-        newMessage: "",
-        generator: null,
-        bpmn: null
+        bpmn: null,
+        path: "instances",
     }),
-    created() {
+    async created() {
+        this.init();
+
         this.generator = new ChatGenerator(this, {
             isStream: true,
             preferredLanguage: "Korean"
         });
-        this.init();
+
+        var path = this.$route.href.replace("#/", "");
+        await this.loadMessages(path);
     },
-    methods:{
-        init() {
-            this.loadMessages()
-        },
+    watch: {
+        "$route": {
+            deep: true,
+            async handler(newVal, oldVal) {
+                if (newVal.path !== oldVal.path) {
+                    this.bpmn = null;
 
-        async sendMessage() {
-            if (this.newMessage !== "") {
-                if(this.newMessage.includes("\n")) {
-                    this.newMessage = this.newMessage.replace(/\n/g, "<br/>");
+                    var path = this.$route.href.replace("#/", "");
+                    await this.loadMessages(path);
+                }
+            }
+        }
+    },
+    methods: {
+        loadData() {
+            if (this.$route.params && this.$route.params.id) {
+                var jsonData = partialParse(this.value.model);
+                if (jsonData) {
+                    this.bpmn = this.createBpmnXml(jsonData);
                 }
 
-                this.init();
-                
-                this.messages.push({
-                    role: "user",
-                    content: this.newMessage
-                });
+            } else {
+                if (this.value) {
+                    this.messages = [];
+                    
+                    var list = Object.values(this.value);
+                    list.forEach(item => {
+                        const msg = JSON.parse(item.messages);
+                        this.messages = [...this.messages, ...msg];
+                    });
 
-                if(!this.generator.contexts) {
-                    let contexts = await this.queryFromVectorDB(this.newMessage)
-                    this.generator.setContexts(contexts)
+                    this.generator.previousMessages = [...this.generator.previousMessages, ...this.messages];
                 }
-
-                this.generator.generate();
-    
-
-                this.messages.push({
-                    role:'system',
-                    content: '...',
-                    isLoading: true,
-                });
-
-                this.newMessage = "";
-
-                this.saveMessages()
-
             }
         },
 
+        async beforeSendMessage(newMessage) {
+            if(!this.generator.contexts) {
+                let contexts = await this.queryFromVectorDB(newMessage);
+                this.generator.setContexts(contexts);
+            }
+
+            this.sendMessage(newMessage);
+        },
+
+        afterModelCreated(response) {
+            let messageWriting = this.messages[this.messages.length -1];
+            let jsonProcess = this.extractProcessJson(response);
+
+            if (jsonProcess) {
+                var jsonData = partialParse(jsonProcess);
+                messageWriting.bpmn = this.createBpmnXml(jsonData);
+                this.bpmn = messageWriting.bpmn;
+            }
+        },
+
+        afterGenerationFinished(putObj){
+            var modelText = "";
+            if (this.processDefinition) {
+                modelText = JSON.stringify(this.processDefinition);
+                this.saveDefinition(this.processDefinition);
+            }
+
+            putObj.model = modelText;
+            this.saveMessages(`${this.path}`, putObj);
+        },
+
         async queryFromVectorDB(messsage){
-            const vectorStore = new VectorStorage({ openAIApiKey: this.generator.getToken() });
+            const vectorStore = new VectorStorage({
+                openAIApiKey: this.generator.getToken()
+            });
 
             // Perform a similarity search
             const results = await vectorStore.similaritySearch({
@@ -159,38 +116,8 @@ export default {
 
             console.log(results.similarItems)
 
-            if(results.similarItems)
+            if (results.similarItems) {
                 return results.similarItems.map(item => item.text)
-            
-        },
-
-        onModelCreated(response){
-
-            let messageWriting = this.messages[this.messages.length -1];
-            messageWriting.content = response;
-
-            if (response.includes("\n")) {
-                messageWriting.content = response.replace(/\n/g, "<br/>");
-            }
-
-            let jsonProcess = this.extractJSON(response);
-            if(!jsonProcess) {
-                jsonProcess = this.extractCode(response);
-            }
-            if(response.startsWith("{")) {
-                jsonProcess = response;
-            }
-
-            if(jsonProcess && jsonProcess.processDefinitionId) {
-
-                jsonProcess = partialParse(jsonProcess);
-                messageWriting.content = jsonProcess.description;
-                this.processDefinition = jsonProcess;
-
-                messageWriting.bpmn = this.createBpmnXml(jsonProcess);
-            
-                console.log(messageWriting.bpmn);
-
             }
         },
 
@@ -312,48 +239,7 @@ export default {
             const regex = /```\s*([\s\S]*?)(?:\n\s*```|$)/;
             const match = text.match(regex);
             return match ? match[1].trim() : null;
-        },
-
-        onGenerationFinished(responses){
-            // console.log(responses);
-            let messageWriting = this.messages[this.messages.length -1];
-            delete messageWriting.isLoading;
-
-            this.saveMessages();
-        },
-
-        onError(error) {
-            if (error.code === "invalid_api_key") {
-                var apiKey = prompt("API Key 를 입력하세요.");
-                localStorage.setItem("openAIToken", apiKey);
-                
-                this.generator.generate();
-                
-            } else {
-                console.log(error)
-                var message = {
-                    role:'system',
-                    content: error.message
-                };
-
-                this.messages.push(message);
-            }
-        },
-
-        saveMessages(){
-            window.localStorage.setItem("process-instance-conversation", JSON.stringify(this.messages))
-        },
-        
-        loadMessages(){
-            this.messages = JSON.parse(window.localStorage.getItem("process-instance-conversation"))
-            if(!this.messages)
-                this.messages = []
-
-            this.generator.previousMessages = [...this.generator.previousMessages, ...this.messages]
-
-            console.log(this.generator.previousMessages)
-        },
-        
+        },        
     }
 }
 </script>

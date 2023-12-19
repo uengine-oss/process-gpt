@@ -58,14 +58,16 @@
                         <v-divider class="my-2"></v-divider>
                         
                         <!-- 👉 Logout -->
-                        <v-list-item>
+                        <v-list-item @click="logout">
                             <template #prepend>
                                 <v-icon class="me-2"
                                         size="22"
                                 >mdi-logout-variant</v-icon>
                             </template>
 
-                            <v-list-itemTitle>Logout</v-list-itemTitle>
+                            <v-list-item-title>
+                                Logout
+                            </v-list-item-title>
                         </v-list-item>
                     </v-list>
                 </v-menu>
@@ -123,7 +125,12 @@
                 if (token) {
                     await this.storage.loginUser();
                     this.closeLoginDialog();
+                    location.reload(true);
                 }
+            },
+            async logout() {
+                await this.storage.logout();
+                location.reload(true);
             }
         }
     }

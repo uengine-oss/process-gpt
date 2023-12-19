@@ -33,12 +33,8 @@ export default {
         }
     }),
     created() {
-        this.init();
     },
     methods:{
-        init() {
-            console.log(this.bpmn);
-        },
         handleError() {
             console.error('failed to show diagram', err);
         },

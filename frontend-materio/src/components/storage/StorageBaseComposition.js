@@ -17,7 +17,7 @@ export default class StorageBaseComposition extends StorageBaseAbstract {
         path = path.includes('://') ? path.split('://')[1] : path;
             return server.getMetadata(path);
     }
-        _watch(path, callback) {
+    _watch(path, callback) {
         var server = this.getServer(path);
         path = path.includes('://') ? path.split('://')[1] : path;
             return server.watch(path, callback);
@@ -56,6 +56,9 @@ export default class StorageBaseComposition extends StorageBaseAbstract {
             return await server._signIn(userInfo);
         else
             return null
+    }
+    async _signOut(path, userInfo) {
+        return await this.db._signOut(userInfo);
     }
     _put(path, string, isString) {
         var server = this.getServer(path);

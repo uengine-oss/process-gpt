@@ -26,6 +26,16 @@ export default class StorageBaseAceBase_ {
         })
     }
 
+    _signOut(userInfo) {
+        return new Promise(function (resolve, reject) {
+            window.$acebase.auth.signOut().then(result => {
+                resolve(result)
+            }).catch(e => {
+                reject(e)
+            })
+        })
+    }
+
     _getRef(auth) {
         if (auth && auth == 'auth') {
             return window.$acebase.auth

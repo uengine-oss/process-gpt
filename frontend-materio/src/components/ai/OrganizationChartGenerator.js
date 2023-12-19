@@ -64,14 +64,6 @@ export default class OrganizationChartGenerator extends AIGenerator{
             }];
     }
 
-    // setContexts(contexts){
-    //   this.contexts = contexts;
-      
-    //   contexts.forEach(context=>{
-    //     this.previousMessages[0].content += context + "\n\n"
-    //   })
-    // }
-
     createPrompt(){
        return this.client.newMessage
     }

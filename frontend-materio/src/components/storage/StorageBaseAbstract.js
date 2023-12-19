@@ -20,26 +20,6 @@ export default class StorageBaseAbstract extends TenantAware {
         this.isLogin = false;
         this.isGuestLogin = false;
     }
-    
-    // myId() {
-    //     if (this.userInfo.email)
-    //         return this.userInfo.email
-    //     return localStorage.getItem("email");
-    // }
-
-    // isLogin() {
-    //     if (this.accessToken) {
-    //         return true
-    //     }
-    //     return false
-    // }
-
-    // isGuestLogin() {
-    //     if (!this.accessToken && this.userInfo.name) {
-    //         return true
-    //     }
-    //     return false
-    // }
 
     _getMetadata(path) {
         throw new Error("must be implemented");
@@ -74,6 +54,10 @@ export default class StorageBaseAbstract extends TenantAware {
     }
 
     _signIn(path, metadata, tenant) {
+        throw new Error("must be implemented");
+    }
+
+    _signOut(path, metadata, tenant) {
         throw new Error("must be implemented");
     }
 
@@ -203,6 +187,10 @@ export default class StorageBaseAbstract extends TenantAware {
 
     async signIn(path, userInfo) {
         return await this._signIn(path, userInfo);
+    }
+
+    async signOut(path, userInfo) {
+        return await this._signOut(path, userInfo);
     }
 
     initUserInfo() {

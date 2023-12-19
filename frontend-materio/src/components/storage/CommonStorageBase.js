@@ -8,16 +8,20 @@ export default class CommonStorageBase extends StorageBase {
     async setUserInfo() {
         var me = this;
         var user = null;
-        if (localStorage.getItem("accessToken")) {
-            me.isLogin = true;
-            user = await me.getUserInfo();
+        user = await me.getUserInfo();
+        if (user) {
+            if (user.accessToken) {
+                me.isLogin = true;
+            } else {
+                if (user.name) {
+                    me.isGuestLogin = true;
+                } else {
+                    me.isGuestLogin = false;
+                }
+            }
         } else {
             me.isLogin = false;
-            if (me.userInfo.name) {
-                me.isGuestLogin = true;
-            } else {
-                me.isGuestLogin = false;
-            }
+            me.isGuestLogin = false;
         }
         me._setUserInfo(user);
     }
@@ -25,12 +29,18 @@ export default class CommonStorageBase extends StorageBase {
     async loginUser() {
         var me = this;
         await me.setUserInfo();
-        if (me.isLogin) {
-            if (me.userInfo.email) {
-                me.getUserPurchaseLists();
-            }
-        } else if (!me.isLogin && !me.isGuestLogin) {
+        if (!me.isLogin && !me.isGuestLogin) {
             me.initUserInfo();
         }
+    }
+
+    async logout() {
+        var me = this;
+        localStorage.clear();
+        if (me.isLogin) {
+            await me.signOut();
+        }
+        await me.initUserInfo();
+        await me.setUserInfo();
     }
 }

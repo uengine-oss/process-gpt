@@ -1,11 +1,3 @@
-<script setup>
-import { VerticalNavLink, VerticalNavSectionTitle } from '@layouts'
-
-import partialParse from "partial-json-parser";
-let definitions = [];
-
-</script>
-
 <template>
     <ul>
         <VerticalNavSectionTitle :item="{ heading: '정의 관리' }" />
@@ -50,3 +42,35 @@ let definitions = [];
         />
     </ul>
 </template>
+
+<script>
+import { VerticalNavLink, VerticalNavSectionTitle } from '@layouts';
+
+import partialParse from "partial-json-parser";
+import CommonStorageBase from "@/components/storage/CommonStorageBase";
+
+export default {
+    components: {
+        VerticalNavLink, 
+        VerticalNavSectionTitle
+    },
+    data: () => ({
+        storage: null,
+        definitions: [],
+    }),
+    async created() {
+        this.storage = new CommonStorageBase(this);
+        await this.storage.loginUser();
+
+        let list = await this.storage.list(`db://definitions`);
+        if (list) {
+            list = Object.values(list);
+            list.forEach(item => {
+                if (item && item.model) {
+                    this.definitions.push(partialParse(item.model));
+                }
+            });
+        }
+    },
+}
+</script>
