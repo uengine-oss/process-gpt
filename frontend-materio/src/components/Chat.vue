@@ -1,13 +1,8 @@
 <template>
     <div>
         <v-card class="chat-open-box">
-            <!-- <v-alert
-                    type="info"
-                    color="deep-purple-accent-4"
-                    title="조직도 관리"
-                    text="대화형으로 조직도를 관리하십시오.
-                    팀(부서) 롤(역할), 직원들을 등록 수정 삭제할 수 있습니다. 예를 들어, 'OOO님을 신입사원으로 관리팀에 등록해줘. 이메일 주소는 new@company.com 이야. 역할은 개발자로 들어오셨어.'와 같은 명령을 할 수 있습니다."
-            ></v-alert> -->
+            <!-- slot -->
+            <slot></slot>
 
             <v-card-text class="message-box">
                 <div v-for="(message, index) in messages"
@@ -49,13 +44,14 @@
                         <v-sheet class="system-message pa-3"
                                 color="grey-200"
                         >
-                            <v-progress-circular
-                                    v-if="message.isLoading"
-                                    indeterminate
-                                    color="grey"
-                            ></v-progress-circular>
                             <div v-html="message.content"></div>
                         </v-sheet>
+                        <v-progress-circular
+                                v-if="message.isLoading"
+                                indeterminate
+                                color="grey"
+                                class="ml-2 mt-2"
+                        ></v-progress-circular>
                     </div>
                 </div>
             </v-card-text>
@@ -104,7 +100,8 @@ export default {
 
 <style scoped>
 .chat-open-box {
-    min-height: 84vh;
+    height: calc(100vh - 112px);
+    max-height: calc(100vh - 112px);
 }
 
 .user-message {
@@ -114,12 +111,12 @@ export default {
 
 .system-message {
     border-radius: 20px;
-    max-width: 95%;
+    max-width: 90%;
 }
 
 .message-box {
     overflow-y: auto;
-    max-height: 74vh;
+    max-height: calc(100% - 65px);
 }
 
 .chat-box {

@@ -1,14 +1,21 @@
 <template>
-
     <div>
         <organization-chart 
-            :nodes="organizationChart" 
-            :key="organizationChart.length"
+                v-if="organizationChart.length > 0"
+                :nodes="organizationChart" 
+                :key="organizationChart.length"
         ></organization-chart>
 
-        <Chat :messages="messages"
-            @sendMessage="beforeSendMessage"
-        />
+        <chat :messages="messages"
+                @sendMessage="beforeSendMessage"
+        >
+            <v-alert type="info"
+                    color="deep-purple-accent-4"
+                    title="조직도 관리"
+                    text="대화형으로 조직도를 관리하십시오.
+                    팀(부서) 롤(역할), 직원들을 등록 수정 삭제할 수 있습니다. 예를 들어, 'OOO님을 신입사원으로 관리팀에 등록해줘. 이메일 주소는 new@company.com 이야. 역할은 개발자로 들어오셨어.'와 같은 명령을 할 수 있습니다."
+            ></v-alert>
+        </chat>
     </div>
 </template>
 
@@ -40,14 +47,19 @@ export default {
             isStream: true,
             preferredLanguage: "Korean"
         });
-
-        await this.loadMessages();
+        
+        this.loadMessages();
+        this.loadData(this.path);
     },
     methods: {
-        loadData() {
-            this.organizationChart = JSON.parse(this.value.organizationChart);
-            if (!this.organizationChart) {
-                this.organizationChart = []
+        async loadData(path) {
+            const value = await this.getData(path);
+
+            if (value) {
+                this.organizationChart = JSON.parse(value.organizationChart);
+                if (!this.organizationChart) {
+                    this.organizationChart = []
+                }
             }
         },
 
@@ -62,7 +74,7 @@ export default {
         drawChart(textData) {
             let obj = partialParse(textData);
 
-            if(obj.organizationChart){
+            if(obj && obj.organizationChart) {
                 this.organizationChart = obj.organizationChart;
 
                 this.organizationChart.forEach(node => node.img=`https://randomuser.me/api/portraits/women/${Math.round(Math.random() * 90)}.jpg`);

@@ -24,6 +24,10 @@ const router = createRouter({
       component: () => import('../components/ProcessParticipantChat.vue'),
     },
     {
+      path: '/instances/:id',
+      component: () => import('../components/ProcessParticipantChat.vue'),
+    },
+    {
       path: '/todolist',
       component: () => import('../components/ui/TodolistGrid.vue'),
     },

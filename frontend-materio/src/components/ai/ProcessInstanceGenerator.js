@@ -6,16 +6,8 @@ export default class ProcessDefinitionGenerator extends AIGenerator {
         super(client, language);
 
         this.contexts = null;
-
-        let organizationChartConversion = JSON.parse(localStorage.getItem("organization-chart-conversation"));
-
-        if (!organizationChartConversion) {
-            return;
-        }
-
-        let organizationChart = organizationChartConversion.map(message => 
-            message.role + ":" + message.content + "\n"
-        ).reduce((a,b) => a+b, "");
+        
+        const organizationChart = JSON.stringify(client.organizationChart);
 
         this.previousMessages = [{
             role: 'system', 
@@ -68,8 +60,14 @@ export default class ProcessDefinitionGenerator extends AIGenerator {
             설명의 결과도 위의 프로세스 정의의 json format 을 따라 리턴해줘
             
             - 진행중 프로세스의 다음 단계의 설명:  작업자가 프로세스를 시작했거나, 중간 단계를 완료하면, 해당 작업의 다음단계를 다음과 같이 안내해줘야 해.
+
+            (실제 유저의 정보는 프로세스 정의를 확인하여 해당 팀 혹은 역할을 가진 사람을 현재 조직도에서 최대한 찾아줘.)
             
-            이 결과는 다음 json format 으로 리턴해줘: (실제 유저는 프로세스 정의를 확인하여 해당 팀 혹은 역할을 가진 사람을 조직도에서 최대한 찾아줘)
+            이 결과는 다음 json format 으로 리턴해줘. 예를 들면 :
+            
+            진행중 프로세스에 대한 설명입니다.
+
+            --- json ---
             
             {processInstanceId: "process instance id”, 
              description : "description of process instance’s status in natural language”,
@@ -100,16 +98,16 @@ export default class ProcessDefinitionGenerator extends AIGenerator {
         }];
     }
 
-    setContexts(contexts){
+    setContexts(contexts) {
         this.contexts = contexts;
-        
-        contexts.forEach(context=>{
-            this.previousMessages[0].content += context + "\n\n"
-        })
+
+        contexts.forEach(context => {
+            this.previousMessages[0].content += context + "\n\n";
+        });
     }
 
-    createPrompt(){
-        return this.client.newMessage
+    createPrompt() {
+        return this.client.newMessage;
     }
 
 }

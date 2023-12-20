@@ -32,6 +32,14 @@
                 icon: 'mdi-plus'
             }"
         />
+        <VerticalNavLink
+            v-for="instance in instances"
+            :key="instance.processInstanceId"
+            :item="{
+                title: instance.processInstanceId,
+                to: `/instances/${instance.processInstanceId}`,
+            }"
+        />
         
         <VerticalNavSectionTitle :item="{ heading: 'ToDoList' }" />
         <VerticalNavLink
@@ -57,20 +65,27 @@ export default {
     data: () => ({
         storage: null,
         definitions: [],
+        instances: []
     }),
     async created() {
         this.storage = new CommonStorageBase(this);
         await this.storage.loginUser();
 
-        let list = await this.storage.list(`db://definitions`);
-        if (list) {
-            list = Object.values(list);
-            list.forEach(item => {
-                if (item && item.model) {
-                    this.definitions.push(partialParse(item.model));
-                }
-            });
-        }
+        this.getList("definitions");
+        this.getList("instances");
     },
+    methods: {
+        async getList(path) {
+            let list = await this.storage.list(`db://${path}`);
+            if (list) {
+                list = Object.values(list);
+                list.forEach(item => {
+                    if (item && item.model) {
+                        this[path].push(partialParse(item.model));
+                    }
+                });
+            }
+        }
+    }
 }
 </script>

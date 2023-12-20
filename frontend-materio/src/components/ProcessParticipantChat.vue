@@ -1,7 +1,12 @@
 <template>
     <div>
+        <process-definition
+                v-if="bpmn"
+                :bpmn="bpmn"
+        ></process-definition>
+
         <Chat :messages="messages"
-            @sendMessage="beforeSendMessage"
+                @sendMessage="beforeSendMessage"
         />
     </div>
 </template>
@@ -11,6 +16,7 @@ import partialParse from "partial-json-parser";
 import { VectorStorage } from "vector-storage";
 
 import ChatGenerator from "./ai/ProcessInstanceGenerator.js";
+import ProcessDefinition from './ProcessDefinition.vue';
 
 import ChatModule from "./ChatModule.vue";
 import Chat from "./Chat.vue"
@@ -20,14 +26,19 @@ export default {
     mixins: [ChatModule],
     name: 'ProcessParticipantChat',
     components: {
-        Chat
+        ProcessDefinition,
+        Chat,
     },
     data: () => ({
+        processInstance: null,
         bpmn: null,
         path: "instances",
+        organizationChart: [],
     }),
     async created() {
         this.init();
+
+        await this.loadData("organization");
 
         this.generator = new ChatGenerator(this, {
             isStream: true,
@@ -35,7 +46,13 @@ export default {
         });
 
         var path = this.$route.href.replace("#/", "");
-        await this.loadMessages(path);
+        if (this.$route.params && this.$route.params.id) {
+            this.loadMessages(path);
+        } else {
+            this.loadMessages();
+        }
+        this.loadData(path);
+
     },
     watch: {
         "$route": {
@@ -46,29 +63,43 @@ export default {
 
                     var path = this.$route.href.replace("#/", "");
                     await this.loadMessages(path);
+                    this.loadData(path);
                 }
             }
         }
     },
     methods: {
-        loadData() {
-            if (this.$route.params && this.$route.params.id) {
-                var jsonData = partialParse(this.value.model);
-                if (jsonData) {
-                    this.bpmn = this.createBpmnXml(jsonData);
-                }
+        async loadData(path) {
+            const value = await this.getData(path);
 
-            } else {
-                if (this.value) {
-                    this.messages = [];
+            if (value) {
+                if (value.organizationChart) {
+                    this.organizationChart = JSON.parse(value.organizationChart);
                     
-                    var list = Object.values(this.value);
-                    list.forEach(item => {
-                        const msg = JSON.parse(item.messages);
-                        this.messages = [...this.messages, ...msg];
-                    });
+                    if (!this.organizationChart) {
+                        this.organizationChart = []
+                    }
+                } else {
+                    if (this.$route.params && this.$route.params.id) {
+                        var jsonData = partialParse(value.model);
+                        if (jsonData) {
+                            this.bpmn = this.createBpmnXml(jsonData);
+                        }
 
-                    this.generator.previousMessages = [...this.generator.previousMessages, ...this.messages];
+                    } else {
+                        this.messages = [];
+                        
+                        var list = Object.values(value);
+                        list.forEach(item => {
+                            const msg = JSON.parse(item.messages);
+                            this.messages = [...this.messages, ...msg];
+                        });
+
+                        this.generator.previousMessages = [
+                            ...this.generator.previousMessages,
+                            ...this.messages
+                        ];
+                    }
                 }
             }
         },
@@ -83,41 +114,46 @@ export default {
         },
 
         afterModelCreated(response) {
-            let messageWriting = this.messages[this.messages.length -1];
-            let jsonProcess = this.extractProcessJson(response);
+            let jsonInstance = this.extractProcessJson(response);
 
-            if (jsonProcess) {
-                var jsonData = partialParse(jsonProcess);
-                messageWriting.bpmn = this.createBpmnXml(jsonData);
-                this.bpmn = messageWriting.bpmn;
+            if (jsonInstance) {
+                try {
+                    this.processInstance = partialParse(jsonInstance);
+                } catch (error) {
+                    this.processInstance = jsonInstance;
+                    console.log(error)
+                }
             }
         },
 
-        afterGenerationFinished(putObj){
-            var modelText = "";
-            if (this.processDefinition) {
-                modelText = JSON.stringify(this.processDefinition);
-                this.saveDefinition(this.processDefinition);
-            }
+        afterGenerationFinished(putObj) {
+            let modelText = "";
+            let path = this.path;
+            
+            if (this.processInstance) {
+                if (typeof this.processInstance === "string") {
+                    this.processInstance = partialParse(this.processInstance);
+                }
+                path = `${this.path}/${this.processInstance.processInstanceId}`;
+                modelText = JSON.stringify(this.processInstance);
+            }            
 
             putObj.model = modelText;
-            this.saveMessages(`${this.path}`, putObj);
+
+            this.saveMessages(path, putObj);
         },
 
         async queryFromVectorDB(messsage){
-            const vectorStore = new VectorStorage({
-                openAIApiKey: this.generator.getToken()
-            });
+            const apiToken = this.generator.getToken();
+            const vectorStore = new VectorStorage({ openAIApiKey: apiToken });
 
             // Perform a similarity search
             const results = await vectorStore.similaritySearch({
                 query: messsage
             });
 
-            console.log(results.similarItems)
-
             if (results.similarItems) {
-                return results.similarItems.map(item => item.text)
+                return results.similarItems.map(item => item.text);
             }
         },
 
@@ -219,27 +255,6 @@ export default {
             const xmlString = serializer.serializeToString(xmlDoc);
             return xmlString;
         },
-
-        extractJSON(text) {            
-            const regex = /```xml\s*([\s\S]*?)(?:\n\s*```|$)/;
-            const match = text.match(regex);
-            return match ? match[1].trim() : null;
-        },
-        extractXML(text) {            
-            const regex = /```json\s*([\s\S]*?)(?:\n\s*```|$)/;
-            const match = text.match(regex);
-            return match ? match[1].trim() : null;
-        },
-        extractBPMN(text) {
-            const regex = /```bpmn\s*([\s\S]*?)(?:\n\s*```|$)/;
-            const match = text.match(regex);
-            return match ? match[1].trim() : null;
-        },
-        extractCode(text) {
-            const regex = /```\s*([\s\S]*?)(?:\n\s*```|$)/;
-            const match = text.match(regex);
-            return match ? match[1].trim() : null;
-        },        
     }
 }
 </script>

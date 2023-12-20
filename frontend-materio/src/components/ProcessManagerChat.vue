@@ -1,13 +1,13 @@
 <template>
     <div>
         <process-definition
-            v-if="bpmn"
-            :bpmn="bpmn"
-            :processDefinition="processDefinition"
+                v-if="bpmn"
+                :bpmn="bpmn"
+                :processDefinition="processDefinition"
         ></process-definition>
         
         <Chat :messages="messages"
-            @sendMessage="beforeSendMessage"
+                @sendMessage="beforeSendMessage"
         />
     </div>
 </template>
@@ -27,13 +27,12 @@ export default {
     name: 'ProcessManagerChat',
     components: {
         ProcessDefinition,
-        Chat
+        Chat,
     },
     data: () => ({
         processDefinition: null,
         bpmn: null,
         path: "definitions",
-        vectorStore: null,
     }),
     async created() {
         this.init();
@@ -44,7 +43,12 @@ export default {
         });
 
         var path = this.$route.href.replace("#/", "");
-        await this.loadMessages(path);
+        if (this.$route.params && this.$route.params.id) {
+            this.loadMessages(path);
+        } else {
+            this.loadMessages();
+        }
+        this.loadData(path);
     },
     watch: {
         "$route": {
@@ -56,25 +60,28 @@ export default {
 
                     var path = this.$route.href.replace("#/", "");
                     await this.loadMessages(path);
+                    this.loadData(path);
                 }
             }
         }
     },
     methods: {
-        loadData() {
-            if (this.$route.params && this.$route.params.id) {
-                this.processDefinition = partialParse(this.value.model);
-                if (!this.processDefinition) {
-                    this.processDefinition = []
-                } else {
-                    this.bpmn = this.createBpmnXml(this.processDefinition);
-                }
+        async loadData(path) {
+            const value = await this.getData(path);
 
-            } else {
-                if (this.value) {
+            if (value) {
+                if (this.$route.params && this.$route.params.id) {
+                    this.processDefinition = partialParse(value.model);
+                    if (!this.processDefinition) {
+                        this.processDefinition = []
+                    } else {
+                        this.bpmn = this.createBpmnXml(this.processDefinition);
+                    }
+
+                } else {
                     this.messages = [];
 
-                    var list = Object.values(this.value);
+                    var list = Object.values(value);
                     list.forEach(item => {
                         const msg = JSON.parse(item.messages);
                         this.messages = [...this.messages, ...msg];
@@ -83,7 +90,10 @@ export default {
                         this.saveDefinition(item.model);
                     });
 
-                    this.generator.previousMessages = [...this.generator.previousMessages, ...this.messages];
+                    this.generator.previousMessages = [
+                        ...this.generator.previousMessages, 
+                        ...this.messages
+                    ];
                 }
             }
         },
@@ -104,23 +114,25 @@ export default {
         },
 
         afterGenerationFinished(putObj){
-            var modelText = "";
+            let modelText = "";
+            let path = this.path;
+            
             if (this.processDefinition) {
+                path = `${this.path}/${this.processDefinition.processDefinitionId}`;
+
                 modelText = JSON.stringify(this.processDefinition);
                 this.saveDefinition(this.processDefinition);
             }
 
             putObj.model = modelText;
-            putObj.definitionName = this.processDefinition.processDefinitionName;
 
-            var path = `${this.path}/${this.processDefinition.processDefinitionId}`;
             this.saveMessages(path, putObj);
         },
 
         async saveDefinition(definition) {
             // Create an instance of VectorStorage
-            var apiToken = this.generator.getToken()
-            var vectorStore = new VectorStorage({ openAIApiKey: apiToken });
+            const apiToken = this.generator.getToken();
+            const vectorStore = new VectorStorage({ openAIApiKey: apiToken });
 
             // Add a text document to the store
             await vectorStore.addText(JSON.stringify(definition), {
@@ -313,31 +325,6 @@ export default {
             const serializer = new XMLSerializer();
             const xmlString = serializer.serializeToString(xmlDoc);
             return xmlString;
-        },
-
-        extractProcessJson(text) {            
-            let textAndJson = text.split("--- json ---")
-            if(textAndJson && textAndJson.length==2) return textAndJson[1]
-        },
-        // extractJSON(text) {            
-        //     const regex = /```json\s*([\s\S]*?)(?:\n\s*```|$)/;
-        //     const match = text.match(regex);
-        //     return match ? match[1].trim() : null;
-        // },
-        extractXML(text) {            
-            const regex = /```xml\s*([\s\S]*?)(?:\n\s*```|$)/;
-            const match = text.match(regex);
-            return match ? match[1].trim() : null;
-        },
-        extractBPMN(text) {
-            const regex = /```bpmn\s*([\s\S]*?)(?:\n\s*```|$)/;
-            const match = text.match(regex);
-            return match ? match[1].trim() : null;
-        },
-        extractCode(text) {
-            const regex = /```\s*([\s\S]*?)(?:\n\s*```|$)/;
-            const match = text.match(regex);
-            return match ? match[1].trim() : null;
         },
     }
 }

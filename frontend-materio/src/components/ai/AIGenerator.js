@@ -10,25 +10,30 @@ export default class AIGenerator {
         //this.model = "gpt-3.5-turbo-16k" 
         this.model = "gpt-4" 
 
-        if(options){
+        if(options) {
             this.preferredLanguage = options.preferredLanguage;
             this.previousMessages = options.previousMessages;
             this.prompt = options.prompt;
             this.model = options.model || this.model;
             this.options = options
-        } else{
+        } else {
             this.options = {}
         }
 
-        if(!this.previousMessages)
+        if(!this.previousMessages) {
             this.previousMessages = [];
+        }
 
+        if(!this.prompt) {
+            this.prompt = "";
+        }
         
-        if(!this.preferredLanguage){
-            this.preferredLanguage="English"
+        if(!this.preferredLanguage) {
+            this.preferredLanguage = "English";
 
-            if(window && window.countryCode == 'ko') this.preferredLanguage="Korean"
-
+            if(window && window.countryCode == 'ko') {
+                this.preferredLanguage = "Korean";
+            }
         }
 
     }
@@ -65,8 +70,8 @@ export default class AIGenerator {
                 me.stopSignaled = false;
                 me.state = 'stopped'
             }
-         //console.log("Received " + event.loaded + " bytes of data.");
-        // console.log("Data: " + xhr.responseText);
+            // console.log("Received " + event.loaded + " bytes of data.");
+            // console.log("Data: " + xhr.responseText);
             const newUpdates = xhr.responseText
             .replace("data: [DONE]", "")
             .trim()
@@ -176,7 +181,6 @@ export default class AIGenerator {
                 content: me.createPrompt()  + (me.preferredLanguage ? "\n please generate in " + me.preferredLanguage : '')
             })
         }
-        // console.log(me.previousMessages)
         
         return me.previousMessages;
     }

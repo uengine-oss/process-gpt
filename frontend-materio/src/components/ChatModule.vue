@@ -4,7 +4,6 @@ import CommonStorageBase from "@/components/storage/CommonStorageBase";
 export default {
     data: () => ({
         storage: null,
-        value: null,
         generator: null,
         messages: []
     }),
@@ -14,25 +13,37 @@ export default {
         },
     
         async loadMessages(path) {
+            let value;
             if (path) {
-                this.value = await this.storage.getObject(`db://${path}`);
+                value = await this.storage.getObject(`db://${path}`);
             } else {
-                this.value = await this.storage.getObject(`db://${this.path}`);
+                value = await this.storage.getObject(`db://${this.path}`);
             }
     
-            if (this.value) {
-                await this.loadData();
-    
-                if (this.value.messages) {
-                    this.messages = JSON.parse(this.value.messages);
+            if (value) {
+                if (value.messages) {
+                    this.messages = JSON.parse(value.messages);
     
                     if (!this.messages) {
                         this.messages = [];
                     }
                 }
-    
-                this.generator.previousMessages = [...this.generator.previousMessages, ...this.messages];
+   
+                this.generator.previousMessages = [
+                    ...this.generator.previousMessages,
+                    ...this.messages
+                ];
             }
+        },
+
+        async getData(path) {
+            let value;
+            if (path) {
+                value = await this.storage.getObject(`db://${path}`);
+            } else {
+                value = await this.storage.getObject(`db://${this.path}`);
+            }
+            return value;
         },
     
         sendMessage(message) {
@@ -45,6 +56,11 @@ export default {
                     role: "user",
                     content: message
                 });
+
+                this.generator.previousMessages = [
+                    ...this.generator.previousMessages,
+                    ...this.messages
+                ];
     
                 this.generator.generate();
     
@@ -64,10 +80,13 @@ export default {
             let messageWriting = this.messages[this.messages.length -1];
             messageWriting.content = response;
     
-            if (response.includes("\n")) {
-                messageWriting.content = response.replace(/\n/g, "<br/>");
+            if (messageWriting.content.includes("\n")) {
+                messageWriting.content = messageWriting.content.replace(/\n/g, "<br/>");
             }
-    
+
+            if (response.match(/<[^>]*>?/g)) {
+                response = response.replace(/<[^>]*>?/g, "");
+            }
             this.afterModelCreated(response);
         },
     
@@ -103,7 +122,32 @@ export default {
     
                 this.messages.push(message);
             }
-        }
+        },
+
+        extractProcessJson(text) {            
+            let textAndJson = text.split("--- json ---")
+            if(textAndJson && textAndJson.length==2) return textAndJson[1]
+        },
+        extractJSON(text) {            
+            const regex = /```json\s*([\s\S]*?)(?:\n\s*```|$)/;
+            const match = text.match(regex);
+            return match ? match[1].trim() : null;
+        },
+        extractXML(text) {            
+            const regex = /```xml\s*([\s\S]*?)(?:\n\s*```|$)/;
+            const match = text.match(regex);
+            return match ? match[1].trim() : null;
+        },
+        extractBPMN(text) {
+            const regex = /```bpmn\s*([\s\S]*?)(?:\n\s*```|$)/;
+            const match = text.match(regex);
+            return match ? match[1].trim() : null;
+        },
+        extractCode(text) {
+            const regex = /```\s*([\s\S]*?)(?:\n\s*```|$)/;
+            const match = text.match(regex);
+            return match ? match[1].trim() : null;
+        },
     },
 }
 </script>
