@@ -10,6 +10,8 @@ import { createPinia } from 'pinia'
 import { createApp } from 'vue'
 import axios from 'axios';
 import { Icon } from '@iconify/vue';
+import VCalendar from 'v-calendar';
+import 'v-calendar/style.css'
 
 loadFonts()
 
@@ -27,6 +29,7 @@ app.component('Icon',Icon)
 app.use(vuetify)
 app.use(createPinia())
 app.use(router)
+app.use(VCalendar, {})
 
 // Mount vue app
 app.mount('#app')

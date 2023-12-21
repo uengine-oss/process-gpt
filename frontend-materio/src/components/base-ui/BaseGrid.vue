@@ -1,44 +1,41 @@
-<template>
-</template>
+<template></template>
 
 <script>
-import BaseEntity from './BaseEntity.vue';
-import BaseSecurity from './BaseSecurity.vue';
+import CommonStorageBase from "@/components/storage/CommonStorageBase";
 
 export default {
     name: 'BaseGrid',
     data: () => ({
-        tick : true,
-        path: 'path',
-        repository: null,
-        menu: [],
+        storage: null,
+        dialog: false,
+        value: null,
+        userInfo: null
     }),
-    mixins:[
-        BaseEntity,
-        BaseSecurity
-    ],
-    async created(){
-        this.value = this.search()
+    created() {
+        this.storage = new CommonStorageBase(this);
     }, 
     methods:{
+        async init(path) {
+            this.userInfo = await this.storage.getUserInfo();
+            const jsonData = await this.storage.getObject(`db://${path}/${this.userInfo.name}`);
+            if (jsonData) {
+                this.value = Object.values(jsonData);
+            }
+        },
         addNewRow() {
-            this.newValue = null
+            this.newValue = null;
             this.openDialog = true;
         },
         append() {
-            this.tick = false;
-            this.openDialog = false
+            // this.openDialog = false
             
-            if (!this.value) {
+            if (!this.value) {  
                 this.value = [];
             }
             const newItem = { ...this.newValue};
 
             this.value.push(newItem);
             this.$emit('update:modelValue', this.value);
-            this.$nextTick(() => {
-                this.tick = true;
-            });
         },
         remove(value){
             var where = -1;
@@ -53,78 +50,15 @@ export default {
                 this.$emit('input', this.value);
             }
         },
-        async search(query) {
-            var me = this;
-            if(me.offline){
-                if(!me.value) me.value = [];
-                return;
-            } 
-            var temp = null;
-
-            if(!me.offline){
-                temp = await this.repository.find(query)
-                this.value = temp
-            }
-
-            return this.value;
-        },
-        async generateMenu(){
-            let menuVal = await this.repository.generate("menus")
-            let menuGroupVal = await this.repository.generate("menuGroups")
-
-            for(var i = 0; i < menuVal.length; i++){
-                if(!menuVal[i].parentId){
-                    if(!this.menu.firstMenu){
-                        this.menu.firstMenu = []
-                    }
-                    this.menu.firstMenu.push(menuVal[i])
-                }
-            }
-            for(var j = 0; j < this.menu.firstMenu.length; j++){
-                if(!this.menu.firstMenu[j].secondMenu){
-                    this.menu.firstMenu[j].secondMenu = []
-                }
-                this.menu.firstMenu[j].id = this.findId(this.menu.firstMenu[j])
-                for(var i = 0; i < menuVal.length; i++){
-                    if(menuVal[i].parentId && menuVal[i].parentId.id){
-                        if(this.menu.firstMenu[j].id == menuVal[i].parentId.id){
-                            this.menu.firstMenu[j].secondMenu.push(menuVal[i])
-                        }
-                    }
-                }
-                for(var i = 0; i < menuGroupVal.length; i++){
-                    if(menuGroupVal[i].parentId){
-                        for(var k = 0; k < this.menu.firstMenu[j].secondMenu.length; k ++){
-                            if(!this.menu.firstMenu[j].secondMenu[k].thirdMenu){
-                                this.menu.firstMenu[j].secondMenu[k].thirdMenu = []
-                            }
-                            this.menu.firstMenu[j].secondMenu[k].id = this.findId(this.menu.firstMenu[j].secondMenu[k])
-                            if(this.menu.firstMenu[j].secondMenu[k].id == menuGroupVal[i].parentId.id){
-                                this.menu.firstMenu[j].secondMenu[k].thirdMenu.push(menuGroupVal[i])
-                            }                   
-                        }
-                    }
-                }
-            }
-            return this.menu
-        },
-        findId(val){
-            let id = val._links.self.href.split('/');
-            return id.pop()
-        },
         changeSelectedRow(val){
             this.selectedRow = val
         },
-        openEditDialog(){
-            this.editDialog = true;
+        openDialog(){
+            this.dialog = true;
         },
         closeDialog(){
-            this.openDialog = false
-            this.editDialog = false
+            this.dialog = false
         }
     },
 }
 </script>
-
-<style>
-</style>

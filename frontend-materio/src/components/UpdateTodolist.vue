@@ -1,34 +1,29 @@
 <template>
-
-    <v-card outlined>
+    <v-card>
         <v-card-title>
-            UpdateTodolist
+            Update Todolist
         </v-card-title>
 
-        <v-card-text>
-            <String label="ActivityId" v-model="value.activityId" :editMode="editMode"/>
-            <String label="ActivityName" v-model="value.activityName" :editMode="editMode"/>
-            <Date label="StartDate" v-model="value.startDate" :editMode="editMode"/>
-            <Date label="EndDate" v-model="value.endDate" :editMode="editMode"/>
-            <Date label="DueDate" v-model="value.dueDate" :editMode="editMode"/>
-            <String label="ProcessDefinitionId" v-model="value.processDefinitionId" :editMode="editMode"/>
-            <String label="ProcessInstanceId" v-model="value.processInstanceId" :editMode="editMode"/>
-            <String label="UserId" v-model="value.userId" :editMode="editMode"/>
+        <v-card-text class="pa-3">
+            <TextField label="액티비티 Id" v-model="value.activityId" :editMode="editMode" />
+            <TextField label="액티비티 이름" v-model="value.activityName" :editMode="editMode" />
+            <DateField label="시작일" v-model="value.startDate" :editMode="editMode" />
+            <DateField label="완료일" v-model="value.endDate" :editMode="editMode" />
+            <DateField label="마감일" v-model="value.dueDate" :editMode="editMode" />
+            <TextField label="프로세스 정의Id" v-model="value.processDefinitionId" :editMode="editMode" />
+            <TextField label="프로세스 인스턴스Id" v-model="value.processInstanceId" :editMode="editMode" />
+            <TextField label="사용자 Id" v-model="value.userId" :editMode="editMode" />
         </v-card-text>
 
-        <v-card-actions>
-            <v-spacer></v-spacer>
-            <v-btn
-                    color="deep-purple lighten-2"
-                    text
+        <v-card-actions class="justify-end">
+            <v-btn color="deep-purple lighten-2"
+                    variant="text"
                     @click="updateTodolist"
             >
-                UpdateTodolist
+                Update
             </v-btn>
-            
-            <v-btn
-                    color="deep-purple lighten-2"
-                    text
+            <v-btn color="deep-purple lighten-2"
+                    variant="text"
                     @click="close"
             >
                 Close
@@ -39,16 +34,15 @@
 </template>
 
 <script>
-import String from './primitives/String.vue'
-import Date from './primitives/Date.vue'
+import TextField from './primitives/TextField.vue'
+import DateField from './primitives/DateField.vue'
 
 export default {
     name: 'UpdateTodolistCommand',
     components:{
-        String,
-        Date,
+        TextField,
+        DateField,
     },
-    props: {},
     data: () => ({
         editMode: true,
         value: {},
@@ -62,8 +56,6 @@ export default {
         this.value.processDefinitionId = '';
         this.value.processInstanceId = '';
         this.value.userId = '';
-    },
-    watch: {
     },
     methods: {
         updateTodolist() {

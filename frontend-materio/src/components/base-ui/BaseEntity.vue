@@ -126,8 +126,8 @@ export default {
             this.snackbar.text = msg
 
         },
-        closeEditDialog(){
-            this.editDialog = false
+        closeDialog(){
+            this.$emit("closeDialog");
         }
     },
 };
