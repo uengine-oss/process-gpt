@@ -7,8 +7,19 @@
         ></process-definition>
         
         <Chat :messages="messages"
-                @sendMessage="beforeSendMessage"
-        />
+                @sendMessage="beforeSendMessage">
+
+            <v-alert type="info"
+                color="deep-purple-accent-4"
+                title="프로세스 정의 관리"
+                text="대화형으로 프로세스를 관리하십시오.
+                영업관리프로세스를 다음과 같이 등록해줘:
+1. 영업기회등 고객명, 예상사업규모, 키맨, 요구사항
+2. 제안작성: 제안내용, 가격
+3. 수주 혹은 실주
+4. 수주한 경우, 계약진행"
+            ></v-alert> 
+        </Chat>>
     </div>
 </template>
 
