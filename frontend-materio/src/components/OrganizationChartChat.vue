@@ -1,20 +1,22 @@
 <template>
     <div>
-        <organization-chart 
-                v-if="organizationChart.length > 0"
-                :nodes="organizationChart" 
-                :key="organizationChart.length"
-        ></organization-chart>
+        <div v-if="organizationChart.length > 0" class="chart-area">
+            <organization-chart 
+                    :nodes="organizationChart" 
+                    :key="organizationChart.length"
+            ></organization-chart>
+        </div>
 
         <chat :messages="messages"
                 @sendMessage="beforeSendMessage"
         >
-            <v-alert type="info"
-                    color="deep-purple-accent-4"
-                    title="조직도 관리"
-                    text="대화형으로 조직도를 관리하십시오.
-                    팀(부서) 롤(역할), 직원들을 등록 수정 삭제할 수 있습니다. 예를 들어, '개발팀, 관리팀을 등록하고, 홍길동님을 신입사원으로 관리팀에 등록해줘. 이메일 주소는 new@company.com 이야. 역할은 개발자로 들어오셨어. 관리팀의 팀장은 아무개 팀장님이야.'와 같은 명령을 할 수 있습니다."
-            ></v-alert>
+            <template v-slot:alert>
+                <v-alert :type="alertInfo.type"
+                        :title="alertInfo.title"
+                        :text="alertInfo.text"
+                        color="default"
+                ></v-alert>
+            </template>
         </chat>
     </div>
 </template>
@@ -39,6 +41,11 @@ export default {
     data: () => ({
         path: "organization",
         organizationChart: [],
+        alertInfo: {
+            type: "info",
+            title: "조직도 관리",
+            text: "대화형으로 조직도를 관리하십시오. 팀(부서) 롤(역할), 직원들을 등록 수정 삭제할 수 있습니다. 예를 들어, '개발팀, 관리팀을 등록하고, 홍길동님을 신입사원으로 관리팀에 등록해줘. 이메일 주소는 new@company.com 이야. 역할은 개발자로 들어오셨어. 관리팀의 팀장은 아무개 팀장님이야.' 와 같은 명령을 할 수 있습니다.",
+        }
     }),
     async created() {
         this.init();
@@ -97,31 +104,8 @@ export default {
 </script>
 
 <style scoped>
-.chat-open-box {
-    /* z-index: 999; */
-    min-height: 84vh;
-}
-
-.user-message {
-    border-radius: 20px;
-    max-width: 95%;
-}
-
-.system-message {
-    border-radius: 20px;
-    max-width: 95%;
-}
-
-.message-box {
-    overflow-y: auto;
-    max-height: 60vh;
-}
-
-.chat-box {
-    position: absolute;
-    bottom: 0px;
-    right: 0px;
-    width: 100%;
+.chart-area {
+    margin-bottom: 12px;
 }
 
 </style>

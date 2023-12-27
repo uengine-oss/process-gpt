@@ -1,12 +1,13 @@
 <template>
     <div>
         <v-card class="chat-open-box">
-            <!-- slot -->
-            <slot></slot>
-
-            <v-card-text class="message-box">
+            <v-card-text class="message-box pa-0">
+                <!-- slot -->
+                <slot name="alert"></slot>
+                
                 <div v-for="(message, index) in messages"
                         :key="index"
+                        class="pa-3"
                 >
                     <div v-if="message.role == 'user'"
                             class="d-flex justify-end my-2"
@@ -89,11 +90,21 @@ export default {
             newMessage: "",
         }
     },
+    mounted() {
+        window.addEventListener("keydown", (evt) => {
+            if (evt.ctrlKey && evt.keyCode == 67) {
+                let selectedObj = window.getSelection();
+                if (selectedObj) {
+                    let selected = selectedObj.getRangeAt(0).toString();
+                }
+            }
+        });
+    },
     methods: {
         send() {
             this.$emit('sendMessage', this.newMessage);
             this.newMessage = "";
-        }
+        },
     }
 }
 </script>

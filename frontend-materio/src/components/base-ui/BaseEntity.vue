@@ -1,15 +1,10 @@
-<template>
-    <div></div>
-</template>
+<template></template>
 
 <script>
-import BaseRepository from '../repository/BaseRepository'
-import axios from '@axios'
 
 export default {
     name: 'BaseEntity',
     props: {
-        offline: Boolean,
         modelValue: Object,
         editMode: Boolean,
         isNew: Boolean,
@@ -33,8 +28,7 @@ export default {
         };
     },
     async created() {
-        this.newValue = this.modelValue
-        this.repository = new BaseRepository(axios, this.path);
+        this.newValue = this.modelValue;
     },
     methods: {
         selectFile() {

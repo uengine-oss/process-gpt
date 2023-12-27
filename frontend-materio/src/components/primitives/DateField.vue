@@ -2,26 +2,23 @@
     <div class="my-3">
         <div v-if="editMode">
             {{ label }}
-            <VDatePicker v-model="date">
-                <template #default="{ inputValue, inputEvents }">
-                    <!-- <v-text-field
-                            v-model="filteredDate"
-                            @click="togglePopover"
-                            readonly
-                            density="compact"
-                            prepend-icon="mdi-calendar"
-                    ></v-text-field> -->
-                    <BaseInput :value="inputValue" v-on="inputEvents" />
-                </template>
-            </VDatePicker>
-            
-            <!-- <v-btn v-if="calendarMode" 
+            <v-text-field
+                    @click="openCalendar"
+                    v-model="formattedDate"
+                    readonly
+                    density="compact"
+                    prepend-icon="mdi-calendar"
+            ></v-text-field>
+
+            <VDatePicker v-if="calendarMode" v-model="date"
+            ></VDatePicker>
+            <v-btn v-if="calendarMode" 
                     @click="closeCalendar" 
                     variant="text" 
                     color="black"
             >
                 완료
-            </v-btn> -->
+            </v-btn>
         </div>
         <div v-else>
             {{ label }} : {{ formattedDate }}
@@ -44,27 +41,20 @@ export default {
         calendarMode: false,
     }),
     created() {
-        this.date = this.modelValue
+        this.date = this.modelValue;
         if(!this.date) {
-            this.date = new Date()
+            this.date = new Date();
+            this.formattedDate = this.date.toLocaleString('ko-KR').substr(0, 12);
         }
-    },
-    computed:{
-        // filteredDate(){
-        //     if(this.date) {
-        //         this.formattedDate = new Date(this.date).toISOString().substr(0, 10);
-        //         return this.formattedDate;            
-        //     }
-        //     return null;
-        // }
     },
     mounted() {
     },
     watch: {
         date: {
             handler(newVal) {
-                console.log(newVal)
-                // this.change();
+                if (newVal) {
+                    this.formattedDate = newVal.toLocaleString('ko-KR').substr(0, 12);
+                }
             },
         },
     },
@@ -76,10 +66,10 @@ export default {
             this.$refs.menu.save(date)
             this.$emit("update:modelValue", date);
         },
-        openCalendar(){
+        openCalendar() {
             this.calendarMode = true
         },
-        closeCalendar(){
+        closeCalendar() {
             this.calendarMode = false;
         }
     }

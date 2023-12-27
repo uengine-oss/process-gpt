@@ -28,11 +28,12 @@ export default {
         Chat,
     },
     data: () => ({
+        definitions: [],
+        processDefinition: null,
         processInstance: null,
         bpmn: null,
         path: "instances",
         organizationChart: [],
-        definitions: [],
     }),
     async created() {
         this.init();
@@ -105,7 +106,6 @@ export default {
         async beforeSendMessage(newMessage) {
             if(!this.generator.contexts) {
                 let contexts = await this.queryFromVectorDB(newMessage);
-                this.definitions = contexts;
                 this.generator.setContexts(contexts);
             }
 
@@ -120,48 +120,68 @@ export default {
                     this.processInstance = partialParse(jsonInstance);
                 } catch (error) {
                     this.processInstance = jsonInstance;
-                    console.log(error)
+                    console.log(error);
                 }
             }
         },
 
-        afterGenerationFinished(putObj) {
+        async afterGenerationFinished(putObj) {
             let modelText = "";
             let path = this.path;
-            console.log(this.definitions);
-            
+    
             if (this.processInstance) {
                 if (typeof this.processInstance === "string") {
                     this.processInstance = partialParse(this.processInstance);
                 }
                 path = `${this.path}/${this.processInstance.processInstanceId}`;
                 modelText = JSON.stringify(this.processInstance);
-            }            
+
+                let contexts = await this.queryFromVectorDB(this.processInstance.processDefinitionId);
+                if (contexts && contexts.length > 0) {
+                    contexts.forEach(item => {
+                        this.processDefinition = partialParse(item);
+                    });
+                }
+            }
 
             putObj.model = modelText;
 
             this.saveMessages(path, putObj);
 
-            this.sendTodolist(putObj);
+            this.sendTodolist();
         },
 
         async sendTodolist() {
             const userInfo = await this.storage.getUserInfo();
             const path = `todolist/${userInfo.name}`;
+            const newId = this.uuid();
             let putObj = {};
-            let newId = this.uuid();
+
+            putObj[newId] = {
+                activityId: "",
+                activityName: "",
+                startDate: new Date().toISOString().substr(0, 10),
+                endDate: "",
+                dueDate: "",
+                processDefinitionId: "",
+                processInstanceId: "",
+                userId: ""
+            };
 
             if (this.processInstance) {
-                putObj[newId] = {
-                    activityId: this.processInstance.currentActivityId,
-                    activityName: this.processInstance.currentActivityId,
-                    startDate: "",
-                    endDate: "",
-                    dueDate: "",
-                    processDefinitionId: this.processInstance.processDefinitionId,
-                    processInstanceId: this.processInstance.processInstanceId,
-                    userId: this.processInstance.currentUserEmail
-                }
+                putObj[newId].activityId = this.processInstance.currentActivityId;
+                putObj[newId].processInstanceId = this.processInstance.processInstanceId;
+                putObj[newId].userId = this.processInstance.currentUserEmail;
+            }
+
+            if (this.processDefinition) {
+                putObj[newId].processDefinitionId = this.processDefinition.processDefinitionId;
+
+                this.processDefinition.activities.forEach(act => {
+                    if (act.id == this.processInstance.currentActivityId) {
+                        putObj[newId].activityName = act.name; 
+                    }
+                });
             }
 
             this.saveMessages(path, putObj);

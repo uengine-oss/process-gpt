@@ -1,25 +1,24 @@
 <template>
-    <div>
-        <process-definition
-                v-if="bpmn"
-                :bpmn="bpmn"
-                :processDefinition="processDefinition"
-        ></process-definition>
-        
-        <Chat :messages="messages"
-                @sendMessage="beforeSendMessage">
+    <div class="process-manager">
+        <div v-if="bpmn" class="bpmn-area">
+            <process-definition
+                    :bpmn="bpmn"
+                    :processDefinition="processDefinition"
+            ></process-definition>
+        </div>
 
-            <v-alert type="info"
-                color="deep-purple-accent-4"
-                title="프로세스 정의 관리"
-                text="대화형으로 프로세스를 관리하십시오.
-                영업관리프로세스를 다음과 같이 등록해줘:
-1. 영업기회등 고객명, 예상사업규모, 키맨, 요구사항
-2. 제안작성: 제안내용, 가격
-3. 수주 혹은 실주
-4. 수주한 경우, 계약진행"
-            ></v-alert> 
-        </Chat>>
+        <chat :messages="messages"
+                @sendMessage="beforeSendMessage"
+                :style="bpmn ? '': 'width: 100%'"
+        >
+            <template v-slot:alert>
+                <v-alert :type="alertInfo.type"
+                        :title="alertInfo.title"
+                        :text="alertInfo.text"
+                        color="default"
+                ></v-alert>
+            </template>
+        </chat>
     </div>
 </template>
 
@@ -44,6 +43,11 @@ export default {
         processDefinition: null,
         bpmn: null,
         path: "definitions",
+        alertInfo: {
+            type: "info",
+            title: "프로세스 정의 관리",
+            text: "대화형으로 프로세스를 관리하십시오. 예를 들어, '영업관리 프로세스를 다음과 같이 등록해줘: 1. 영업기회등 고객명, 예상사업규모, 키맨, 요구사항 2. 제안 작성: 제안 내용, 가격 3. 수주 혹은 실주 4. 수주한 경우, 계약진행' 와 같은 명령을 할 수 있습니다.",
+        },
     }),
     async created() {
         this.init();
@@ -342,35 +346,26 @@ export default {
 </script>
 
 <style scoped>
-.bpmn-area {
-    min-height: 34vh;
+@media screen and (min-width: 1081px) {
+    .process-manager {
+        display: flex !important;
+        flex-direction: row-reverse !important;
+    }
+
+    .bpmn-area {
+        width: 50%;
+        margin-left: 12px;
+    }
 }
 
-.chat-open-box {
-    /* z-index: 999; */
-    min-height: 84vh;
-}
+@media screen and (max-width: 1080px) {
+    .process-manager {
+        display: block;
+    }
 
-.user-message {
-    border-radius: 20px;
-    max-width: 95%;
-}
+    .bpmn-area {
+        margin-bottom: 12px;
+    }
 
-.system-message {
-    border-radius: 20px;
-    max-width: 95%;
 }
-
-.message-box {
-    overflow-y: auto;
-    max-height: 74vh;
-}
-
-.chat-box {
-    position: absolute;
-    bottom: 0px;
-    right: 0px;
-    width: 100%;
-}
-
 </style>

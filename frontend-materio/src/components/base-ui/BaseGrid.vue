@@ -9,7 +9,8 @@ export default {
         storage: null,
         dialog: false,
         value: null,
-        userInfo: null
+        userInfo: null,
+        selectedRow: -1,
     }),
     created() {
         this.storage = new CommonStorageBase(this);
@@ -26,17 +27,6 @@ export default {
             this.newValue = null;
             this.openDialog = true;
         },
-        append() {
-            // this.openDialog = false
-            
-            if (!this.value) {  
-                this.value = [];
-            }
-            const newItem = { ...this.newValue};
-
-            this.value.push(newItem);
-            this.$emit('update:modelValue', this.value);
-        },
         remove(value){
             var where = -1;
             for(var i=0; i<this.value.length; i++){
@@ -50,14 +40,14 @@ export default {
                 this.$emit('input', this.value);
             }
         },
-        changeSelectedRow(val){
-            this.selectedRow = val
+        selectedRow(val) {
+            this.selectedVal = val;
         },
         openDialog(){
             this.dialog = true;
         },
         closeDialog(){
-            this.dialog = false
+            this.dialog = false;
         }
     },
 }

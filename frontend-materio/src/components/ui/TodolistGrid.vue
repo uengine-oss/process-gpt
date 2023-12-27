@@ -36,22 +36,26 @@
         </div>
         
         <div>
-            <v-table>
+            <v-table hover>
                 <thead>
                     <tr>
-                    <th>Id</th>
-                    <th>액티비티 Id</th>
-                    <th>액티비티 이름</th>
-                    <th>시작일</th>
-                    <th>완료일</th>
-                    <th>마감일</th>
-                    <th>프로세스 정의Id</th>
-                    <th>프로세스 인스턴스Id</th>
-                    <th>사용자 Id</th>
+                        <th>ID</th>
+                        <th>액티비티 ID</th>
+                        <th>액티비티명</th>
+                        <th>시작일</th>
+                        <th>완료일</th>
+                        <th>마감일</th>
+                        <th>프로세스 정의 ID</th>
+                        <th>프로세스 인스턴스 ID</th>
+                        <th>사용자 ID</th>
                     </tr>
                 </thead>
                 <tbody>
-                    <tr v-for="(val, idx) in value" :key="val" @click="changeSelectedRow(val)" :style="val === selectedRow ? 'background-color: #f0f3ff;':''">
+                    <tr v-for="(val, idx) in value" 
+                            :key="val" 
+                            @click="selectedRow(val)"
+                            :style="val === selectedVal ? 'background-color: #f0f3ff;':''"
+                    >
                         <td class="font-semibold">{{ idx + 1 }}</td>
                         <td class="whitespace-nowrap" label="액티비티 Id">{{ val.activityId }}</td>
                         <td class="whitespace-nowrap" label="액티비티 이름">{{ val.activityName }}</td>
@@ -61,7 +65,6 @@
                         <td class="whitespace-nowrap" label="프로세스 정의Id">{{ val.processDefinitionId }}</td>
                         <td class="whitespace-nowrap" label="프로세스 인스턴스Id">{{ val.processInstanceId }}</td>
                         <td class="whitespace-nowrap" label="사용자 Id">{{ val.userId }}</td>
-                        <Icon style="margin-top: 15px;" icon="mi:delete" @click="deleteRow(val)" />
                     </tr>
                 </tbody>
             </v-table>
@@ -71,10 +74,17 @@
                 transition="dialog-bottom-transition"
                 width="500"
         >
-            <Todolist :offline="offline"
+            <Todolist v-if="!selectedRow"
                     :editMode="true"
                     :inList="false"
                     v-model="newValue"
+                    @closeDialog="closeDialog"
+            />
+            <Todolist v-else
+                    :editMode="true"
+                    :inList="false"
+                    :isNew="false"
+                    v-model="selectedVal"
                     @closeDialog="closeDialog"
             />
         </v-dialog>
@@ -105,6 +115,7 @@ export default {
     },
     data: () => ({
         path: 'todolist',
+        updateTodolistDialog: false,
     }),
     created() {
         this.init(this.path);
