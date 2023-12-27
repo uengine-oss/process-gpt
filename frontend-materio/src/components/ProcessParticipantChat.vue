@@ -46,12 +46,8 @@ export default {
         });
 
         var path = this.$route.href.replace("#/", "");
-        if (this.$route.params && this.$route.params.id) {
-            this.loadMessages(path);
-        } else {
-            this.loadMessages();
-        }
         this.loadData(path);
+        this.setMessages(path);
     },
     watch: {
         "$route": {
@@ -59,15 +55,21 @@ export default {
             async handler(newVal, oldVal) {
                 if (newVal.path !== oldVal.path) {
                     this.bpmn = null;
-
                     var path = this.$route.href.replace("#/", "");
-                    await this.loadMessages(path);
                     this.loadData(path);
+                    this.setMessages(path);
                 }
             }
         }
     },
     methods: {
+        async setMessages(path) {
+            this.messages = await this.loadMessages(path);
+            this.generator.previousMessages = [
+                ...this.generator.previousMessages,
+                ...this.messages
+            ];
+        },
         async loadData(path) {
             const value = await this.getData(path);
 
@@ -85,19 +87,6 @@ export default {
                             this.processInstance = jsonInstance;
                         }
 
-                    } else {
-                        this.messages = [];
-                        
-                        var list = Object.values(value);
-                        list.forEach(item => {
-                            const msg = JSON.parse(item.messages);
-                            this.messages = [...this.messages, ...msg];
-                        });
-
-                        this.generator.previousMessages = [
-                            ...this.generator.previousMessages,
-                            ...this.messages
-                        ];
                     }
                 }
             }
@@ -127,7 +116,7 @@ export default {
 
         async afterGenerationFinished(putObj) {
             let modelText = "";
-            let path = this.path;
+            let path = "";
     
             if (this.processInstance) {
                 if (typeof this.processInstance === "string") {
@@ -142,22 +131,21 @@ export default {
                         this.processDefinition = partialParse(item);
                     });
                 }
+
+                putObj.model = modelText;
+
+                this.saveMessages(path, putObj);
+
+                this.sendTodolist();
             }
-
-            putObj.model = modelText;
-
-            this.saveMessages(path, putObj);
-
-            this.sendTodolist();
         },
 
         async sendTodolist() {
-            const userInfo = await this.storage.getUserInfo();
-            const path = `todolist/${userInfo.name}`;
-            const newId = this.uuid();
+            let path = "";
+            const uuid = this.uuid();
             let putObj = {};
 
-            putObj[newId] = {
+            putObj[uuid] = {
                 activityId: "",
                 activityName: "",
                 startDate: new Date().toISOString().substr(0, 10),
@@ -165,26 +153,26 @@ export default {
                 dueDate: "",
                 processDefinitionId: "",
                 processInstanceId: "",
-                userId: ""
+                userId: this.userInfo.email
             };
 
-            if (this.processInstance) {
-                putObj[newId].activityId = this.processInstance.currentActivityId;
-                putObj[newId].processInstanceId = this.processInstance.processInstanceId;
-                putObj[newId].userId = this.processInstance.currentUserEmail;
-            }
-
             if (this.processDefinition) {
-                putObj[newId].processDefinitionId = this.processDefinition.processDefinitionId;
+                putObj[uuid].processDefinitionId = this.processDefinition.processDefinitionId;
 
                 this.processDefinition.activities.forEach(act => {
                     if (act.id == this.processInstance.currentActivityId) {
-                        putObj[newId].activityName = act.name; 
+                        putObj[uuid].activityName = act.name; 
                     }
                 });
             }
 
-            this.saveMessages(path, putObj);
+            if (this.processInstance) {
+                putObj[uuid].activityId = this.processInstance.currentActivityId;
+                putObj[uuid].processInstanceId = this.processInstance.processInstanceId;
+                path = `todolist/${this.processInstance.nextUserEmail}`;
+                
+                this.saveMessages(path, putObj);
+            }
         },
 
         async queryFromVectorDB(messsage){
@@ -199,17 +187,6 @@ export default {
             if (results.similarItems) {
                 return results.similarItems.map(item => item.text);
             }
-        },
-
-        uuid() {
-            function s4() {
-                return Math.floor((1 + Math.random()) * 0x10000)
-                    .toString(16)
-                    .substring(1);
-            }
-
-            return s4() + s4() + '-' + s4() + '-' + s4() + '-' +
-                s4() + '-' + s4() + s4() + s4();
         },
 
     }

@@ -48,14 +48,12 @@ export default {
         }
     }),
     async created() {
-        this.init();
+        await this.init();
 
         this.generator = new ChatGenerator(this, {
             isStream: true,
             preferredLanguage: "Korean"
         });
-        
-        this.loadMessages();
         this.loadData(this.path);
     },
     methods: {
@@ -63,9 +61,25 @@ export default {
             const value = await this.getData(path);
 
             if (value) {
-                this.organizationChart = JSON.parse(value.organizationChart);
-                if (!this.organizationChart) {
-                    this.organizationChart = []
+                if (value.organizationChart && value.organizationChart.length > 0) {
+                    let orgChart = partialParse(value.organizationChart);
+                    if (orgChart && orgChart.length > 0) {
+                        const isMyOrg = orgChart.some(item =>
+                            item.email == this.userInfo.email
+                        );
+                        if (isMyOrg) {
+                            this.organizationChart = orgChart;
+
+                            this.messages = partialParse(value.messages);
+                            this.generator.previousMessages = [
+                                ...this.generator.previousMessages,
+                                ...this.messages
+                            ];
+                        }
+                    }
+                    if (!this.organizationChart) {
+                        this.organizationChart = []
+                    }
                 }
             }
         },
@@ -79,13 +93,17 @@ export default {
         },
 
         drawChart(textData) {
-            let obj = partialParse(textData);
+            try {
+                let obj = partialParse(textData);
 
-            if(obj && obj.organizationChart) {
-                this.organizationChart = obj.organizationChart;
+                if(obj && obj.organizationChart) {
+                    this.organizationChart = obj.organizationChart;
 
-                this.organizationChart.forEach(node => node.img=`https://randomuser.me/api/portraits/women/${Math.round(Math.random() * 90)}.jpg`);
+                    this.organizationChart.forEach(node => node.img=`https://randomuser.me/api/portraits/women/${Math.round(Math.random() * 90)}.jpg`);
 
+                }
+            } catch (error) {
+                console.log(error);
             }
         },
 

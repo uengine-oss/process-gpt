@@ -5,7 +5,7 @@
                 <!-- slot -->
                 <slot name="alert"></slot>
                 
-                <div v-for="(message, index) in messages"
+                <div v-for="(message, index) in filteredMessages"
                         :key="index"
                         class="pa-3"
                 >
@@ -15,7 +15,7 @@
                         <v-sheet class="user-message pa-3"
                                 color="primary"
                         >
-                            <div v-html="message.content"></div>
+                            <pre>{{ message.content }}</pre>
                         </v-sheet>
                         <div class="ml-2">
                             <v-avatar size="48">
@@ -45,7 +45,7 @@
                         <v-sheet class="system-message pa-3"
                                 color="grey-200"
                         >
-                            <div v-html="message.content"></div>
+                            <pre>{{ message.content }}</pre>
                         </v-sheet>
                         <v-progress-circular
                                 v-if="message.isLoading"
@@ -81,6 +81,7 @@
 </template>
 
 <script>
+
 export default {
     props: {
         messages: Array,
@@ -88,6 +89,16 @@ export default {
     data() {
         return {
             newMessage: "",
+        }
+    },
+    computed: {
+        filteredMessages() {
+            var list = [];
+            this.messages.forEach(item => {
+                const data = JSON.parse(JSON.stringify(item));
+                list.push(data);
+            });
+            return list
         }
     },
     mounted() {
@@ -117,12 +128,20 @@ export default {
 
 .user-message {
     border-radius: 20px;
-    max-width: 95%;
+    max-width: 90%;
 }
 
 .system-message {
     border-radius: 20px;
     max-width: 90%;
+}
+
+pre {
+    font-family: inter, sans-serif, -apple-system, blinkmacsystemfont, "Segoe UI", roboto, "Helvetica Neue", arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+    font-size: 0.875rem !important;
+    letter-spacing: 0.0094rem !important;
+    overflow: auto;
+    white-space: pre-wrap;
 }
 
 .message-box {

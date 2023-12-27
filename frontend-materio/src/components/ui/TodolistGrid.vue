@@ -52,9 +52,8 @@
                 </thead>
                 <tbody>
                     <tr v-for="(val, idx) in value" 
-                            :key="val" 
-                            @click="selectedRow(val)"
-                            :style="val === selectedVal ? 'background-color: #f0f3ff;':''"
+                            :key="val"
+                            @click="goInstance(val.processInstanceId)"
                     >
                         <td class="font-semibold">{{ idx + 1 }}</td>
                         <td class="whitespace-nowrap" label="액티비티 Id">{{ val.activityId }}</td>
@@ -120,7 +119,10 @@ export default {
     created() {
         this.init(this.path);
     },
-    methods:{
+    methods: {
+        goInstance(id) {
+            this.$router.push(`/instances/${id}`);
+        }
     }
 }
 </script>

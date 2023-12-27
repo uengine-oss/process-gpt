@@ -72,7 +72,7 @@ export default class ProcessDefinitionGenerator extends AIGenerator {
             {processDefinitionId: "process definition id",
              processInstanceId: "process instance id”, 
              description : "description of process instance’s status in natural language”,
-             currentAcitivityId: "the id of current activity id among the process definition”, nextActivityId: "the id of next activity id”,
+             currentActivityId: "the id of current activity id among the process definition”, nextActivityId: "the id of next activity id”,
              inputData: [{"name”: "name of process data input”, "value”: "real value of the process instance”}],
              currentUserEmail: "the actual user email address of mapped role”,
              nextUserEmail: "the email address of next activity’s role”,

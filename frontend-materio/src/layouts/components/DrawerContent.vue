@@ -71,21 +71,38 @@ export default {
         this.storage = new CommonStorageBase(this);
         await this.storage.loginUser();
 
-        this.getList("definitions");
-        this.getList("instances");
+        this.getDefinitionList();
+        this.getInstanceList();
     },
     methods: {
-        async getList(path) {
-            let list = await this.storage.list(`db://${path}`);
+        async getDefinitionList() {
+            let list = await this.storage.list(`db://definitions`);
             if (list) {
                 list = Object.values(list);
                 list.forEach(item => {
                     if (item && item.model) {
-                        this[path].push(partialParse(item.model));
+                        this.definitions.push(partialParse(item.model));
                     }
                 });
             }
-        }
+        },
+        async getInstanceList() {
+            let list = await this.storage.list(`db://instances`);
+            if (list) {
+                list = Object.values(list);
+                list.forEach(item => {
+                    if (item && item.model) {
+                        let instance = partialParse(item.model);
+                        if (instance && instance.currentUserEmail && instance.nextUserEmail && (
+                            instance.currentUserEmail == this.storage.userInfo.email ||
+                            instance.nextUserEmail == this.storage.userInfo.email
+                        )) {
+                            this.instances.push(instance);
+                        }
+                    }
+                });
+            }
+        },
     }
 }
 </script>

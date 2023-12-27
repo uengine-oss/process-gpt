@@ -1,15 +1,19 @@
 <script>
+import partialParse from "partial-json-parser";
+
 import CommonStorageBase from "@/components/storage/CommonStorageBase";
 
 export default {
     data: () => ({
         storage: null,
         generator: null,
-        messages: []
+        messages: [],
+        userInfo: null,
     }),
     methods: {
         async init() {
             this.storage = new CommonStorageBase(this);
+            this.userInfo = await this.storage.getUserInfo();
         },
     
         async loadMessages(path) {
@@ -22,18 +26,10 @@ export default {
     
             if (value) {
                 if (value.messages) {
-                    this.messages = JSON.parse(value.messages);
-    
-                    if (!this.messages) {
-                        this.messages = [];
-                    }
+                    return partialParse(value.messages);
                 }
-   
-                this.generator.previousMessages = [
-                    ...this.generator.previousMessages,
-                    ...this.messages
-                ];
             }
+            return this.messages;
         },
 
         async getData(path) {
@@ -48,10 +44,6 @@ export default {
     
         sendMessage(message) {
             if (message !== "") {
-                if(message.includes("\n")) {
-                    message = message.replace(/\n/g, "<br/>");
-                }
-                
                 this.messages.push({
                     role: "user",
                     content: message
@@ -80,13 +72,6 @@ export default {
             let messageWriting = this.messages[this.messages.length -1];
             messageWriting.content = response;
     
-            if (messageWriting.content.includes("\n")) {
-                messageWriting.content = messageWriting.content.replace(/\n/g, "<br/>");
-            }
-
-            if (response.match(/<[^>]*>?/g)) {
-                response = response.replace(/<[^>]*>?/g, "");
-            }
             this.afterModelCreated(response);
         },
     
@@ -147,6 +132,17 @@ export default {
             const regex = /```\s*([\s\S]*?)(?:\n\s*```|$)/;
             const match = text.match(regex);
             return match ? match[1].trim() : null;
+        },
+
+        uuid() {
+            function s4() {
+                return Math.floor((1 + Math.random()) * 0x10000)
+                    .toString(16)
+                    .substring(1);
+            }
+
+            return s4() + s4() + '-' + s4() + '-' + s4() + '-' +
+                s4() + '-' + s4() + s4() + s4();
         },
     },
 }

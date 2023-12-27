@@ -9,7 +9,7 @@
 
         <chat :messages="messages"
                 @sendMessage="beforeSendMessage"
-                :style="bpmn ? '': 'width: 100%'"
+                :style="bpmn ? 'width: 60%;': 'width: 100%;'"
         >
             <template v-slot:alert>
                 <v-alert :type="alertInfo.type"
@@ -58,12 +58,9 @@ export default {
         });
 
         var path = this.$route.href.replace("#/", "");
-        if (this.$route.params && this.$route.params.id) {
-            this.loadMessages(path);
-        } else {
-            this.loadMessages();
-        }
         this.loadData(path);
+
+        this.setMessages(path);
     },
     watch: {
         "$route": {
@@ -74,13 +71,20 @@ export default {
                     this.bpmn = null;
 
                     var path = this.$route.href.replace("#/", "");
-                    await this.loadMessages(path);
                     this.loadData(path);
+                    this.setMessages(path);
                 }
             }
         }
     },
     methods: {
+        async setMessages(path) {
+            this.messages = await this.loadMessages(path);
+            this.generator.previousMessages = [
+                ...this.generator.previousMessages,
+                ...this.messages
+            ];
+        },
         async loadData(path) {
             const value = await this.getData(path);
 
@@ -137,11 +141,10 @@ export default {
 
                 modelText = JSON.stringify(this.processDefinition);
                 this.saveDefinition(this.processDefinition);
+
+                putObj.model = modelText;
+                this.saveMessages(path, putObj);
             }
-
-            putObj.model = modelText;
-
-            this.saveMessages(path, putObj);
         },
 
         async saveDefinition(definition) {
@@ -353,7 +356,7 @@ export default {
     }
 
     .bpmn-area {
-        width: 50%;
+        width: 40% !important;
         margin-left: 12px;
     }
 }
