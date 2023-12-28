@@ -24,7 +24,7 @@
                                 </v-icon>
                             </v-avatar>
                             <div class="subtitle-2 text-center">
-                                User
+                                {{ message.role }}
                             </div>
                         </div>
                     </div>

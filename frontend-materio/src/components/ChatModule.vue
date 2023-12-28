@@ -8,7 +8,7 @@ export default {
         storage: null,
         generator: null,
         messages: [],
-        userInfo: null,
+        userInfo: {},
     }),
     methods: {
         async init() {
@@ -44,10 +44,11 @@ export default {
     
         sendMessage(message) {
             if (message !== "") {
-                this.messages.push({
-                    role: "user",
+                const chatObj = {
+                    role: this.userInfo.name ? this.userInfo.name : "user",
                     content: message
-                });
+                }
+                this.messages.push(chatObj);
 
                 this.generator.previousMessages = [
                     ...this.generator.previousMessages,

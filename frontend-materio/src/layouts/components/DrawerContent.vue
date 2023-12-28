@@ -71,8 +71,10 @@ export default {
         this.storage = new CommonStorageBase(this);
         await this.storage.loginUser();
 
-        this.getDefinitionList();
-        this.getInstanceList();
+        if (this.storage.userInfo && this.storage.userInfo.name) {
+            this.getDefinitionList();
+            this.getInstanceList();
+        }
     },
     methods: {
         async getDefinitionList() {

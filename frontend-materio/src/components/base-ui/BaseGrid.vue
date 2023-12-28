@@ -9,7 +9,7 @@ export default {
         storage: null,
         dialog: false,
         value: null,
-        userInfo: null,
+        userInfo: {},
     }),
     created() {
         this.storage = new CommonStorageBase(this);
