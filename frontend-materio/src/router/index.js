@@ -55,20 +55,13 @@ const router = createRouter({
 
 router.beforeEach(async (to, from, next) => {
     const storage = new CommonStorageBase(this);
-    await storage.getUserInfo();
-    
-    let isLogin = false;
-    if (storage.isLogin) {
-        isLogin = true;
-    } else {
-        isLogin = false;
-    }
+    await storage.loginUser();    
     
     if (to.matched.some(record => record.meta.requiresAuth)) {
-        if (!isLogin) {
-            next('/');
-        } else {
+        if (storage.isLogin) {
             next();
+        } else {
+            next('/');
         }
     } else {
         next();
