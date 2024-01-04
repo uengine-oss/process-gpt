@@ -1,23 +1,18 @@
 <template>
     <div>
-        <div v-if="organizationChart.length > 0" class="chart-area">
-            <organization-chart 
-                    :nodes="organizationChart" 
-                    :key="organizationChart.length"
-            ></organization-chart>
-        </div>
+        <organization-chart 
+                :nodes="organizationChart" 
+                :key="organizationChart.length"
+        ></organization-chart>
 
-        <chat :messages="messages"
-                @sendMessage="beforeSendMessage"
-        >
-            <template v-slot:alert>
-                <v-alert :type="alertInfo.type"
-                        :title="alertInfo.title"
-                        :text="alertInfo.text"
-                        color="default"
-                ></v-alert>
-            </template>
-        </chat>
+        <chat-button
+                :chatDialog="chatDialog"
+                :messages="messages"
+                :alertInfo="alertInfo"
+                @toggleChatDialog="toggleChatDialog"
+                @beforeSendMessage="beforeSendMessage"
+                @editSendMessage="editSendMessage"
+        ></chat-button>
     </div>
 </template>
 
@@ -28,21 +23,20 @@ import OrgChart from '@balkangraph/orgchart.js';
 
 import ChatGenerator from "./ai/OrganizationChartGenerator";
 import OrganizationChart from "./ui/OrganizationChart.vue"
+import ChatButton from "./ui/ChatButton.vue";
 
 import ChatModule from "./ChatModule.vue";
-import Chat from "./Chat.vue";
 
 export default {
     mixins: [ChatModule],
     components: {
         OrganizationChart,
-        Chat
+        ChatButton
     },
     data: () => ({
         path: "organization",
         organizationChart: [],
         alertInfo: {
-            type: "info",
             title: "조직도 관리",
             text: "대화형으로 조직도를 관리하십시오. 팀(부서) 롤(역할), 직원들을 등록 수정 삭제할 수 있습니다. 예를 들어, '개발팀, 관리팀을 등록하고, 홍길동님을 신입사원으로 관리팀에 등록해줘. 이메일 주소는 new@company.com 이야. 역할은 개발자로 들어오셨어. 관리팀의 팀장은 아무개 팀장님이야.' 와 같은 명령을 할 수 있습니다.",
         }

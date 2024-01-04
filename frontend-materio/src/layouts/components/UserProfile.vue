@@ -125,10 +125,12 @@
                 if (token) {
                     await this.storage.loginUser();
                     this.closeLoginDialog();
+                    window.location.reload();
                 }
             },
             async logout() {
                 await this.storage.logout();
+                window.location.reload();
             }
         }
     }

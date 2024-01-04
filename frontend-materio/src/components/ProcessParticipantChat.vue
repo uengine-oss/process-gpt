@@ -1,13 +1,17 @@
 <template>
     <div>
-        <process-definition
-                v-if="bpmn"
-                :bpmn="bpmn"
-        ></process-definition>
-
-        <Chat :messages="messages"
+        <chat :messages="messages"
                 @sendMessage="beforeSendMessage"
-        />
+                @editSendMessage="editSendMessage"
+        >
+            <template v-slot:alert>
+                <v-alert
+                        icon="mdi-info"
+                        :title="alertInfo.title"
+                        :text="alertInfo.text"
+                ></v-alert>
+            </template>
+        </chat>
     </div>
 </template>
 
@@ -16,9 +20,9 @@ import partialParse from "partial-json-parser";
 import { VectorStorage } from "vector-storage";
 
 import ChatGenerator from "./ai/ProcessInstanceGenerator.js";
+import Chat from "./ui/Chat.vue";
 
 import ChatModule from "./ChatModule.vue";
-import Chat from "./Chat.vue"
 
 
 export default {
@@ -34,6 +38,10 @@ export default {
         bpmn: null,
         path: "instances",
         organizationChart: [],
+        alertInfo: {
+            title: "프로세스 실행",
+            text: "대화형으로 프로세스를 실행하십시오. 예를 들어, '휴가를 신청할게: 1. 사유: 개인사유 2. 휴가 시작일: 오늘 3. 휴가 복귀일: 금요일' 와 같은 명령을 할 수 있습니다."
+        },
     }),
     async created() {
         this.init();
@@ -47,7 +55,8 @@ export default {
 
         var path = this.$route.href.replace("#/", "");
         this.loadData(path);
-        this.setMessages(path);
+
+        this.messages = await this.loadMessages(path);
     },
     watch: {
         "$route": {
@@ -57,19 +66,13 @@ export default {
                     this.bpmn = null;
                     var path = this.$route.href.replace("#/", "");
                     this.loadData(path);
-                    this.setMessages(path);
+
+                    this.messages = await this.loadMessages(path);
                 }
             }
         }
     },
     methods: {
-        async setMessages(path) {
-            this.messages = await this.loadMessages(path);
-            this.generator.previousMessages = [
-                ...this.generator.previousMessages,
-                ...this.messages
-            ];
-        },
         async loadData(path) {
             const value = await this.getData(path);
 

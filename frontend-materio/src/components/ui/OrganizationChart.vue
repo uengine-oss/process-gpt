@@ -1,5 +1,5 @@
 <template>
-    <div id="tree" ref="tree"></div>
+    <div id="tree" ref="tree" class="org-chart"></div>
 </template>
 
 <script>
@@ -9,14 +9,18 @@ export default {
     name: 'tree',
     props: {
         nodes: {
-            default: []
+            type: Array,
+            default: [],
         }
     },
-    data() {
+    data: () => ({
+    }),
+    mounted() {
+        this.mytree(this.$refs.tree, this.nodes);
     },
     methods: {
-        mytree: function(domEl, x) {
-            this.chart = new OrgChart (domEl, {
+        mytree(domEl, x) {
+            this.chart = new OrgChart(domEl, {
                 template: 'rony',
                 scaleInitial: 0.5,
                 nodes: x,
@@ -27,8 +31,11 @@ export default {
             });
         }
     },
-    mounted(){
-        this.mytree(this.$refs.tree, this.nodes)
-    }
 }
 </script>
+
+<style scoped>
+.org-chart {
+    height: calc(100vh - 112px);
+}
+</style>

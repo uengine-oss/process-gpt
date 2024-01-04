@@ -12,12 +12,46 @@
                     <div v-if="message.role == 'user'"
                             class="d-flex justify-end my-2"
                     >
-                        <v-sheet class="user-message pa-3"
-                                color="primary"
+                        <v-textarea v-if="editIndex === index"
+                                v-model="messages[index].content"
+                                rows="1"
+                                flat
+                                auto-grow
+                                hide-details
+                                bg-color="primary"
+                                class="message edit"
                         >
-                            <pre>{{ message.content }}</pre>
+                            <template v-slot:append-inner>
+                                <v-btn @click="send"
+                                        icon="mdi-send"
+                                        size="x-small"
+                                        elevation="0"
+                                        class="mr-2"
+                                ></v-btn>
+                                <v-btn @click="cancel"
+                                        icon="mdi-close"
+                                        size="x-small"
+                                        elevation="0"
+                                ></v-btn>
+                            </template>
+                        </v-textarea>
+
+                        <v-sheet v-else 
+                                class="message pa-3"
+                                color="primary"
+                                @mouseover="hoverIndex = index"
+                                @mouseleave="hoverIndex = -1"
+                        >
+                            <v-btn v-if="hoverIndex === index"
+                                    @click="editMessage(index)"
+                                    icon="mdi-pencil"
+                                    size="x-small"
+                                    elevation="0"
+                                    class="float-right ml-2"
+                            ></v-btn>
+                            <pre>{{ message.content }}</pre>                            
                         </v-sheet>
-                        <div class="ml-2">
+                        <div>
                             <v-avatar size="48">
                                 <v-icon>
                                     mdi-account-circle
@@ -42,7 +76,7 @@
                                 System
                             </div>
                         </div>
-                        <v-sheet class="system-message pa-3"
+                        <v-sheet class="message pa-3"
                                 color="grey-200"
                         >
                             <pre>{{ message.content }}</pre>
@@ -64,6 +98,8 @@
                         rows="1"
                         autofocus
                         auto-grow
+                        outlined
+                        hide-details
                 >
                     <template v-slot:append-inner>
                         <v-btn @click="send"
@@ -81,7 +117,6 @@
 </template>
 
 <script>
-
 export default {
     props: {
         messages: Array,
@@ -89,6 +124,8 @@ export default {
     data() {
         return {
             newMessage: "",
+            hoverIndex: -1,
+            editIndex: -1,
         }
     },
     computed: {
@@ -99,7 +136,7 @@ export default {
                 list.push(data);
             });
             return list
-        }
+        },
     },
     mounted() {
         window.addEventListener("keydown", (evt) => {
@@ -113,8 +150,25 @@ export default {
     },
     methods: {
         send() {
-            this.$emit('sendMessage', this.newMessage);
-            this.newMessage = "";
+            if (this.editIndex >= 0) {
+                this.$emit('editSendMessage', this.editIndex+1);
+                this.editIndex = -1;
+            } else {
+                console.log(this.newMessage)
+                this.$emit('sendMessage', this.newMessage);
+                this.newMessage = "";
+            }
+        },
+        cancel() {
+            this.editIndex = -1;
+        },
+        editMessage(index) {
+            if (index && index >= 0) {
+                this.editIndex = index;
+            } else {
+                this.editIndex = -1;
+            }
+            this.editIndex = index;
         },
     }
 }
@@ -126,14 +180,24 @@ export default {
     max-height: calc(100vh - 112px);
 }
 
-.user-message {
-    border-radius: 20px;
-    max-width: 90%;
+.message-box {
+    overflow-y: auto;
+    max-height: calc(100% - 65px);
 }
 
-.system-message {
+.message {
     border-radius: 20px;
-    max-width: 90%;
+    max-width: 87%;
+}
+
+.edit.v-textarea::v-deep .v-field {
+    border-radius: 20px;
+}
+
+.edit.v-textarea::v-deep textarea {
+    font-family: inter, sans-serif, -apple-system, blinkmacsystemfont, "Segoe UI", roboto, "Helvetica Neue", arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+    font-size: 0.875rem !important;
+    letter-spacing: 0.0094rem !important;
 }
 
 pre {
@@ -144,12 +208,8 @@ pre {
     white-space: pre-wrap;
 }
 
-.message-box {
-    overflow-y: auto;
-    max-height: calc(100% - 65px);
-}
-
 .chat-box {
+    z-index: 999;
     position: absolute;
     bottom: 0px;
     right: 0px;

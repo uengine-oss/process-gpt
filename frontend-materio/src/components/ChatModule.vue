@@ -9,6 +9,7 @@ export default {
         generator: null,
         messages: [],
         userInfo: {},
+        chatDialog: false,
     }),
     methods: {
         async init() {
@@ -24,12 +25,11 @@ export default {
                 value = await this.storage.getObject(`db://${this.path}`);
             }
     
-            if (value) {
-                if (value.messages) {
-                    return partialParse(value.messages);
-                }
+            if (value && value.messages) {
+                return partialParse(value.messages);
+            } else {
+                return this.messages;
             }
-            return this.messages;
         },
 
         async getData(path) {
@@ -42,10 +42,10 @@ export default {
             return value;
         },
     
-        sendMessage(message) {
+        async sendMessage(message) {
             if (message !== "") {
                 const chatObj = {
-                    role: this.userInfo.name ? this.userInfo.name : "user",
+                    role: "user",
                     content: message
                 }
                 this.messages.push(chatObj);
@@ -55,8 +55,27 @@ export default {
                     ...this.messages
                 ];
     
-                this.generator.generate();
+                await this.generator.generate();
     
+                this.messages.push({
+                    role:'system',
+                    content: '...',
+                    isLoading: true,
+                });
+            }
+        },
+
+        async editSendMessage(index) {
+            if (index) {
+                this.messages.splice(index);
+
+                this.generator.previousMessages = [
+                    ...this.generator.previousMessages,
+                    ...this.messages
+                ];
+
+                await this.generator.generate();
+
                 this.messages.push({
                     role:'system',
                     content: '...',
@@ -101,13 +120,14 @@ export default {
                 this.generator.generate();
                 
             } else {
-                var message = {
-                    role:'system',
-                    content: error.message
-                };
-    
-                this.messages.push(message);
+                let messageWriting = this.messages[this.messages.length -1];
+                delete messageWriting.isLoading;
+                messageWriting.content = error.message;
             }
+        },
+
+        toggleChatDialog() {
+            this.chatDialog = !this.chatDialog;
         },
 
         extractProcessJson(text) {            
