@@ -154,7 +154,6 @@ export default {
                 this.$emit('editSendMessage', this.editIndex+1);
                 this.editIndex = -1;
             } else {
-                console.log(this.newMessage)
                 this.$emit('sendMessage', this.newMessage);
                 this.newMessage = "";
             }

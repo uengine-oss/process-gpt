@@ -31,7 +31,7 @@ export default {
         },
         closeDialog(){
             this.dialog = false;
-        }
+        },
     },
 }
 </script>

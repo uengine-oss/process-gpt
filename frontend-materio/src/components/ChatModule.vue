@@ -84,8 +84,16 @@ export default {
             }
         },
     
-        async saveMessages(path, obj) {
+        async putObject(path, obj) {
             await this.storage.putObject(`db://${path}`, obj);
+        },
+
+        async pushObject(path, obj) {
+            await this.storage.pushObject(`db://${path}`, obj);
+        },
+
+        async setObject(path, obj) {
+            await this.storage.setObject(`db://${path}`, obj);
         },
     
         onModelCreated(response) {
@@ -131,8 +139,10 @@ export default {
         },
 
         extractProcessJson(text) {            
-            let textAndJson = text.split("--- json ---")
-            if(textAndJson && textAndJson.length==2) return textAndJson[1]
+            let textAndJson = text.split("--- json ---");
+            if(textAndJson && textAndJson.length==2) {
+                return textAndJson[1];
+            }
         },
         extractJSON(text) {            
             const regex = /```json\s*([\s\S]*?)(?:\n\s*```|$)/;

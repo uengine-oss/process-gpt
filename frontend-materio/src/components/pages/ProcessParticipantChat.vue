@@ -19,10 +19,10 @@
 import partialParse from "partial-json-parser";
 import { VectorStorage } from "vector-storage";
 
-import ChatGenerator from "./ai/ProcessInstanceGenerator.js";
-import Chat from "./ui/Chat.vue";
+import ChatGenerator from "../ai/ProcessInstanceGenerator.js";
+import Chat from "../ui/Chat.vue";
 
-import ChatModule from "./ChatModule.vue";
+import ChatModule from "../ChatModule.vue";
 
 
 export default {
@@ -35,7 +35,6 @@ export default {
         definitions: [],
         processDefinition: null,
         processInstance: null,
-        bpmn: null,
         path: "instances",
         organizationChart: [],
         alertInfo: {
@@ -63,7 +62,6 @@ export default {
             deep: true,
             async handler(newVal, oldVal) {
                 if (newVal.path !== oldVal.path) {
-                    this.bpmn = null;
                     var path = this.$route.href.replace("#/", "");
                     this.loadData(path);
 
@@ -82,14 +80,6 @@ export default {
                     
                     if (!this.organizationChart) {
                         this.organizationChart = []
-                    }
-                } else {
-                    if (this.$route.params && this.$route.params.id) {
-                        var jsonInstance = partialParse(value.model);
-                        if (jsonInstance) {
-                            this.processInstance = jsonInstance;
-                        }
-
                     }
                 }
             }
@@ -110,6 +100,7 @@ export default {
             if (jsonInstance) {
                 try {
                     this.processInstance = partialParse(jsonInstance);
+
                 } catch (error) {
                     this.processInstance = jsonInstance;
                     console.log(error);
@@ -118,63 +109,90 @@ export default {
         },
 
         async afterGenerationFinished(putObj) {
-            let modelText = "";
             let path = "";
-    
+            let modelText = "";
+            
+            if (!putObj.model) {
+                putObj.model = [];
+            }
+
             if (this.processInstance) {
                 if (typeof this.processInstance === "string") {
                     this.processInstance = partialParse(this.processInstance);
                 }
-                path = `${this.path}/${this.processInstance.processInstanceId}`;
                 modelText = JSON.stringify(this.processInstance);
 
+                path = `${this.path}/${this.processInstance.processInstanceId}`;
+   
                 let contexts = await this.queryFromVectorDB(this.processInstance.processDefinitionId);
                 if (contexts && contexts.length > 0) {
-                    contexts.forEach(item => {
-                        this.processDefinition = partialParse(item);
+                    const jsonText = contexts.find(context => {
+                        const definition = partialParse(context);
+                        return definition.processDefinitionId == this.processInstance.processDefinitionId
                     });
+
+                    this.processDefinition = partialParse(jsonText);
                 }
 
-                putObj.model = modelText;
+                putObj.model.push(modelText);
 
-                this.saveMessages(path, putObj);
+                this.putObject(path, putObj);
 
                 this.sendTodolist();
             }
         },
 
         async sendTodolist() {
-            let path = "";
-            const uuid = this.uuid();
-            let putObj = {};
+            if (this.processInstance && this.processDefinition) {
 
-            putObj[uuid] = {
-                activityId: "",
-                activityName: "",
-                startDate: new Date().toISOString().substr(0, 10),
-                endDate: "",
-                dueDate: "",
-                processDefinitionId: "",
-                processInstanceId: "",
-                userId: this.userInfo.email
-            };
+                if (this.processInstance.currentUserEmail !== "" 
+                    && this.checkUserEmail(this.processInstance.currentUserEmail)
+                ) {
+                    let path = `todolist/${this.processInstance.currentUserEmail}`;
+                    const pushObj = {
+                        processDefinitionId: this.processDefinition.processDefinitionId,
+                        processInstanceId: this.processInstance.processInstanceId,
+                        activityId: this.processInstance.currentActivityId,
+                        userId: this.processInstance.currentUserEmail,
+                        status: "Completed",
+                        endDate: new Date().toISOString().substr(0, 10),
+                    };
+                    
+                    const actIdx = this.processDefinition.activities.findIndex(activity => 
+                        activity.id == pushObj.activityId
+                    );
 
-            if (this.processDefinition) {
-                putObj[uuid].processDefinitionId = this.processDefinition.processDefinitionId;
-
-                this.processDefinition.activities.forEach(act => {
-                    if (act.id == this.processInstance.currentActivityId) {
-                        putObj[uuid].activityName = act.name; 
+                    if (actIdx < 1) {
+                        pushObj.startDate = new Date().toISOString().substr(0, 10);
                     }
-                });
-            }
 
-            if (this.processInstance) {
-                putObj[uuid].activityId = this.processInstance.currentActivityId;
-                putObj[uuid].processInstanceId = this.processInstance.processInstanceId;
-                path = `todolist/${this.processInstance.nextUserEmail}`;
+                    if (this.checkTodolist(path, pushObj.activityId)) {
+                        const delKey = this.checkTodolist(path, pushObj.activityId);
+                        await this.storage.delete(`${path}/${delKey}`);
+                    }
+
+                    await this.pushObject(path, pushObj);
+                }
                 
-                this.saveMessages(path, putObj);
+                if (this.processInstance.nextUserEmail !== "" 
+                    && this.checkUserEmail(this.processInstance.nextUserEmail)
+                ) {
+                    const path = `todolist/${this.processInstance.nextUserEmail}`;
+                    const pushObj = {
+                        processDefinitionId: this.processDefinition.processDefinitionId,
+                        processInstanceId: this.processInstance.processInstanceId,
+                        activityId: this.processInstance.nextActivityId,
+                        userId: this.processInstance.nextUserEmail,
+                        status: "Running",
+                        startDate: new Date().toISOString().substr(0, 10),
+                    };
+
+                    const actIdx = this.processDefinition.activities.findIndex(activity => 
+                        activity.id == pushObj.activityId
+                    );
+
+                    await this.pushObject(path, pushObj);
+                }
             }
         },
 
@@ -190,6 +208,25 @@ export default {
             if (results.similarItems) {
                 return results.similarItems.map(item => item.text);
             }
+        },
+
+        async checkTodolist(path, actId) {
+            let key;
+            let todolist = await this.loadData(path);
+            if (todolist) {
+                todolist = Object.values(todolist);
+                todolist.forEach(item => {
+                    if (item.activityId == actId) {
+                        key = item.key;
+                    }
+                })
+            }
+            return key;
+        },
+
+        checkUserEmail(email) {
+            const checked = this.organizationChart.some(user => user.email == email);
+            return checked;
         },
 
     }

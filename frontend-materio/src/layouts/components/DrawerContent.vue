@@ -72,38 +72,47 @@ export default {
         await this.storage.loginUser();
 
         if (this.storage.userInfo && this.storage.userInfo.name) {
-            this.getDefinitionList();
-            this.getInstanceList();
+            this.definitions = await this.getDefinitionList();
+            this.instances = await this.getInstanceList();
         }
+        
     },
     methods: {
         async getDefinitionList() {
+            var definitions = [];
             let list = await this.storage.list(`db://definitions`);
             if (list) {
                 list = Object.values(list);
                 list.forEach(item => {
                     if (item && item.model) {
-                        this.definitions.push(partialParse(item.model));
+                        definitions.push(partialParse(item.model));
                     }
                 });
             }
+
+            return definitions;
         },
         async getInstanceList() {
+            var instances = [];
             let list = await this.storage.list(`db://instances`);
             if (list) {
                 list = Object.values(list);
                 list.forEach(item => {
-                    if (item && item.model) {
-                        let instance = partialParse(item.model);
-                        if (instance && instance.currentUserEmail && instance.nextUserEmail && (
-                            instance.currentUserEmail == this.storage.userInfo.email ||
-                            instance.nextUserEmail == this.storage.userInfo.email
-                        )) {
-                            this.instances.push(instance);
-                        }
+                    if (item && item.model && item.model.length > 0) {
+                        item.model.forEach(modelText => {
+                            let instance = partialParse(modelText);
+                            if (instance && instance.currentUserEmail && instance.nextUserEmail && (
+                                instance.currentUserEmail == this.storage.userInfo.email ||
+                                instance.nextUserEmail == this.storage.userInfo.email
+                            )) {
+                                instances.push(instance);
+                            }
+                        })
                     }
                 });
             }
+
+            return instances;
         },
     }
 }

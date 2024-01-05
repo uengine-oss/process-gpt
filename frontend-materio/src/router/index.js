@@ -10,35 +10,35 @@ const router = createRouter({
         },
         {
             path: '/organization',
-            component: () => import('../components/OrganizationChartChat.vue'),
+            component: () => import('../components/pages/OrganizationChartChat.vue'),
             meta: {
                 requiresAuth: true
             },
         },
         {
             path: '/definitions',
-            component: () => import('../components/ProcessManagerChat.vue'),
+            component: () => import('../components/pages/ProcessManagerChat.vue'),
             meta: {
                 requiresAuth: true
             },
         },
         {
             path: '/definitions/:id',
-            component: () => import('../components/ProcessManagerChat.vue'),
+            component: () => import('../components/pages/ProcessManagerChat.vue'),
             meta: {
                 requiresAuth: true
             },
         },
         {
             path: '/instances',
-            component: () => import('../components/ProcessParticipantChat.vue'),
+            component: () => import('../components/pages/ProcessParticipantChat.vue'),
             meta: {
                 requiresAuth: true
             },
         },
         {
             path: '/instances/:id',
-            component: () => import('../components/ProcessParticipantChat.vue'),
+            component: () => import('../components/pages/ProcessParticipantChat.vue'),
             meta: {
                 requiresAuth: true
             },

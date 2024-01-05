@@ -21,11 +21,11 @@ import partialParse from "partial-json-parser";
 import { VectorStorage } from "vector-storage";
 import OrgChart from '@balkangraph/orgchart.js';
 
-import ChatGenerator from "./ai/OrganizationChartGenerator";
-import OrganizationChart from "./ui/OrganizationChart.vue"
-import ChatButton from "./ui/ChatButton.vue";
+import ChatGenerator from "../ai/OrganizationChartGenerator";
+import OrganizationChart from "../ui/OrganizationChart.vue"
+import ChatButton from "../ui/ChatButton.vue";
 
-import ChatModule from "./ChatModule.vue";
+import ChatModule from "../ChatModule.vue";
 
 export default {
     mixins: [ChatModule],
@@ -109,7 +109,7 @@ export default {
 
             putObj.organizationChart = chartText;
 
-            this.saveMessages(this.path, putObj);
+            this.putObject(this.path, putObj);
         },
     }
 }
