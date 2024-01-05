@@ -80,6 +80,8 @@
                                 color="grey-200"
                         >
                             <pre>{{ message.content }}</pre>
+                            <slot name="tool" :message="message"></slot>
+
                         </v-sheet>
                         <v-progress-circular
                                 v-if="message.isLoading"

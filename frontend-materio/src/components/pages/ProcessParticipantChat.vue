@@ -11,6 +11,10 @@
                         :text="alertInfo.text"
                 ></v-alert>
             </template>
+            <!-- <template v-slot:tool="{message}">
+                
+            </template> -->
+            
         </chat>
     </div>
 </template>
@@ -43,19 +47,12 @@ export default {
         },
     }),
     async created() {
-        this.init();
-
-        await this.loadData("organization");
+        await this.init();
 
         this.generator = new ChatGenerator(this, {
             isStream: true,
             preferredLanguage: "Korean"
         });
-
-        var path = this.$route.href.replace("#/", "");
-        this.loadData(path);
-
-        this.messages = await this.loadMessages(path);
     },
     watch: {
         "$route": {
@@ -72,15 +69,13 @@ export default {
     },
     methods: {
         async loadData(path) {
-            const value = await this.getData(path);
-
-            if (value) {
-                if (value.organizationChart) {
-                    this.organizationChart = JSON.parse(value.organizationChart);
-                    
-                    if (!this.organizationChart) {
-                        this.organizationChart = []
-                    }
+            const value = await this.getData("organization");
+            
+            if (value.organizationChart) {
+                this.organizationChart = JSON.parse(value.organizationChart);
+                
+                if (!this.organizationChart) {
+                    this.organizationChart = []
                 }
             }
         },
@@ -95,7 +90,7 @@ export default {
         },
 
         afterModelCreated(response) {
-            let jsonInstance = this.extractProcessJson(response);
+            let jsonInstance = this.extractJSON(response);
 
             if (jsonInstance) {
                 try {
@@ -146,7 +141,7 @@ export default {
             if (this.processInstance && this.processDefinition) {
 
                 if (this.processInstance.currentUserEmail !== "" 
-                    && this.checkUserEmail(this.processInstance.currentUserEmail)
+                    //&& this.checkUserEmail(this.processInstance.currentUserEmail)
                 ) {
                     let path = `todolist/${this.processInstance.currentUserEmail}`;
                     const pushObj = {
@@ -174,6 +169,7 @@ export default {
                     await this.pushObject(path, pushObj);
                 }
                 
+
                 if (this.processInstance.nextUserEmail !== "" 
                     && this.checkUserEmail(this.processInstance.nextUserEmail)
                 ) {
@@ -192,6 +188,9 @@ export default {
                     );
 
                     await this.pushObject(path, pushObj);
+                }else{
+                    //NOTE: 이런 메시지를 주고 적절한 조치를 유도해야 합니다. "절대로" 그냥 먹으면 안됩니다.
+                    alert("다음 담당자가 조직도상에 없습니다. 담당자를 다시 지정해주시거나 담당자를 등록해주세요")
                 }
             }
         },
@@ -224,6 +223,7 @@ export default {
             return key;
         },
 
+        //NOTE: 조직도에 다음 담당자가 없으면 진행오류를 내야 합니다. 그냥 먹으면 안됩니다.
         checkUserEmail(email) {
             const checked = this.organizationChart.some(user => user.email == email);
             return checked;

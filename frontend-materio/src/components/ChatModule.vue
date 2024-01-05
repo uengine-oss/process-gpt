@@ -13,8 +13,52 @@ export default {
     }),
     methods: {
         async init() {
+            this.test()
+
             this.storage = new CommonStorageBase(this);
             this.userInfo = await this.storage.getUserInfo();
+            await this.loadData(this.getDataPath())
+            this.messages = await this.loadMessages(this.getDataPath())
+        },
+
+        test(){
+            
+            let json = this.extractJSON(
+
+            `
+                네, 그럼 홍길동님의 정보와 관리팀, 개발팀에 대한 정보를 반영하여 조직도를 생성하겠습니다. 
+
+                조직도는 다음과 같습니다: 
+
+                \`\`\`
+                {
+                    "organizationChart": [
+                        {
+                            "team": true,
+                            "id": "1",
+                            "name": "개발팀", 
+                            "description": "회사의 모든 개발 업무를 담당하는 팀"
+                        },
+                        {
+                            "team": true,
+                            "id": "2",
+                            "name": "관리팀", 
+                            "description": "회사의 관리
+                            
+                
+                `
+            
+            )
+            console.log("ChatModel test:", json)
+            console.log("ChatModel test: partial parsed:", partialParse(json))
+        },
+
+        getDataPath(){
+            return this.$route.href.replace("#/", "");
+        },
+
+        async loadData(path){
+
         },
     
         async loadMessages(path) {
@@ -26,7 +70,7 @@ export default {
             }
     
             if (value && value.messages) {
-                return partialParse(value.messages);
+                return JSON.parse(value.messages);
             } else {
                 return this.messages;
             }
@@ -144,11 +188,48 @@ export default {
                 return textAndJson[1];
             }
         },
-        extractJSON(text) {            
-            const regex = /```json\s*([\s\S]*?)(?:\n\s*```|$)/;
-            const match = text.match(regex);
-            return match ? match[1].trim() : null;
+
+        hasUnclosedTripleBackticks(inputString) {
+            // 백틱 세 개의 시작과 끝을 찾는 정규 표현식
+            const regex = /`{3}/g;
+            let match;
+            let isOpen = false;
+
+            // 모든 백틱 세 개의 시작과 끝을 찾습니다
+            while ((match = regex.exec(inputString)) !== null) {
+                // 현재 상태를 토글합니다 (열림 -> 닫힘, 닫힘 -> 열림)
+                isOpen = !isOpen;
+            }
+
+            // 마지막으로 찾은 백틱 세 개가 닫혀있지 않은 경우 true 반환
+            return isOpen;
         },
+
+        extractJSON(inputString) {
+            if(this.hasUnclosedTripleBackticks(inputString)){
+                inputString = inputString + "\n```"
+            }
+
+            // 정규 표현식 정의
+            const regex = /^.*?`{3}(?:json)?\n(.*?)`{3}.*?$/s;
+
+            // 정규 표현식을 사용하여 입력 문자열에서 JSON 부분 추출
+            const match = inputString.match(regex);
+
+            // 매치된 결과가 있다면, 첫 번째 캡쳐 그룹(즉, JSON 부분)을 반환
+            if (match) {
+                return match[1];
+            }
+
+            // 매치된 결과가 없으면 null 반환
+            return null;
+        },
+
+        // extractJSON(text) {            
+        //     const regex = /```json\s*([\s\S]*?)(?:\n\s*```|$)/;
+        //     const match = text.match(regex);
+        //     return match ? match[1].trim() : null;
+        // },
         extractXML(text) {            
             const regex = /```xml\s*([\s\S]*?)(?:\n\s*```|$)/;
             const match = text.match(regex);

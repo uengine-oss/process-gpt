@@ -48,7 +48,6 @@ export default {
             isStream: true,
             preferredLanguage: "Korean"
         });
-        this.loadData(this.path);
     },
     methods: {
         async loadData(path) {
@@ -56,20 +55,20 @@ export default {
 
             if (value) {
                 if (value.organizationChart && value.organizationChart.length > 0) {
-                    let orgChart = partialParse(value.organizationChart);
+                    let orgChart = JSON.parse(value.organizationChart);
                     if (orgChart && orgChart.length > 0) {
-                        const isMyOrg = orgChart.some(item =>
-                            item.email == this.userInfo.email
-                        );
-                        if (isMyOrg) {
+                        // const isMyOrg = orgChart.some(item =>
+                        //     item.email == this.userInfo.email
+                        // );
+                        // if (isMyOrg) {
                             this.organizationChart = orgChart;
 
-                            this.messages = partialParse(value.messages);
-                            this.generator.previousMessages = [
-                                ...this.generator.previousMessages,
-                                ...this.messages
-                            ];
-                        }
+                            // this.messages = partialParse(value.messages);
+                            // this.generator.previousMessages = [
+                            //     ...this.generator.previousMessages,
+                            //     ...this.messages
+                            // ];
+                        //}
                     }
                     if (!this.organizationChart) {
                         this.organizationChart = []
@@ -87,8 +86,11 @@ export default {
         },
 
         drawChart(textData) {
+            let json = this.extractJSON(textData)
+            //if(!json) json = this.extractJSON(textData + '\n```')
+
             try {
-                let obj = partialParse(textData);
+                let obj = partialParse(json);
 
                 if(obj && obj.organizationChart) {
                     this.organizationChart = obj.organizationChart;
