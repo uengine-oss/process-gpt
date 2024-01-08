@@ -10,6 +10,7 @@
                 :chatDialog="chatDialog"
                 :messages="messages"
                 :alertInfo="alertInfo"
+                :disableChat="disableChat"
                 @toggleChatDialog="toggleChatDialog"
                 @beforeSendMessage="beforeSendMessage"
                 @editSendMessage="editSendMessage"
@@ -58,12 +59,9 @@ export default {
             async handler(newVal, oldVal) {
                 if (newVal.path !== oldVal.path) {
                     this.processDefinition = null;
+                    this.bpmn = "";
                     this.chatDialog = false;
-
-                    var path = this.$route.href.replace("#/", "");
-                    this.loadData(path);
-
-                    this.messages = await this.loadMessages(path);
+                    await this.init();
                 }
             }
         },
@@ -75,7 +73,8 @@ export default {
             if (value) {
                 if (this.$route.params && this.$route.params.id) {
                     this.processDefinition = partialParse(value.model);
-                    this.bpmn = this.createBpmnXml(this.processDefinition)
+                    this.bpmn = this.createBpmnXml(this.processDefinition);
+                    this.saveDefinition(this.processDefinition);
 
                     if (!this.processDefinition) {
                         this.processDefinition = null;
@@ -119,9 +118,19 @@ export default {
             }
         },
 
-        afterGenerationFinished(putObj){
+        afterGenerationFinished() {
+            let path = "";
+            let msgText = "";
             let modelText = "";
-            let path = this.path;
+            let putObj =  {
+                messages: "",
+                model: "",
+            };
+
+            if (this.messages) {
+                msgText = JSON.stringify(this.messages);
+                putObj.messages = msgText;
+            }
             
             if (this.processDefinition) {
                 path = `${this.path}/${this.processDefinition.processDefinitionId}`;

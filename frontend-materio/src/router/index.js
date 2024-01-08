@@ -61,6 +61,7 @@ router.beforeEach(async (to, from, next) => {
         if (storage.isLogin) {
             next();
         } else {
+            alert("로그인 후 이용해주시길 바랍니다.");
             next('/');
         }
     } else {

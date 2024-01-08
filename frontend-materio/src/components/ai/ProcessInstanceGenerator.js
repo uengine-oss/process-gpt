@@ -31,8 +31,7 @@ export default class ProcessDefinitionGenerator extends AIGenerator {
              nextActivityId: "the id of next activity id”,
              inputData: [{"name”: "name of process data input”, "value”: "real value of the process instance”}],
              currentUserEmail: "the actual user email address of mapped role”,
-             nextUserEmail: "the email address of next activity’s role”,
-             nextActivityId: "the id of next activity”
+             nextUserEmail: "the email address of next activity’s role”
             }
             \`\`\`
                         

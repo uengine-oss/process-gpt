@@ -10,6 +10,7 @@
 
         <v-card v-if="chatDialog" width="500" class="chat-dialog">
             <Chat :messages="messages"
+                    :disableChat="disableChat"
                     @sendMessage="beforeSendMessage"
                     @editSendMessage="editSendMessage"
             >
@@ -33,6 +34,7 @@ export default {
         chatDialog: Boolean,
         messages: Array,
         alertInfo: Object,
+        disableChat: Boolean,
     },
     components: {
         Chat,

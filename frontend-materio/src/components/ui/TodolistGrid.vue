@@ -39,10 +39,10 @@
             <v-table hover>
                 <thead>
                     <tr>
-                        <th></th>
-                        <th>프로세스</th>
-                        <th>프로세스 인스턴스</th>
+                        <th>No</th>
                         <th>액티비티</th>
+                        <th>프로세스 인스턴스</th>
+                        <th>프로세스</th>
                         <th>시작일</th>
                         <th>완료일</th>
                         <th>마감일</th>
@@ -54,12 +54,13 @@
                 <tbody>
                     <tr v-for="(val, idx) in value" 
                             :key="val"
-                            @click="goInstance(val.processInstanceId)"
+                            @click="goInstance(val.instanceId)"
+                            class="todolist-item"
                     >
                         <td>{{ idx + 1 }}</td>
-                        <td>{{ val.processDefinitionId }}</td>
-                        <td>{{ val.processInstanceId }}</td>
                         <td>{{ val.activityId }}</td>
+                        <td>{{ val.instanceId }}</td>
+                        <td>{{ val.definitionId }}</td>
                         <td>{{ val.startDate }}</td>
                         <td>{{ val.endDate }}</td>
                         <td>{{ val.dueDate }}</td>
@@ -126,21 +127,28 @@ export default {
         updateTodolistDialog: false,
     }),
     created() {
-        this.init(this.path);
+        this.init();
     },
     methods: {
         goInstance(id) {
             this.$router.push(`/instances/${id}`);
         },
-        deleteWorkItem(id) {
-            const path = `db://todolist/${this.userInfo.email}/${id}`;
-            this.storage.delete(path);
-
-            this.$nextTick(() => {
-                this.init(this.path);
-            });
+        async deleteWorkItem(id) {
+            if (confirm("해당 Item 을 삭제 하시겠습니까?")) {
+                const path = `db://${this.path}/${this.userInfo.email}`;
+                if (id) {
+                    await this.storage.delete(`${path}/${id}`);
+                    await this.init();
+                }
+            }
         },
 
     }
 }
 </script>
+
+<style scoped>
+.todolist-item {
+    cursor: pointer;
+}
+</style>

@@ -1,6 +1,7 @@
 <template>
     <div>
         <chat :messages="messages"
+                :disableChat="disableChat"
                 @sendMessage="beforeSendMessage"
                 @editSendMessage="editSendMessage"
         >
@@ -59,20 +60,20 @@ export default {
             deep: true,
             async handler(newVal, oldVal) {
                 if (newVal.path !== oldVal.path) {
-                    var path = this.$route.href.replace("#/", "");
-                    this.loadData(path);
-
-                    this.messages = await this.loadMessages(path);
+                    await this.init();
                 }
             }
-        }
+        },
     },
     methods: {
         async loadData(path) {
-            const value = await this.getData("organization");
+            let value = await this.getData(path);
+            this.checkDisableChat(value);
+
+            let org = await this.getData("organization");
             
-            if (value.organizationChart) {
-                this.organizationChart = JSON.parse(value.organizationChart);
+            if (org.organizationChart) {
+                this.organizationChart = JSON.parse(org.organizationChart);
                 
                 if (!this.organizationChart) {
                     this.organizationChart = []
@@ -80,13 +81,28 @@ export default {
             }
         },
 
-        async beforeSendMessage(newMessage) {
-            if(!this.generator.contexts) {
-                let contexts = await this.queryFromVectorDB(newMessage);
-                this.generator.setContexts(contexts);
+        checkDisableChat(value) {
+            if (value.status && value.status == "Completed") {
+                this.disableChat = true;
             }
 
-            this.sendMessage(newMessage);
+            if (value.currentUserId && value.currentUserId !== this.userInfo.email) {
+                this.disableChat = true;
+            }
+        },
+
+        async beforeSendMessage(newMessage) {
+            try {
+                if(!this.generator.contexts) {
+                    let contexts = await this.queryFromVectorDB(newMessage);
+                    this.generator.setContexts(contexts);
+                }
+
+                this.sendMessage(newMessage);
+
+            } catch (error) {
+                console.log(error);
+            }
         },
 
         afterModelCreated(response) {
@@ -98,27 +114,18 @@ export default {
 
                 } catch (error) {
                     this.processInstance = jsonInstance;
+
                     console.log(error);
                 }
             }
         },
 
-        async afterGenerationFinished(putObj) {
-            let path = "";
-            let modelText = "";
-            
-            if (!putObj.model) {
-                putObj.model = [];
-            }
-
+        async afterGenerationFinished() {
             if (this.processInstance) {
                 if (typeof this.processInstance === "string") {
                     this.processInstance = partialParse(this.processInstance);
                 }
-                modelText = JSON.stringify(this.processInstance);
 
-                path = `${this.path}/${this.processInstance.processInstanceId}`;
-   
                 let contexts = await this.queryFromVectorDB(this.processInstance.processDefinitionId);
                 if (contexts && contexts.length > 0) {
                     const jsonText = contexts.find(context => {
@@ -129,41 +136,84 @@ export default {
                     this.processDefinition = partialParse(jsonText);
                 }
 
-                putObj.model.push(modelText);
-
-                this.putObject(path, putObj);
-
+                this.saveInstance();
                 this.sendTodolist();
+            }
+        },
+
+        async saveInstance(status) {
+            if (this.processInstance && this.processDefinition) {
+                let path = `${this.path}/${this.processInstance.processInstanceId}`;
+                let putObj = await this.getData(path);
+
+                if (putObj) {
+                    await this.delete(path);
+
+                    putObj.messages = this.messages;
+                    putObj.currentUserId = this.processInstance.currentUserEmail;
+                    putObj.currentActivityId = this.processInstance.currentActivityId;
+                    putObj.nextUserId = this.processInstance.nextUserEmail;
+                    putObj.nextActivityId = this.processInstance.nextActivityId;
+
+                    let newParticipants = [ this.processInstance.currentUserEmail, this.processInstance.nextUserEmail ];
+                    newParticipants = [
+                        ...putObj.participants,
+                        ...newParticipants
+                    ];
+                    const set = new Set(newParticipants);
+                    putObj.participants = [...set];
+
+                    if (status) {
+                        putObj.status = status;
+                    }
+
+                } else {
+                    putObj = {
+                        messages: this.messages,
+                        definitionId: this.processDefinition.processDefinitionId,
+                        currentUserId: this.processInstance.currentUserEmail,
+                        currentActivityId: this.processInstance.currentActivityId,
+                        nextUserId: this.processInstance.nextUserEmail,
+                        nextActivityId: this.processInstance.nextActivityId,
+                        participants: [
+                            this.processInstance.currentUserEmail, 
+                            this.processInstance.nextUserEmail
+                        ],
+                        status: "Running",
+                    };
+
+                }
+                
+                await this.putObject(path, putObj);
             }
         },
 
         async sendTodolist() {
             if (this.processInstance && this.processDefinition) {
-
                 if (this.processInstance.currentUserEmail !== "" 
                     //&& this.checkUserEmail(this.processInstance.currentUserEmail)
                 ) {
                     let path = `todolist/${this.processInstance.currentUserEmail}`;
                     const pushObj = {
-                        processDefinitionId: this.processDefinition.processDefinitionId,
-                        processInstanceId: this.processInstance.processInstanceId,
+                        definitionId: this.processDefinition.processDefinitionId,
+                        instanceId: this.processInstance.processInstanceId,
                         activityId: this.processInstance.currentActivityId,
                         userId: this.processInstance.currentUserEmail,
                         status: "Completed",
                         endDate: new Date().toISOString().substr(0, 10),
                     };
                     
+                    const workItem = await this.checkTodolist(path, pushObj.activityId);
+                    if (workItem) {
+                        pushObj.startDate = workItem.startDate;
+                        await this.delete(`${path}/${workItem.key}`);
+                    }
+                    
                     const actIdx = this.processDefinition.activities.findIndex(activity => 
                         activity.id == pushObj.activityId
                     );
-
                     if (actIdx < 1) {
                         pushObj.startDate = new Date().toISOString().substr(0, 10);
-                    }
-
-                    if (this.checkTodolist(path, pushObj.activityId)) {
-                        const delKey = this.checkTodolist(path, pushObj.activityId);
-                        await this.storage.delete(`${path}/${delKey}`);
                     }
 
                     await this.pushObject(path, pushObj);
@@ -175,8 +225,8 @@ export default {
                 ) {
                     const path = `todolist/${this.processInstance.nextUserEmail}`;
                     const pushObj = {
-                        processDefinitionId: this.processDefinition.processDefinitionId,
-                        processInstanceId: this.processInstance.processInstanceId,
+                        definitionId: this.processDefinition.processDefinitionId,
+                        instanceId: this.processInstance.processInstanceId,
                         activityId: this.processInstance.nextActivityId,
                         userId: this.processInstance.nextUserEmail,
                         status: "Running",
@@ -188,9 +238,13 @@ export default {
                     );
 
                     await this.pushObject(path, pushObj);
-                }else{
+                } else {
                     //NOTE: 이런 메시지를 주고 적절한 조치를 유도해야 합니다. "절대로" 그냥 먹으면 안됩니다.
-                    alert("다음 담당자가 조직도상에 없습니다. 담당자를 다시 지정해주시거나 담당자를 등록해주세요")
+                    if (this.processInstance.nextActivityId) {
+                        alert("다음 담당자가 조직도상에 없습니다. 담당자를 다시 지정해주시거나 담당자를 등록해주세요");
+                    } else {
+                        this.saveInstance("Completed");
+                    }
                 }
             }
         },
@@ -210,17 +264,17 @@ export default {
         },
 
         async checkTodolist(path, actId) {
-            let key;
-            let todolist = await this.loadData(path);
+            let workItem;
+            let todolist = await this.getData(path);
             if (todolist) {
                 todolist = Object.values(todolist);
                 todolist.forEach(item => {
                     if (item.activityId == actId) {
-                        key = item.key;
+                        workItem = item;
                     }
                 })
             }
-            return key;
+            return workItem;
         },
 
         //NOTE: 조직도에 다음 담당자가 없으면 진행오류를 내야 합니다. 그냥 먹으면 안됩니다.

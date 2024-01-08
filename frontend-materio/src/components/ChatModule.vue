@@ -10,47 +10,16 @@ export default {
         messages: [],
         userInfo: {},
         chatDialog: false,
+        disableChat: false,
     }),
     methods: {
         async init() {
-            this.test()
-
+            this.disableChat = false;
+            
             this.storage = new CommonStorageBase(this);
             this.userInfo = await this.storage.getUserInfo();
-            await this.loadData(this.getDataPath())
-            this.messages = await this.loadMessages(this.getDataPath())
-        },
-
-        test(){
-            
-            let json = this.extractJSON(
-
-            `
-                네, 그럼 홍길동님의 정보와 관리팀, 개발팀에 대한 정보를 반영하여 조직도를 생성하겠습니다. 
-
-                조직도는 다음과 같습니다: 
-
-                \`\`\`
-                {
-                    "organizationChart": [
-                        {
-                            "team": true,
-                            "id": "1",
-                            "name": "개발팀", 
-                            "description": "회사의 모든 개발 업무를 담당하는 팀"
-                        },
-                        {
-                            "team": true,
-                            "id": "2",
-                            "name": "관리팀", 
-                            "description": "회사의 관리
-                            
-                
-                `
-            
-            )
-            console.log("ChatModel test:", json)
-            console.log("ChatModel test: partial parsed:", partialParse(json))
+            await this.loadData(this.getDataPath());
+            this.messages = await this.loadMessages(this.getDataPath());
         },
 
         getDataPath(){
@@ -70,9 +39,14 @@ export default {
             }
     
             if (value && value.messages) {
-                return JSON.parse(value.messages);
+                if (typeof value.messages === "string") {
+                    return JSON.parse(value.messages);
+                } else {
+                    return value.messages;
+                }
             } else {
-                return this.messages;
+                return [];
+                // return this.messages;
             }
         },
 
@@ -139,6 +113,10 @@ export default {
         async setObject(path, obj) {
             await this.storage.setObject(`db://${path}`, obj);
         },
+
+        async delete(path) {
+            await this.storage.delete(`db://${path}`);
+        },
     
         onModelCreated(response) {
             let messageWriting = this.messages[this.messages.length -1];
@@ -152,16 +130,7 @@ export default {
             let messageWriting = this.messages[this.messages.length -1];
             delete messageWriting.isLoading;
     
-            var msgText = "";
-            if (this.messages) {
-                msgText = JSON.stringify(this.messages);
-            }
-    
-            var putObj =  {
-                messages: msgText,
-            }
-    
-            this.afterGenerationFinished(putObj);
+            this.afterGenerationFinished();
         },
     
         onError(error) {
@@ -173,13 +142,23 @@ export default {
                 
             } else {
                 let messageWriting = this.messages[this.messages.length -1];
-                delete messageWriting.isLoading;
-                messageWriting.content = error.message;
+                if (messageWriting.role =="system" && messageWriting.isLoading) {
+                    delete messageWriting.isLoading;
+                    messageWriting.content = error.message;
+                } else {
+                    this.messages.push({
+                        role: "system",
+                        content: error.message,
+                    });
+                }
             }
         },
 
         toggleChatDialog() {
             this.chatDialog = !this.chatDialog;
+        },
+
+        checkDisableChat(value) {
         },
 
         extractProcessJson(text) {            
