@@ -11,6 +11,8 @@ export default {
         userInfo: {},
         chatDialog: false,
         disableChat: false,
+        tests: [],
+        testEnabled: false
     }),
     methods: {
         async init() {
@@ -20,6 +22,18 @@ export default {
             this.userInfo = await this.storage.getUserInfo();
             await this.loadData(this.getDataPath());
             this.messages = await this.loadMessages(this.getDataPath());
+
+            this.tests=[
+                function(me){
+
+                },
+                function(me){
+                }
+            ]
+
+            this.testEnabled = localStorage.getItem('test')=="true"
+
+
         },
 
         getDataPath(){
@@ -28,6 +42,12 @@ export default {
 
         async loadData(path){
 
+        },
+
+        runTest(){
+            if(this.tests){
+                this.tests.forEach(test => test(this))
+            }
         },
     
         async loadMessages(path) {
@@ -184,7 +204,7 @@ export default {
             return isOpen;
         },
 
-        extractJSON(inputString) {
+        extractJSON(inputString, checkFunction) {
             if(this.hasUnclosedTripleBackticks(inputString)){
                 inputString = inputString + "\n```"
             }
@@ -197,7 +217,12 @@ export default {
 
             // 매치된 결과가 있다면, 첫 번째 캡쳐 그룹(즉, JSON 부분)을 반환
             if (match) {
-                return match[1];
+                if(checkFunction)
+                    match.forEach(shouldBeJson=>{
+                        if(checkFunction(shouldBeJson)) return shouldBeJson
+                    })
+                else    
+                    return match[1];
             }
 
             // 매치된 결과가 없으면 null 반환

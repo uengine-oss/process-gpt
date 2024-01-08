@@ -17,6 +17,7 @@
             </template> -->
             
         </chat>
+        <v-btn v-if="testEnabled" @click="runTest">test</v-btn>
     </div>
 </template>
 
@@ -54,6 +55,22 @@ export default {
             isStream: true,
             preferredLanguage: "Korean"
         });
+
+        this.tests = [function(me){
+            let lastReply = me.messages[me.messages.length - 1].content
+            let json = me.extractJSON(lastReply, (message)=>{
+                    try{
+                        JSON.parse(message); 
+                        return true
+                    }catch(e){
+                        return false
+                    }
+                }
+            )
+
+            if(json.processDefinitionId) alert("success")
+
+        }]
     },
     watch: {
         "$route": {
