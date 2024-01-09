@@ -12,7 +12,7 @@
             <Chat :messages="messages"
                     :disableChat="disableChat"
                     @sendMessage="beforeSendMessage"
-                    @editSendMessage="editSendMessage"
+                    @sendEditedMessage="sendEditedMessage"
             >
                 <template v-slot:alert>
                     <v-alert
@@ -46,8 +46,8 @@ export default {
         beforeSendMessage(message) {
             this.$emit("beforeSendMessage", message);
         },
-        editSendMessage(index) {
-            this.$emit("editSendMessage", index);
+        sendEditedMessage(index) {
+            this.$emit("sendEditedMessage", index);
         }
     }
 }

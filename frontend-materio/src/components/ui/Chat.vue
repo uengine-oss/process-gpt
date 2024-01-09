@@ -157,7 +157,7 @@ export default {
     methods: {
         send() {
             if (this.editIndex >= 0) {
-                this.$emit('editSendMessage', this.editIndex+1);
+                this.$emit('sendEditedMessage', this.editIndex+1);
                 this.editIndex = -1;
             } else {
                 this.$emit('sendMessage', this.newMessage);

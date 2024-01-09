@@ -103,7 +103,7 @@ export default {
             }
         },
 
-        async editSendMessage(index) {
+        async sendEditedMessage(index) {
             if (index) {
                 this.messages.splice(index);
 
@@ -120,6 +120,11 @@ export default {
                     isLoading: true,
                 });
             }
+        },
+
+        sendNotification(uid, obj) {
+            const path = `users/${uid}/notifications`;
+            this.putObject(path, obj);
         },
     
         async putObject(path, obj) {

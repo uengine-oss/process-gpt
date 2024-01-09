@@ -3,7 +3,7 @@
         <chat :messages="messages"
                 :disableChat="disableChat"
                 @sendMessage="beforeSendMessage"
-                @editSendMessage="editSendMessage"
+                @sendEditedMessage="sendEditedMessage"
         >
             <template v-slot:alert>
                 <v-alert
@@ -85,7 +85,9 @@ export default {
     methods: {
         async loadData(path) {
             let value = await this.getData(path);
-            this.checkDisableChat(value);
+            if (value) {
+                this.checkDisableChat(value);
+            }
 
             let org = await this.getData("organization");
             
@@ -103,7 +105,7 @@ export default {
                 this.disableChat = true;
             }
 
-            if (value.currentUserId && value.currentUserId !== this.userInfo.email) {
+            if (value.nextUserId && value.nextUserId !== this.userInfo.email) {
                 this.disableChat = true;
             }
         },
@@ -153,9 +155,11 @@ export default {
                     this.processDefinition = partialParse(jsonText);
                 }
 
-                this.saveInstance();
-                this.sendTodolist();
+                await this.saveInstance();
+                await this.sendTodolist();
             }
+
+            await this.loadData(this.getDataPath());
         },
 
         async saveInstance(status) {
@@ -164,8 +168,6 @@ export default {
                 let putObj = await this.getData(path);
 
                 if (putObj) {
-                    await this.delete(path);
-
                     putObj.messages = this.messages;
                     putObj.currentUserId = this.processInstance.currentUserEmail;
                     putObj.currentActivityId = this.processInstance.currentActivityId;
@@ -210,7 +212,7 @@ export default {
                 if (this.processInstance.currentUserEmail !== "" 
                     //&& this.checkUserEmail(this.processInstance.currentUserEmail)
                 ) {
-                    let path = `todolist/${this.processInstance.currentUserEmail}`;
+                    const path = `todolist/${this.processInstance.currentUserEmail}`;
                     const pushObj = {
                         definitionId: this.processDefinition.processDefinitionId,
                         instanceId: this.processInstance.processInstanceId,
@@ -220,7 +222,7 @@ export default {
                         endDate: new Date().toISOString().substr(0, 10),
                     };
                     
-                    const workItem = await this.checkTodolist(path, pushObj.activityId);
+                    const workItem = await this.checkTodolist(path, pushObj);
                     if (workItem) {
                         pushObj.startDate = workItem.startDate;
                         await this.delete(`${path}/${workItem.key}`);
@@ -231,9 +233,11 @@ export default {
                     );
                     if (actIdx < 1) {
                         pushObj.startDate = new Date().toISOString().substr(0, 10);
+                        localStorage.setItem("useCache", true);
                     }
 
                     await this.pushObject(path, pushObj);
+                    await this.saveUserInstance(pushObj.userId, pushObj.instanceId);
                 }
                 
 
@@ -250,11 +254,9 @@ export default {
                         startDate: new Date().toISOString().substr(0, 10),
                     };
 
-                    const actIdx = this.processDefinition.activities.findIndex(activity => 
-                        activity.id == pushObj.activityId
-                    );
-
                     await this.pushObject(path, pushObj);
+                    await this.saveUserInstance(pushObj.userId, pushObj.instanceId);
+
                 } else {
                     //NOTE: 이런 메시지를 주고 적절한 조치를 유도해야 합니다. "절대로" 그냥 먹으면 안됩니다.
                     if (this.processInstance.nextActivityId) {
@@ -280,13 +282,13 @@ export default {
             }
         },
 
-        async checkTodolist(path, actId) {
+        async checkTodolist(path, obj) {
             let workItem;
             let todolist = await this.getData(path);
             if (todolist) {
                 todolist = Object.values(todolist);
                 todolist.forEach(item => {
-                    if (item.activityId == actId) {
+                    if (item.instanceId == obj.instanceId && item.activityId == obj.activityId) {
                         workItem = item;
                     }
                 })
@@ -298,6 +300,38 @@ export default {
         checkUserEmail(email) {
             const checked = this.organizationChart.some(user => user.email == email);
             return checked;
+        },
+
+        async saveUserInstance(email, instanceId) {
+            if (this.checkUserEmail(email)) {
+                let uid = "";
+                const userList = await this.getData("users");
+                if (userList) {
+                    const ids = Object.keys(userList);
+                    ids.forEach(id => {
+                        if (userList[id].email == email) {
+                            uid = id;
+                        }
+                    });
+                }
+
+                if (uid !== "") {
+                    const path = `users/${uid}/instances`;
+                    let putObj = [instanceId];
+
+                    let instanceList = await this.getData(path);
+                    if (instanceList) {
+                        instanceList  = [
+                            ...instanceList,
+                            ...putObj
+                        ];
+                        const set = new Set(instanceList);
+                        putObj = [...set];
+                    }
+
+                    await this.putObject(path, putObj);
+                }
+            }
         },
 
     }

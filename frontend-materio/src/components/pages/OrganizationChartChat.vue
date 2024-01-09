@@ -12,7 +12,7 @@
                 :disableChat="disableChat"
                 @toggleChatDialog="toggleChatDialog"
                 @beforeSendMessage="beforeSendMessage"
-                @editSendMessage="editSendMessage"
+                @sendEditedMessage="sendEditedMessage"
         ></chat-button>
     </div>
 </template>

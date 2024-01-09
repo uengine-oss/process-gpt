@@ -25,7 +25,7 @@ export default class ProcessDefinitionGenerator extends AIGenerator {
             
             \`\`\`
             {processDefinitionId: "process definition id",
-             processInstanceId: "process instance id”, 
+             processInstanceId:  "${this.uuid()}", 
              description : "description of process instance’s status in natural language”,
              currentActivityId: "the id of current activity id among the process definition”,
              nextActivityId: "the id of next activity id”,
@@ -57,6 +57,17 @@ export default class ProcessDefinitionGenerator extends AIGenerator {
 
     createPrompt() {
         return this.client.newMessage;
+    }
+
+    uuid() {
+        function s4() {
+            return Math.floor((1 + Math.random()) * 0x10000)
+                .toString(16)
+                .substring(1);
+        }
+
+        return s4() + s4() + '-' + s4() + '-' + s4() + '-' +
+            s4() + '-' + s4() + s4() + s4();
     }
 
 }
