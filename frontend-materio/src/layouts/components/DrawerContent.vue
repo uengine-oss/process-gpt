@@ -84,7 +84,7 @@ export default {
                 list = Object.values(list);
                 list.forEach(item => {
                     if (item && item.model) {
-                        definitions.push(partialParse(item.model));
+                        definitions.push(JSON.parse(item.model));
                     }
                 });
             }

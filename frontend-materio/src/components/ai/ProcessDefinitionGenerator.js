@@ -56,6 +56,29 @@ export default class ProcessDefinitionGenerator extends AIGenerator{
              
             \`\`\`
 
+            - 프로세스 변경: 프로세스 정의의 일 부분이 변경될 때는 다음과 같이 변경된 부분만 리턴해줘:
+
+              이때 지킬 사항:
+               1.  {modifications: [..]} 내에 여러개의 항목으로 넣어줘.
+               2.  액티비티 추가인 경우는 시퀀스도 꼭 연결해줘.
+               3.  액티비티가 삭제되는 경우는 나와 연결된 앞뒤 액티비티 간의 시퀀스도 삭제하되, 삭제된 액티비티의 이전 단계와 다음단계의 액티비티를 시퀀스로 다시 연결해줘.
+            
+            \`\`\`
+              { 
+                modifications: [
+                  
+                  {
+                    action: "replace" | "add" | "delete",
+                    targetJsonPath: "$.activities[?(@.id=='request_vacation')]",
+                    value: {...} //delete 인 경우는 불필요
+                  }   
+                  
+                ]
+              }
+            \`\`\`
+
+
+
             - 프로세스 설명: 전체적인 프로세스를 설명해주면돼. 예를들어 휴가신청 프로세스의 각 단계와 담당자가 누군지 등을 설명해주면 돼
             설명의 결과도 위의 프로세스 정의의 json format 을 따라 리턴해줘
             

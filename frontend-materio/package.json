@@ -23,6 +23,7 @@
         "chart.js": "^3.9.1",
         "eslint-import-resolver-alias": "^1.1.2",
         "json2yaml": "^1.1.0",
+        "jsonpath": "^1.1.1",
         "jwt-decode": "^3.1.2",
         "partial-json-parser": "^1.2.2",
         "pinia": "^2.0.22",
