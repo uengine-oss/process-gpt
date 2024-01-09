@@ -23,13 +23,7 @@ export default {
             await this.loadData(this.getDataPath());
             this.messages = await this.loadMessages(this.getDataPath());
 
-            this.tests=[
-                function(me){
-
-                },
-                function(me){
-                }
-            ]
+            this.tests=this.createTests()
 
             this.testEnabled = localStorage.getItem('test')=="true"
 
@@ -205,6 +199,11 @@ export default {
         },
 
         extractJSON(inputString, checkFunction) {
+            try{
+                JSON.parse(inputString) // if no problem, just return the whole thing
+                return inputString
+            }catch(e){}
+
             if(this.hasUnclosedTripleBackticks(inputString)){
                 inputString = inputString + "\n```"
             }
@@ -260,6 +259,10 @@ export default {
             return s4() + s4() + '-' + s4() + '-' + s4() + '-' +
                 s4() + '-' + s4() + s4() + s4();
         },
+
+        createTest(){
+            return null
+        }
     },
 }
 </script>
