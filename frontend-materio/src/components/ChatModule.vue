@@ -11,7 +11,7 @@ export default {
         userInfo: {},
         chatDialog: false,
         disableChat: false,
-        tests: [],
+        tests: {},
         testEnabled: false
     }),
     methods: {
@@ -40,7 +40,7 @@ export default {
 
         runTest(){
             if(this.tests){
-                this.tests.forEach(test => test(this))
+                Object.values(tests).forEach(test => test(this))
             }
         },
     

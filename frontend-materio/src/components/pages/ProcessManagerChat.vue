@@ -438,8 +438,8 @@ export default {
 
         createTests(){
 
-            return [
-                function(me){
+            return {
+                testJsonPathReplace(me){ 
                     // 사용 예시
                     let src = {
                         processDefId: "vacation_request",
@@ -461,7 +461,7 @@ export default {
 
                     console.log(src);
                 }
-            ]
+            }
 
         }
     }
