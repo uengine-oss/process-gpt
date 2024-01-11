@@ -23,6 +23,13 @@ const router = createRouter({
             },
         },
         {
+            path: '/bpmn',
+            component: () => import('../components/designer/bpmnModeling/BpmnModelCanvas.vue'),
+            meta: {
+                requiresAuth: true
+            },
+        },
+        {
             path: '/definitions/:id',
             component: () => import('../components/ProcessManagerChat.vue'),
             meta: {

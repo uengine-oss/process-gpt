@@ -1,5 +1,8 @@
 {
   "dependencies": {
-    "@balkangraph/orgchart.js": "^8.13.20"
+    "@balkangraph/orgchart.js": "^8.13.20",
+    "convert-length": "^1.0.1",
+    "pptxgenjs": "^3.12.0",
+    "vue-click-outside": "^1.1.0"
   }
 }

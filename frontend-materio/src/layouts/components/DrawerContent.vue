@@ -16,6 +16,13 @@
             }"
         />
         <VerticalNavLink
+            :item="{
+                title: 'BPMN',
+                to: '/bpmn',
+                icon: 'mdi-plus'
+            }"
+        />
+        <VerticalNavLink
             v-for="definition in definitions"
             :key="definition.processDefinitionId"
             :item="{
