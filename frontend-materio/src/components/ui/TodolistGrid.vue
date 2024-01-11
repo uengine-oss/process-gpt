@@ -39,31 +39,41 @@
             <v-table hover>
                 <thead>
                     <tr>
-                        <th>ID</th>
-                        <th>액티비티 ID</th>
-                        <th>액티비티명</th>
+                        <th>No</th>
+                        <th>액티비티</th>
+                        <th>프로세스 인스턴스</th>
+                        <th>프로세스</th>
                         <th>시작일</th>
                         <th>완료일</th>
                         <th>마감일</th>
-                        <th>프로세스 정의 ID</th>
-                        <th>프로세스 인스턴스 ID</th>
-                        <th>사용자 ID</th>
+                        <th>담당자</th>
+                        <th>상태</th>
+                        <th></th>
                     </tr>
                 </thead>
                 <tbody>
                     <tr v-for="(val, idx) in value" 
                             :key="val"
-                            @click="goInstance(val.processInstanceId)"
+                            @click="goInstance(val.instanceId)"
+                            class="todolist-item"
                     >
-                        <td class="font-semibold">{{ idx + 1 }}</td>
-                        <td class="whitespace-nowrap" label="액티비티 Id">{{ val.activityId }}</td>
-                        <td class="whitespace-nowrap" label="액티비티 이름">{{ val.activityName }}</td>
-                        <td class="whitespace-nowrap" label="시작일">{{ val.startDate }}</td>
-                        <td class="whitespace-nowrap" label="완료일">{{ val.endDate }}</td>
-                        <td class="whitespace-nowrap" label="마감일">{{ val.dueDate }}</td>
-                        <td class="whitespace-nowrap" label="프로세스 정의Id">{{ val.processDefinitionId }}</td>
-                        <td class="whitespace-nowrap" label="프로세스 인스턴스Id">{{ val.processInstanceId }}</td>
-                        <td class="whitespace-nowrap" label="사용자 Id">{{ val.userId }}</td>
+                        <td>{{ idx + 1 }}</td>
+                        <td>{{ val.activityId }}</td>
+                        <td>{{ val.instanceId }}</td>
+                        <td>{{ val.definitionId }}</td>
+                        <td>{{ val.startDate }}</td>
+                        <td>{{ val.endDate }}</td>
+                        <td>{{ val.dueDate }}</td>
+                        <td>{{ val.userId }}</td>
+                        <td>{{ val.status }}</td>
+                        <td>
+                            <v-btn @click.stop="deleteWorkItem(val.key)"
+                                    :disable="val.status === 'Completed'"
+                                    icon="mdi-delete"
+                                    variant="text"
+                                    size="x-small"
+                            ></v-btn>
+                        </td>
                     </tr>
                 </tbody>
             </v-table>
@@ -117,12 +127,28 @@ export default {
         updateTodolistDialog: false,
     }),
     created() {
-        this.init(this.path);
+        this.init();
     },
     methods: {
         goInstance(id) {
             this.$router.push(`/instances/${id}`);
-        }
+        },
+        async deleteWorkItem(id) {
+            if (confirm("해당 Item 을 삭제 하시겠습니까?")) {
+                const path = `db://${this.path}/${this.userInfo.email}`;
+                if (id) {
+                    await this.storage.delete(`${path}/${id}`);
+                    await this.init();
+                }
+            }
+        },
+
     }
 }
 </script>
+
+<style scoped>
+.todolist-item {
+    cursor: pointer;
+}
+</style>

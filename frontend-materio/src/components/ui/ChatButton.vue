@@ -10,8 +10,9 @@
 
         <v-card v-if="chatDialog" width="500" class="chat-dialog">
             <Chat :messages="messages"
+                    :disableChat="disableChat"
                     @sendMessage="beforeSendMessage"
-                    @editSendMessage="editSendMessage"
+                    @sendEditedMessage="sendEditedMessage"
             >
                 <template v-slot:alert>
                     <v-alert
@@ -33,6 +34,7 @@ export default {
         chatDialog: Boolean,
         messages: Array,
         alertInfo: Object,
+        disableChat: Boolean,
     },
     components: {
         Chat,
@@ -44,8 +46,8 @@ export default {
         beforeSendMessage(message) {
             this.$emit("beforeSendMessage", message);
         },
-        editSendMessage(index) {
-            this.$emit("editSendMessage", index);
+        sendEditedMessage(index) {
+            this.$emit("sendEditedMessage", index);
         }
     }
 }

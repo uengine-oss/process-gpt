@@ -10,11 +10,38 @@ export default {
         messages: [],
         userInfo: {},
         chatDialog: false,
+        disableChat: false,
+        tests: {},
+        testEnabled: false
     }),
     methods: {
         async init() {
+            this.disableChat = false;
+            
             this.storage = new CommonStorageBase(this);
             this.userInfo = await this.storage.getUserInfo();
+            await this.loadData(this.getDataPath());
+            this.messages = await this.loadMessages(this.getDataPath());
+
+            this.tests=this.createTests()
+
+            this.testEnabled = localStorage.getItem('test')=="true"
+
+
+        },
+
+        getDataPath(){
+            return this.$route.href.replace("#/", "");
+        },
+
+        async loadData(path){
+
+        },
+
+        runTest(){
+            if(this.tests){
+                Object.values(tests).forEach(test => test(this))
+            }
         },
     
         async loadMessages(path) {
@@ -26,9 +53,14 @@ export default {
             }
     
             if (value && value.messages) {
-                return partialParse(value.messages);
+                if (typeof value.messages === "string") {
+                    return JSON.parse(value.messages);
+                } else {
+                    return value.messages;
+                }
             } else {
-                return this.messages;
+                return [];
+                // return this.messages;
             }
         },
 
@@ -65,7 +97,7 @@ export default {
             }
         },
 
-        async editSendMessage(index) {
+        async sendEditedMessage(index) {
             if (index) {
                 this.messages.splice(index);
 
@@ -83,9 +115,26 @@ export default {
                 });
             }
         },
+
+        sendNotification(uid, obj) {
+            const path = `users/${uid}/notifications`;
+            this.putObject(path, obj);
+        },
     
-        async saveMessages(path, obj) {
+        async putObject(path, obj) {
             await this.storage.putObject(`db://${path}`, obj);
+        },
+
+        async pushObject(path, obj) {
+            await this.storage.pushObject(`db://${path}`, obj);
+        },
+
+        async setObject(path, obj) {
+            await this.storage.setObject(`db://${path}`, obj);
+        },
+
+        async delete(path) {
+            await this.storage.delete(`db://${path}`);
         },
     
         onModelCreated(response) {
@@ -100,16 +149,7 @@ export default {
             let messageWriting = this.messages[this.messages.length -1];
             delete messageWriting.isLoading;
     
-            var msgText = "";
-            if (this.messages) {
-                msgText = JSON.stringify(this.messages);
-            }
-    
-            var putObj =  {
-                messages: msgText,
-            }
-    
-            this.afterGenerationFinished(putObj);
+            this.afterGenerationFinished();
         },
     
         onError(error) {
@@ -121,8 +161,15 @@ export default {
                 
             } else {
                 let messageWriting = this.messages[this.messages.length -1];
-                delete messageWriting.isLoading;
-                messageWriting.content = error.message;
+                if (messageWriting.role =="system" && messageWriting.isLoading) {
+                    delete messageWriting.isLoading;
+                    messageWriting.content = error.message;
+                } else {
+                    this.messages.push({
+                        role: "system",
+                        content: error.message,
+                    });
+                }
             }
         },
 
@@ -130,15 +177,67 @@ export default {
             this.chatDialog = !this.chatDialog;
         },
 
+        checkDisableChat(value) {
+        },
+
         extractProcessJson(text) {            
-            let textAndJson = text.split("--- json ---")
-            if(textAndJson && textAndJson.length==2) return textAndJson[1]
+            let textAndJson = text.split("--- json ---");
+            if(textAndJson && textAndJson.length==2) {
+                return textAndJson[1];
+            }
         },
-        extractJSON(text) {            
-            const regex = /```json\s*([\s\S]*?)(?:\n\s*```|$)/;
-            const match = text.match(regex);
-            return match ? match[1].trim() : null;
+
+        hasUnclosedTripleBackticks(inputString) {
+            // 백틱 세 개의 시작과 끝을 찾는 정규 표현식
+            const regex = /`{3}/g;
+            let match;
+            let isOpen = false;
+
+            // 모든 백틱 세 개의 시작과 끝을 찾습니다
+            while ((match = regex.exec(inputString)) !== null) {
+                // 현재 상태를 토글합니다 (열림 -> 닫힘, 닫힘 -> 열림)
+                isOpen = !isOpen;
+            }
+
+            // 마지막으로 찾은 백틱 세 개가 닫혀있지 않은 경우 true 반환
+            return isOpen;
         },
+
+        extractJSON(inputString, checkFunction) {
+            try{
+                JSON.parse(inputString) // if no problem, just return the whole thing
+                return inputString
+            }catch(e){}
+
+            if(this.hasUnclosedTripleBackticks(inputString)){
+                inputString = inputString + "\n```"
+            }
+
+            // 정규 표현식 정의
+            const regex = /^.*?`{3}(?:json)?\n(.*?)`{3}.*?$/s;
+
+            // 정규 표현식을 사용하여 입력 문자열에서 JSON 부분 추출
+            const match = inputString.match(regex);
+
+            // 매치된 결과가 있다면, 첫 번째 캡쳐 그룹(즉, JSON 부분)을 반환
+            if (match) {
+                if(checkFunction)
+                    match.forEach(shouldBeJson=>{
+                        if(checkFunction(shouldBeJson)) return shouldBeJson
+                    })
+                else    
+                    return match[1];
+            }
+
+            // 매치된 결과가 없으면 null 반환
+            return null;
+        },
+
+        // extractJSON(text) {            
+        //     const regex = /```json\s*([\s\S]*?)(?:\n\s*```|$)/;
+        //     const match = text.match(regex);
+        //     return match ? match[1].trim() : null;
+        // },
         extractXML(text) {            
             const regex = /```xml\s*([\s\S]*?)(?:\n\s*```|$)/;
             const match = text.match(regex);
@@ -165,6 +264,10 @@ export default {
             return s4() + s4() + '-' + s4() + '-' + s4() + '-' +
                 s4() + '-' + s4() + s4() + s4();
         },
+
+        createTest(){
+            return null
+        }
     },
 }
 </script>

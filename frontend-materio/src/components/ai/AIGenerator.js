@@ -7,8 +7,8 @@ export default class AIGenerator {
         this.stopSignaled = false;
         this.gptResponseId = null;
         this.openaiToken = null
-        //this.model = "gpt-3.5-turbo-16k" 
-        this.model = "gpt-4" 
+        this.model = "gpt-3.5-turbo-16k" 
+        //this.model = "gpt-4" 
 
         if(options) {
             this.preferredLanguage = options.preferredLanguage;
@@ -50,9 +50,52 @@ export default class AIGenerator {
         return (window.localStorage.getItem("openAIToken"));
     }
 
+    generateHashKey(str) {
+        let hash = 0;
+        for (let i = 0; i < str.length; i++) {
+            const char = str.charCodeAt(i);
+            hash = ((hash << 5) - hash) + char;
+            hash = hash & hash; // Convert to 32bit integer
+        }
+        return hash;
+    }
+
+
     async generate(){
+
         this.state = 'running'
         let me = this;
+        let messages = this.createMessages();
+
+
+        if(localStorage.getItem("useCache")=="true"){
+            let message = JSON.stringify(messages)
+
+            let hashKey = this.generateHashKey(message)
+            let existingResult = localStorage.getItem("cache-" + hashKey)
+
+            if(existingResult){
+                setTimeout(()=>{
+
+                    me.state = 'end';
+
+                    let model = me.createModel(existingResult)
+        
+                    if(me.client.onModelCreated){
+                        me.client.onModelCreated(model);
+                    } 
+                    
+                    if(me.client.onGenerationFinished)
+                        me.client.onGenerationFinished(model)
+        
+
+                }, 0)
+
+                return
+            }
+
+        }
+
         me.openaiToken = me.getToken();
         let responseCnt = 0;
         
@@ -139,6 +182,12 @@ export default class AIGenerator {
                 
                 if(me.client.onGenerationFinished)
                     me.client.onGenerationFinished(model)
+
+                if(localStorage.getItem("useCache")=="true"){
+                    let hashKey = me.generateHashKey(JSON.stringify(messages))
+                    localStorage.setItem("cache-" + hashKey, me.modelJson)
+                }
+            
             }
 
             me.previousMessages.push({
@@ -148,7 +197,6 @@ export default class AIGenerator {
         };
 
         
-        let messages = this.createMessages();
 
         if(this.isContinued) messages[messages.length-1].content = "continue";
 

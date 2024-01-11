@@ -9,9 +9,10 @@
                 :chatDialog="chatDialog"
                 :messages="messages"
                 :alertInfo="alertInfo"
+                :disableChat="disableChat"
                 @toggleChatDialog="toggleChatDialog"
                 @beforeSendMessage="beforeSendMessage"
-                @editSendMessage="editSendMessage"
+                @sendEditedMessage="sendEditedMessage"
         ></chat-button>
     </div>
 </template>
@@ -21,11 +22,11 @@ import partialParse from "partial-json-parser";
 import { VectorStorage } from "vector-storage";
 import OrgChart from '@balkangraph/orgchart.js';
 
-import ChatGenerator from "./ai/OrganizationChartGenerator";
-import OrganizationChart from "./ui/OrganizationChart.vue"
-import ChatButton from "./ui/ChatButton.vue";
+import ChatGenerator from "../ai/OrganizationChartGenerator";
+import OrganizationChart from "../ui/OrganizationChart.vue"
+import ChatButton from "../ui/ChatButton.vue";
 
-import ChatModule from "./ChatModule.vue";
+import ChatModule from "../ChatModule.vue";
 
 export default {
     mixins: [ChatModule],
@@ -48,7 +49,6 @@ export default {
             isStream: true,
             preferredLanguage: "Korean"
         });
-        this.loadData(this.path);
     },
     methods: {
         async loadData(path) {
@@ -56,20 +56,20 @@ export default {
 
             if (value) {
                 if (value.organizationChart && value.organizationChart.length > 0) {
-                    let orgChart = partialParse(value.organizationChart);
+                    let orgChart = JSON.parse(value.organizationChart);
                     if (orgChart && orgChart.length > 0) {
-                        const isMyOrg = orgChart.some(item =>
-                            item.email == this.userInfo.email
-                        );
-                        if (isMyOrg) {
+                        // const isMyOrg = orgChart.some(item =>
+                        //     item.email == this.userInfo.email
+                        // );
+                        // if (isMyOrg) {
                             this.organizationChart = orgChart;
 
-                            this.messages = partialParse(value.messages);
-                            this.generator.previousMessages = [
-                                ...this.generator.previousMessages,
-                                ...this.messages
-                            ];
-                        }
+                            // this.messages = partialParse(value.messages);
+                            // this.generator.previousMessages = [
+                            //     ...this.generator.previousMessages,
+                            //     ...this.messages
+                            // ];
+                        //}
                     }
                     if (!this.organizationChart) {
                         this.organizationChart = []
@@ -87,8 +87,11 @@ export default {
         },
 
         drawChart(textData) {
+            let json = this.extractJSON(textData)
+            //if(!json) json = this.extractJSON(textData + '\n```')
+
             try {
-                let obj = partialParse(textData);
+                let obj = partialParse(json);
 
                 if(obj && obj.organizationChart) {
                     this.organizationChart = obj.organizationChart;
@@ -101,15 +104,24 @@ export default {
             }
         },
 
-        afterGenerationFinished(putObj) {
-            var chartText = "";
+        afterGenerationFinished() {
+            let msgText = "";
+            let chartText = "";
+            let putObj =  {
+                messages: "",
+                organizationChart: "",
+            };
+
+            if (this.messages) {
+                msgText = JSON.stringify(this.messages);
+                pushObj.messages = msgText;
+            }
             if (this.organizationChart) {
                 chartText = JSON.stringify(this.organizationChart);
+                pushObj.organizationChart = chartText;
             }
 
-            putObj.organizationChart = chartText;
-
-            this.saveMessages(this.path, putObj);
+            this.putObject(this.path, putObj);
         },
     }
 }

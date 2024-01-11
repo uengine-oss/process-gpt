@@ -20,6 +20,7 @@
                                 hide-details
                                 bg-color="primary"
                                 class="message edit"
+                                :disabled="disableChat"
                         >
                             <template v-slot:append-inner>
                                 <v-btn @click="send"
@@ -27,6 +28,7 @@
                                         size="x-small"
                                         elevation="0"
                                         class="mr-2"
+                                        :disabled="disableChat"
                                 ></v-btn>
                                 <v-btn @click="cancel"
                                         icon="mdi-close"
@@ -42,7 +44,7 @@
                                 @mouseover="hoverIndex = index"
                                 @mouseleave="hoverIndex = -1"
                         >
-                            <v-btn v-if="hoverIndex === index"
+                            <v-btn v-if="hoverIndex === index && !disableChat"
                                     @click="editMessage(index)"
                                     icon="mdi-pencil"
                                     size="x-small"
@@ -80,6 +82,8 @@
                                 color="grey-200"
                         >
                             <pre>{{ message.content }}</pre>
+                            <slot name="tool" :message="message"></slot>
+
                         </v-sheet>
                         <v-progress-circular
                                 v-if="message.isLoading"
@@ -100,6 +104,7 @@
                         auto-grow
                         outlined
                         hide-details
+                        :disabled="disableChat"
                 >
                     <template v-slot:append-inner>
                         <v-btn @click="send"
@@ -120,6 +125,7 @@
 export default {
     props: {
         messages: Array,
+        disableChat: Boolean,
     },
     data() {
         return {
@@ -151,10 +157,9 @@ export default {
     methods: {
         send() {
             if (this.editIndex >= 0) {
-                this.$emit('editSendMessage', this.editIndex+1);
+                this.$emit('sendEditedMessage', this.editIndex+1);
                 this.editIndex = -1;
             } else {
-                console.log(this.newMessage)
                 this.$emit('sendMessage', this.newMessage);
                 this.newMessage = "";
             }

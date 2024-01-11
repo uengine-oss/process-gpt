@@ -41,10 +41,10 @@
         />
         <VerticalNavLink
             v-for="instance in instances"
-            :key="instance.processInstanceId"
+            :key="instance"
             :item="{
-                title: instance.processInstanceId,
-                to: `/instances/${instance.processInstanceId}`,
+                title: instance,
+                to: `/instances/${instance}`,
             }"
         />
         
@@ -79,38 +79,41 @@ export default {
         await this.storage.loginUser();
 
         if (this.storage.userInfo && this.storage.userInfo.name) {
-            this.getDefinitionList();
-            this.getInstanceList();
+            this.definitions = await this.getDefinitionList();
+            this.instances = await this.getInstanceList();
         }
     },
     methods: {
         async getDefinitionList() {
+            var definitions = [];
             let list = await this.storage.list(`db://definitions`);
             if (list) {
                 list = Object.values(list);
                 list.forEach(item => {
                     if (item && item.model) {
-                        this.definitions.push(partialParse(item.model));
+                        definitions.push(JSON.parse(item.model));
                     }
                 });
             }
+
+            return definitions;
         },
         async getInstanceList() {
+            var instances = [];
             let list = await this.storage.list(`db://instances`);
             if (list) {
-                list = Object.values(list);
-                list.forEach(item => {
-                    if (item && item.model) {
-                        let instance = partialParse(item.model);
-                        if (instance && instance.currentUserEmail && instance.nextUserEmail && (
-                            instance.currentUserEmail == this.storage.userInfo.email ||
-                            instance.nextUserEmail == this.storage.userInfo.email
-                        )) {
-                            this.instances.push(instance);
+                const keys = Object.keys(list);
+                keys.forEach(key => {
+                    const item = list[key];
+                    if (item && item.participants) {
+                        if (item.participants.includes(this.storage.userInfo.email)) {
+                            instances.push(key);
                         }
                     }
                 });
             }
+
+            return instances;
         },
     }
 }

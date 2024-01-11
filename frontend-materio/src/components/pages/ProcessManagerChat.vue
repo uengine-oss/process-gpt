@@ -1,18 +1,22 @@
 <template>
     <div>
-        <!-- <process-definition
+        <process-definition
                 :bpmn="bpmn"
                 :processDefinition="processDefinition"
-        ></process-definition> -->
+                :key="bpmn.length"
+        ></process-definition>
 
         <chat-button
                 :chatDialog="chatDialog"
                 :messages="messages"
                 :alertInfo="alertInfo"
+                :disableChat="disableChat"
                 @toggleChatDialog="toggleChatDialog"
                 @beforeSendMessage="beforeSendMessage"
-                @editSendMessage="editSendMessage"
+                @sendEditedMessage="sendEditedMessage"
         ></chat-button>
+
+        <v-btn v-if="testEnabled" @click="runTest">test</v-btn> 
     </div>
 </template>
 
@@ -20,11 +24,12 @@
 import partialParse from "partial-json-parser";
 import { VectorStorage } from "vector-storage";
 
-import ChatGenerator from "./ai/ProcessDefinitionGenerator";
-import ProcessDefinition from './ProcessDefinition.vue';
-import ChatButton from "./ui/ChatButton.vue";
+import ChatGenerator from "../ai/ProcessDefinitionGenerator";
+import ProcessDefinition from '../ProcessDefinition.vue';
+import ChatButton from "../ui/ChatButton.vue";
 
-import ChatModule from "./ChatModule.vue";
+import ChatModule from "../ChatModule.vue";
+import jp from "jsonpath"
 
 export default {
     mixins: [ChatModule],
@@ -35,7 +40,7 @@ export default {
     },
     data: () => ({
         processDefinition: null,
-        bpmn: null,
+        bpmn: "",
         path: "definitions",
         alertInfo: {
             title: "프로세스 정의 관리",
@@ -49,10 +54,6 @@ export default {
             isStream: true,
             preferredLanguage: "Korean"
         });
-
-        var path = this.$route.href.replace("#/", "");
-        this.loadData(path);
-        this.messages = await this.loadMessages(path);
     },
     watch: {
         "$route": {
@@ -60,46 +61,113 @@ export default {
             async handler(newVal, oldVal) {
                 if (newVal.path !== oldVal.path) {
                     this.processDefinition = null;
-                    this.bpmn = null;
-
-                    var path = this.$route.href.replace("#/", "");
-                    this.loadData(path);
-
-                    this.messages = await this.loadMessages(path);
+                    this.bpmn = "";
+                    this.chatDialog = false;
+                    await this.init();
                 }
             }
-        }
+        },
     },
     methods: {
+
+
+        jsonPathReplace(src, jsonPath, newData) {
+            // JSONPath를 사용하여 경로의 노드들을 찾음
+            const nodes = jp.nodes(src, jsonPath);
+
+            // 각 노드의 경로를 사용하여 src에서 해당 위치를 찾아 newData로 교체
+            nodes.forEach((node) => {
+                let currentObj = src;
+                // 마지막 프로퍼티 전까지 객체를 탐색
+                for (let i = 1; i < node.path.length - 1; i++) {
+                    currentObj = currentObj[node.path[i]];
+                }
+
+                // 마지막 프로퍼티를 newData로 변경
+                currentObj[node.path[node.path.length - 1]] = newData;
+            });
+
+            return src;
+        },
+
+        jsonPathAdd(src, jsonPath, newData) {
+            // JSONPath를 사용하여 경로의 노드들을 찾음
+            const nodes = jp.nodes(src, jsonPath);
+
+            // 각 노드의 경로를 사용하여 src에서 해당 위치를 찾아 newData를 추가
+            nodes.forEach((node) => {
+                let currentObj = src;
+                // 마지막 프로퍼티 전까지 객체를 탐색
+                for (let i = 1; i < node.path.length; i++) {
+                    currentObj = currentObj[node.path[i]];
+                }
+
+                // Array 타입인 경우, newData를 배열에 추가
+                if (Array.isArray(currentObj)) {
+                    currentObj.push(newData);
+                } else {
+                    // Object 타입인 경우, 오류 처리 또는 다른 방법으로 추가
+                    console.error('Target is not an array. Cannot add new data.');
+                }
+            });
+
+            return src;
+        },
+
+        jsonPathDelete(src, jsonPath) {
+            // JSONPath를 사용하여 경로의 노드들을 찾음
+            const nodes = jp.nodes(src, jsonPath);
+
+            // 각 노드의 경로를 사용하여 src에서 해당 위치를 찾아 제거
+            nodes.forEach((node) => {
+                let currentObj = src;
+                // 마지막 프로퍼티 전까지 객체를 탐색
+                for (let i = 1; i < node.path.length - 1; i++) {
+                    currentObj = currentObj[node.path[i]];
+                }
+
+                // 마지막 프로퍼티가 배열의 요소를 가리키는 경우 splice로 제거
+                const propertyIndex = node.path[node.path.length - 1];
+                if (Array.isArray(currentObj) && Number.isInteger(propertyIndex)) {
+                    currentObj.splice(propertyIndex, 1);
+                } else {
+                    console.error('Target is not an array element. Cannot remove.');
+                }
+            });
+
+            return src;
+        },
+
         async loadData(path) {
             const value = await this.getData(path);
 
             if (value) {
                 if (this.$route.params && this.$route.params.id) {
-                    this.processDefinition = partialParse(value.model);
+                    this.processDefinition = JSON.parse(value.model);
+                    this.bpmn = this.createBpmnXml(this.processDefinition);
+                    this.saveDefinition(this.processDefinition);
+
                     if (!this.processDefinition) {
-                        this.processDefinition = []
-                    } else {
-                        this.bpmn = this.createBpmnXml(this.processDefinition);
+                        this.processDefinition = null;
                     }
-
-                } else {
-                    this.messages = [];
-
-                    var list = Object.values(value);
-                    list.forEach(item => {
-                        const msg = JSON.parse(item.messages);
-                        this.messages = [...this.messages, ...msg];
-
-                        item.model = JSON.parse(item.model);
-                        this.saveDefinition(item.model);
-                    });
-
-                    this.generator.previousMessages = [
-                        ...this.generator.previousMessages, 
-                        ...this.messages
-                    ];
                 }
+                // } else {
+                //     this.messages = [];
+
+                //     var list = Object.values(value);
+                //     list.forEach(item => {
+                //         const msg = JSON.parse(item.messages);
+                //         this.messages = [...this.messages, ...msg];
+
+                //         item.model = JSON.parse(item.model);
+                //         this.saveDefinition(item.model);
+                //     });
+
+                //     this.generator.previousMessages = [
+                //         ...this.generator.previousMessages, 
+                //         ...this.messages
+                //     ];
+                // }
             }
         },
 
@@ -109,12 +177,30 @@ export default {
 
         afterModelCreated(response) {
             try {
-                let messageWriting = this.messages[this.messages.length -1];
-                let jsonProcess = this.extractProcessJson(response);
+                let jsonProcess = this.extractJSON(response);
 
                 if (jsonProcess) {
-                    this.processDefinition = partialParse(jsonProcess);
-                    this.bpmn = this.createBpmnXml(this.processDefinition);
+                    let unknown = partialParse(jsonProcess);
+                    if(unknown.modifications){ //means process modification
+                        
+                        unknown.modifications.forEach(modification=>{
+                            if(modification.action=="replace"){
+                                this.jsonPathReplace(this.processDefinition, modification.targetJsonPath, modification.value)
+                                this.bpmn = this.createBpmnXml(this.processDefinition)    
+                            }else if(modification.action=="add"){
+                                this.jsonPathAdd(this.processDefinition, modification.targetJsonPath, modification.value)
+                                this.bpmn = this.createBpmnXml(this.processDefinition)    
+                            }else if(modification.action=="delete"){
+                                this.jsonPathDelete(this.processDefinition, modification.targetJsonPath)
+                                this.bpmn = this.createBpmnXml(this.processDefinition)    
+                            }
+
+                        })
+
+                    }else if(jsonProcess.processDefinitionId){
+                        this.processDefinition = 
+                        this.bpmn = this.createBpmnXml(this.processDefinition)
+                    }
                 }
                 
             } catch (error) {
@@ -122,9 +208,19 @@ export default {
             }
         },
 
-        afterGenerationFinished(putObj){
+        afterGenerationFinished() {
+            let path = "";
+            let msgText = "";
             let modelText = "";
-            let path = this.path;
+            let putObj =  {
+                messages: "",
+                model: "",
+            };
+
+            if (this.messages) {
+                msgText = JSON.stringify(this.messages);
+                putObj.messages = msgText;
+            }
             
             if (this.processDefinition) {
                 path = `${this.path}/${this.processDefinition.processDefinitionId}`;
@@ -133,7 +229,7 @@ export default {
                 this.saveDefinition(this.processDefinition);
 
                 putObj.model = modelText;
-                this.saveMessages(path, putObj);
+                this.putObject(path, putObj);
             }
         },
 
@@ -197,7 +293,7 @@ export default {
 
                 // 해당 역할에 매핑된 활동들을 레인에 할당
                 jsonProcess.activities.forEach(activity => {
-                    if (activity.role === role.name) {
+                    if (activity && activity.role === role.name) {
                         const flowNodeRef = xmlDoc.createElementNS('http://www.omg.org/spec/BPMN/20100524/MODEL', 'bpmn:flowNodeRef');
                         flowNodeRef.textContent = activity.id;
                         lane.appendChild(flowNodeRef);
@@ -208,10 +304,12 @@ export default {
             // 각 활동 (Activity) 요소 생성
             if(jsonProcess.activities)
             jsonProcess.activities.forEach(activity => {
-                const task = xmlDoc.createElementNS('http://www.omg.org/spec/BPMN/20100524/MODEL', 'bpmn:userTask');
-                task.setAttribute('id', activity.id);
-                task.setAttribute('name', activity.name);
-                process.appendChild(task);
+                if(activity){
+                    const task = xmlDoc.createElementNS('http://www.omg.org/spec/BPMN/20100524/MODEL', 'bpmn:userTask');
+                    task.setAttribute('id', activity.id);
+                    task.setAttribute('name', activity.name);
+                    process.appendChild(task);
+                }
             });
 
             // 시퀀스 플로우 생성
@@ -254,6 +352,8 @@ export default {
             // 활동 및 시퀀스 플로우의 시각적 표현 추가
             if(jsonProcess.activities)
             jsonProcess.activities.forEach((activity, index) => {
+                if(!activity) return
+
                 const shape = xmlDoc.createElementNS('http://www.omg.org/spec/BPMN/20100524/DI', 'bpmndi:BPMNShape');
                 shape.setAttribute('id', 'BPMNShape_' + activity.id);
                 shape.setAttribute('bpmnElement', activity.id);
@@ -270,6 +370,7 @@ export default {
 
             if(jsonProcess.sequences)
             jsonProcess.sequences.forEach(sequence => {
+                if(!sequence) return
                 const edge = xmlDoc.createElementNS('http://www.omg.org/spec/BPMN/20100524/DI', 'bpmndi:BPMNEdge');
                 edge.setAttribute('id', 'BPMNEdge_' + sequence.source + '_' + sequence.target);
                 edge.setAttribute('bpmnElement', 'SequenceFlow_' + sequence.source + '_' + sequence.target);
@@ -334,6 +435,35 @@ export default {
             const xmlString = serializer.serializeToString(xmlDoc);
             return xmlString;
         },
+
+        createTests(){
+
+            return {
+                testJsonPathReplace(me){ 
+                    // 사용 예시
+                    let src = {
+                        processDefId: "vacation_request",
+                        activities: [{
+                            activityId: "request_vacation",
+                            outputData: []
+                        }]
+                    };
+
+                    // 새로운 객체로 교체할 내용
+                    const newActivity = {
+                        activityId: "request_vacation",
+                        outputData: ["new data"],
+                        additionalField: "example"
+                    };
+
+                    // 함수 호출
+                    src = me.jsonPathReplace(src, "$.activities[?(@.activityId=='request_vacation')]", newActivity);
+
+                    console.log(src);
+                }
+            }
+
+        }
     }
 }
 </script>

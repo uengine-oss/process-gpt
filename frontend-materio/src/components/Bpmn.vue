@@ -85,7 +85,7 @@ export default {
   
 <style>
 .vue-bpmn-diagram-container {
-    height: 100%;
+    height: 500px;
     width: 100%;
 }
 </style>

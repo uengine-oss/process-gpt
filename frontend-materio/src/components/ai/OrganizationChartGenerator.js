@@ -20,8 +20,10 @@ export default class OrganizationChartGenerator extends AIGenerator{
 예를들어 교육부서의 회계담당을 찾아줘라고 하면 교수팀내 회계역할을 갖춘사람을 찾아서 명단을 리턴해주면 돼.   
 
 - 조직도 반영 해줘 or 조직도를 그려줘:
-사용자가 조직도를 이제 반영해줘.. 라고 말하면, 다음과 같은 json 포맷으로 조직도를 리턴해줘 (json key 값을 바꾸면 안되고, json만 리턴해):
+사용자가 조직도를 이제 반영해줘.. 라고 말하면, 다음과 같은 json 포맷으로 조직도를 리턴해줘 (json key 값을 바꾸면 안되고 markdown 으로 three backtick 으로 묶어서 표시해):
 
+
+\`\`\`
 {
     "organizationChart": [
         {
@@ -39,12 +41,11 @@ export default class OrganizationChartGenerator extends AIGenerator{
         }
     ]
 }
-
+\`\`\`
 
             자, 그럼 시작한다.
 
-          
-
+        
 `
             }];
     }

@@ -10,14 +10,14 @@ const router = createRouter({
         },
         {
             path: '/organization',
-            component: () => import('../components/OrganizationChartChat.vue'),
+            component: () => import('../components/pages/OrganizationChartChat.vue'),
             meta: {
                 requiresAuth: true
             },
         },
         {
             path: '/definitions',
-            component: () => import('../components/ProcessManagerChat.vue'),
+            component: () => import('../components/pages/ProcessManagerChat.vue'),
             meta: {
                 requiresAuth: true
             },
@@ -31,21 +31,21 @@ const router = createRouter({
         },
         {
             path: '/definitions/:id',
-            component: () => import('../components/ProcessManagerChat.vue'),
+            component: () => import('../components/pages/ProcessManagerChat.vue'),
             meta: {
                 requiresAuth: true
             },
         },
         {
             path: '/instances',
-            component: () => import('../components/ProcessParticipantChat.vue'),
+            component: () => import('../components/pages/ProcessParticipantChat.vue'),
             meta: {
                 requiresAuth: true
             },
         },
         {
             path: '/instances/:id',
-            component: () => import('../components/ProcessParticipantChat.vue'),
+            component: () => import('../components/pages/ProcessParticipantChat.vue'),
             meta: {
                 requiresAuth: true
             },
@@ -68,6 +68,7 @@ router.beforeEach(async (to, from, next) => {
         if (storage.isLogin) {
             next();
         } else {
+            alert("로그인 후 이용해주시길 바랍니다.");
             next('/');
         }
     } else {

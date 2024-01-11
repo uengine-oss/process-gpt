@@ -15,11 +15,13 @@ export default {
         this.storage = new CommonStorageBase(this);
     }, 
     methods:{
-        async init(path) {
-            this.userInfo = await this.storage.getUserInfo();
-            const jsonData = await this.storage.getObject(`db://${path}/${this.userInfo.email}`);
-            if (jsonData) {
-                this.value = Object.values(jsonData);
+        async init() {
+            if (this.path) {
+                this.userInfo = await this.storage.getUserInfo();
+                const jsonData = await this.storage.getObject(`db://${this.path}/${this.userInfo.email}`);
+                if (jsonData) {
+                    this.value = Object.values(jsonData);
+                }
             }
         },
         addNewRow() {
@@ -31,7 +33,7 @@ export default {
         },
         closeDialog(){
             this.dialog = false;
-        }
+        },
     },
 }
 </script>
