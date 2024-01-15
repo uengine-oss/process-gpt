@@ -56,7 +56,7 @@
 
         <bpmn-task-panel
                 v-if="drawer"
-                v-model="value"
+                :modelValue="value"
                 @close="closePanel"
         ></bpmn-task-panel>
     </div>

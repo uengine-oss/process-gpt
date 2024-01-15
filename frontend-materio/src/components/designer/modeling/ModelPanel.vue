@@ -12,18 +12,9 @@
     export default {
         name: 'model-panel',
         mixins: [StorageBase],
-        model: {
-            prop: '_value',
-            event: '_value-change'
-        },
         props: {
             // value: Object,
-            _value:{
-                type: Object,
-                default: function () {
-                    return null;
-                }
-            },
+            modelValue:Object,
             readOnly: {
                 type: Boolean,
                 default: function () {
@@ -72,11 +63,8 @@
                 me.user.accessToken = localStorage.getItem('accessToken')
 
                 me.setElementCanvas();
-                me.value = JSON.parse(JSON.stringify(me._value))
+                me.value = JSON.parse(JSON.stringify(me.modelValue))
                 console.log(me.value)
-                // console.log('ModelPanel - Created')
-                // me.copyValue = JSON.parse(JSON.stringify(me.value))
-                // me.elementId = me.value.elementView ? me.value.elementView.id : me.value.relationView.id
 
 
 

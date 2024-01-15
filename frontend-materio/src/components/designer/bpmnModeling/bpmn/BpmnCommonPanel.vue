@@ -121,12 +121,7 @@
         name: 'bpmn-common-panel',
         mixins: [],
         props: {
-            value:{
-                type: Object,
-                default: function () {
-                    return null;
-                }
-            },
+            modelValue: Object,
             widthStyle: {
                 type: String,
                 default: function () {
@@ -150,7 +145,7 @@
         created() {
             var me = this;
 
-            var view = me.value.elementView || me.value.relationView
+            var view = me.modelValue.elementView || me.modelValue.relationView
             var style = []
             if (view.style) {
                 var itemStyle = JSON.parse(view.style)
