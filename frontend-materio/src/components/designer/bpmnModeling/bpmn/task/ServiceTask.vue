@@ -63,7 +63,7 @@
 
         <bpmn-task-panel
                 v-if="drawer"
-                v-model="value"
+                :modelValue="value"
                 :linkList.sync="links"
                 @close="closePanel"
                 @giveJSONHint="giveJSONHint"

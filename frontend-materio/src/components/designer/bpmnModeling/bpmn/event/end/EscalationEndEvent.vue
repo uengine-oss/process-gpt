@@ -59,7 +59,7 @@
 
         <bpmn-end-event-panel
                 v-if="drawer"
-                v-model="value"
+                :modelValue="value"
                 @close="closePanel"
         ></bpmn-end-event-panel>
     </div>
