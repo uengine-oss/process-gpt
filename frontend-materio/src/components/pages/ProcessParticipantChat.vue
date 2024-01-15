@@ -242,6 +242,7 @@ export default {
 
                     await this.pushObject(path, pushObj);
                     await this.saveUserInstance(pushObj.userId, pushObj.instanceId);
+                    await this.beforeSendNotification(pushObj.userId, pushObj.instanceId);
 
                 } else {
                     //NOTE: 이런 메시지를 주고 적절한 조치를 유도해야 합니다. "절대로" 그냥 먹으면 안됩니다.
@@ -290,16 +291,7 @@ export default {
 
         async saveUserInstance(email, instanceId) {
             if (this.checkUserEmail(email)) {
-                let uid = "";
-                const userList = await this.getData("users");
-                if (userList) {
-                    const ids = Object.keys(userList);
-                    ids.forEach(id => {
-                        if (userList[id].email == email) {
-                            uid = id;
-                        }
-                    });
-                }
+                const uid = await this.getUid(email);
 
                 if (uid !== "") {
                     const path = `users/${uid}/instances`;
@@ -317,6 +309,18 @@ export default {
 
                     await this.putObject(path, putObj);
                 }
+            }
+        },
+
+        async beforeSendNotification(email, instanceId) {
+            const uid = await this.getUid(email);
+            if (uid) {
+                const notiObj = {
+                    noti_type: "todolist",
+                    isChecked: false,
+                    link: `instances/${instanceId}`
+                };
+                this.sendNotification(uid, notiObj);
             }
         },
 

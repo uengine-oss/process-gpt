@@ -18,11 +18,15 @@ export default {
         async init() {
             if (this.path) {
                 this.userInfo = await this.storage.getUserInfo();
-                const jsonData = await this.storage.getObject(`db://${this.path}/${this.userInfo.email}`);
-                if (jsonData) {
-                    this.value = Object.values(jsonData);
-                }
+                this.getData();
             }
+        },
+        async getData() {
+            await this.storage.watch(`db://${this.path}/${this.userInfo.email}`, (callback) => {
+                if (callback) {
+                    this.value = Object.values(callback);
+                }
+            });
         },
         addNewRow() {
             this.newValue = null;

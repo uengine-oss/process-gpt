@@ -79,41 +79,42 @@ export default {
         await this.storage.loginUser();
 
         if (this.storage.userInfo && this.storage.userInfo.name) {
-            this.definitions = await this.getDefinitionList();
-            this.instances = await this.getInstanceList();
+            this.getDefinitionList();
+            this.getInstanceList();
         }
+
     },
     methods: {
         async getDefinitionList() {
-            var definitions = [];
-            let list = await this.storage.list(`db://definitions`);
-            if (list) {
-                list = Object.values(list);
-                list.forEach(item => {
-                    if (item && item.model) {
-                        definitions.push(JSON.parse(item.model));
-                    }
-                });
-            }
-
-            return definitions;
+            await this.storage.watch(`db://definitions`, (callback) => {
+                var definitions = [];
+                if (callback) {
+                    const list = Object.values(callback);
+                    list.forEach(item => {
+                        if (item && item.model) {
+                            definitions.push(JSON.parse(item.model));
+                        }
+                    });
+                }
+                this.definitions = definitions;
+            });
         },
         async getInstanceList() {
-            var instances = [];
-            let list = await this.storage.list(`db://instances`);
-            if (list) {
-                const keys = Object.keys(list);
-                keys.forEach(key => {
-                    const item = list[key];
-                    if (item && item.participants) {
-                        if (item.participants.includes(this.storage.userInfo.email)) {
-                            instances.push(key);
+            await this.storage.watch(`db://instances`, (callback) => {
+                var instances = [];
+                if (callback) {
+                    const keys = Object.keys(callback);
+                    keys.forEach(key => {
+                        const item = callback[key];
+                        if (item && item.participants) {
+                            if (item.participants.includes(this.storage.userInfo.email)) {
+                                instances.push(key);
+                            }
                         }
-                    }
-                });
-            }
-
-            return instances;
+                    });
+                }
+                this.instances = instances;
+            });
         },
     }
 }

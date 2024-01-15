@@ -37,7 +37,7 @@
 
 <script>
     import BpmnVueFinder from './BpmnVueFinder.vue'
-    import ClickOutside from 'vue-click-outside'
+    import ClickOutside from 'click-outside-vue3'
 
     export default {
         mixins: [BpmnVueFinder],

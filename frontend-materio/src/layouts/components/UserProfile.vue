@@ -9,12 +9,10 @@
         </v-btn>
 
         <v-badge v-else
-                dot
-                color="success"
-                offset-x="3"
-                offset-y="3"
+                :dot="notifications ? false : true"
+                :color="notifications ? 'info' : 'success'"
                 location="bottom right"
-                bordered
+                :content="notifications ? notifications.length : ''"
         >
             <v-avatar style="cursor: pointer;"
                     color="primary"
@@ -33,12 +31,10 @@
                         <v-list-item>
                             <template #prepend>
                                 <v-list-item-action start>
-                                    <v-badge dot
+                                    <v-badge
+                                            dot
                                             color="success"
-                                            offset-x="3"
-                                            offset-y="3"
                                             location="bottom right"
-                                            bordered
                                     >
                                         <v-avatar color="primary"
                                                 size="40"
@@ -50,9 +46,18 @@
                                 </v-list-item-action>
                             </template>
 
-                            <v-list-itemTitle class="font-weight-semibold">
+                            <template #append>
+                                <v-list-item-action start>
+                                    <v-badge
+                                            color="info"
+                                            :content="notifications.length"
+                                    ></v-badge>
+                                </v-list-item-action>
+                            </template>
+
+                            <v-list-item-title class="font-weight-semibold">
                                 {{ userName }}
-                            </v-list-itemTitle>
+                            </v-list-item-title>
                         </v-list-item>
 
                         <v-divider class="my-2"></v-divider>
@@ -93,6 +98,7 @@
         data: () => ({
             storage: null,
             loginDialog: false,
+            notifications: null,
         }),
         computed: {
             isLogin() {
@@ -113,6 +119,10 @@
         async created() {
             this.storage = new CommonStorageBase(this);
             await this.storage.loginUser();
+
+            if (this.storage.userInfo && this.storage.userInfo.name) {
+                this.getNotifications();
+            }
         },
         methods: {
             openLoginDialog() {
@@ -131,6 +141,18 @@
             async logout() {
                 await this.storage.logout();
                 window.location.reload();
+            },
+            async getNotifications() {
+                const uid = this.storage.userInfo.uid;
+                await this.storage.watch(`db://users/${uid}`, (callback) => {
+                    if (callback) {
+                        if (callback.notifications) {
+                            let notiList = Object.values(callback.notifications);
+                            notiList = notiList.filter(noti => !noti.isChecked);
+                            this.notifications = notiList;
+                        }
+                    }
+                });
             }
         }
     }

@@ -105,20 +105,15 @@ export default {
         },
 
         afterGenerationFinished() {
-            let msgText = "";
             let chartText = "";
             let putObj =  {
-                messages: "",
+                messages: this.messages,
                 organizationChart: "",
             };
 
-            if (this.messages) {
-                msgText = JSON.stringify(this.messages);
-                pushObj.messages = msgText;
-            }
             if (this.organizationChart) {
                 chartText = JSON.stringify(this.organizationChart);
-                pushObj.organizationChart = chartText;
+                putObj.organizationChart = chartText;
             }
 
             this.putObject(this.path, putObj);

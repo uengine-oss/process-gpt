@@ -21,13 +21,11 @@ export default {
             this.storage = new CommonStorageBase(this);
             this.userInfo = await this.storage.getUserInfo();
             await this.loadData(this.getDataPath());
-            this.messages = await this.loadMessages(this.getDataPath());
+            await this.loadMessages(this.getDataPath());
 
-            this.tests=this.createTests()
+            // this.tests=this.createTests()
 
-            this.testEnabled = localStorage.getItem('test')=="true"
-
-
+            // this.testEnabled = localStorage.getItem('test')=="true"
         },
 
         getDataPath(){
@@ -45,23 +43,16 @@ export default {
         },
     
         async loadMessages(path) {
-            let value;
-            if (path) {
-                value = await this.storage.getObject(`db://${path}`);
-            } else {
-                value = await this.storage.getObject(`db://${this.path}`);
-            }
-    
-            if (value && value.messages) {
-                if (typeof value.messages === "string") {
-                    return JSON.parse(value.messages);
-                } else {
-                    return value.messages;
+            const callPath = path ? path : this.path;
+            await this.storage.watch(`db://${callPath}`, (callback) => {
+                if (callback) {
+                    if (callback.messages) {
+                        this.messages = callback.messages;
+                    } else {
+                        this.messages = [];
+                    }
                 }
-            } else {
-                return [];
-                // return this.messages;
-            }
+            });
         },
 
         async getData(path) {
@@ -118,7 +109,7 @@ export default {
 
         sendNotification(uid, obj) {
             const path = `users/${uid}/notifications`;
-            this.putObject(path, obj);
+            this.pushObject(path, obj);
         },
     
         async putObject(path, obj) {
@@ -135,6 +126,20 @@ export default {
 
         async delete(path) {
             await this.storage.delete(`db://${path}`);
+        },
+
+        async getUid(email) {
+            let uid = "";
+            const userList = await this.getData("users");
+            if (userList) {
+                const ids = Object.keys(userList);
+                ids.forEach(id => {
+                    if (userList[id].email == email) {
+                        uid = id;
+                    }
+                });
+            }
+            return uid;
         },
     
         onModelCreated(response) {

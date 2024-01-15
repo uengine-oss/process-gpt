@@ -197,8 +197,8 @@ export default {
 
                         })
 
-                    }else if(jsonProcess.processDefinitionId){
-                        this.processDefinition = 
+                    }else if(unknown.processDefinitionId){
+                        this.processDefinition = unknown;
                         this.bpmn = this.createBpmnXml(this.processDefinition)
                     }
                 }
@@ -210,17 +210,11 @@ export default {
 
         afterGenerationFinished() {
             let path = "";
-            let msgText = "";
             let modelText = "";
             let putObj =  {
-                messages: "",
+                messages: this.messages,
                 model: "",
             };
-
-            if (this.messages) {
-                msgText = JSON.stringify(this.messages);
-                putObj.messages = msgText;
-            }
             
             if (this.processDefinition) {
                 path = `${this.path}/${this.processDefinition.processDefinitionId}`;
