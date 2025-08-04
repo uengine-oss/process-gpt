@@ -1,0 +1,59 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend-deployment
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: frontend
+  template:
+    metadata:
+      labels:
+        app: frontend
+    spec:
+      containers:
+        - name: frontend
+          image: ghcr.io/uengine-oss/process-gpt:bfe4810
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+              protocol: TCP
+          env:
+            - name: VITE_OPENAI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: openai-secret
+                  key: OPENAI_API_KEY
+            - name: VITE_SUPABASE_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: my-config
+                  key: SUPABASE_URL
+            - name: VITE_SUPABASE_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: my-secrets
+                  key: SUPABASE_KEY
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              ephemeral-storage: 1Gi
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend-service
+  namespace: default
+spec:
+  type: ClusterIP
+  ports:
+    - port: 5173
+      targetPort: 8080
+      protocol: TCP
+  selector:
+    app: frontend
