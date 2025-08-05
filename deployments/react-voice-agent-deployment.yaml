@@ -1,78 +1,44 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
+  name: react-voice-agent
   labels:
     app: react-voice-agent
-  name: react-voice-agent
-  namespace: dev
 spec:
-  progressDeadlineSeconds: 600
   replicas: 1
-  revisionHistoryLimit: 10
   selector:
     matchLabels:
       app: react-voice-agent
-  strategy:
-    rollingUpdate:
-      maxSurge: 25%
-      maxUnavailable: 25%
-    type: RollingUpdate
   template:
     metadata:
-      annotations:
-        kubectl.kubernetes.io/restartedAt: "2025-07-23T19:15:04+09:00"
-      creationTimestamp: null
       labels:
         app: react-voice-agent
     spec:
       containers:
-      - env:
+      - name: react-voice-agent
+        image: ghcr.io/uengine-oss/react-voice-agent:latest
+        ports:
+        - containerPort: 3000
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        env:
         - name: OPENAI_API_KEY
           valueFrom:
             secretKeyRef:
-              key: OPENAI_API_KEY
               name: openai-secret
+              key: OPENAI_API_KEY
         - name: SUPABASE_URL
           valueFrom:
             configMapKeyRef:
-              key: SUPABASE_URL
               name: my-config
+              key: SUPABASE_URL
         - name: SUPABASE_KEY
           valueFrom:
             secretKeyRef:
-              key: SERVICE_ROLE_KEY
               name: my-secrets
-        image: ghcr.io/uengine-oss/react-voice-agent:latest
-        imagePullPolicy: Always
-        name: react-voice-agent
-        ports:
-        - containerPort: 3000
-          protocol: TCP
-        resources:
-          limits:
-            cpu: 500m
-            ephemeral-storage: 1Gi
-            memory: 512Mi
-          requests:
-            cpu: 250m
-            ephemeral-storage: 1Gi
-            memory: 256Mi
-        securityContext:
-          capabilities:
-            drop:
-            - NET_RAW
-        terminationMessagePath: /dev/termination-log
-        terminationMessagePolicy: File
-      dnsPolicy: ClusterFirst
-      restartPolicy: Always
-      schedulerName: default-scheduler
-      securityContext:
-        seccompProfile:
-          type: RuntimeDefault
-      terminationGracePeriodSeconds: 30
-      tolerations:
-      - effect: NoSchedule
-        key: kubernetes.io/arch
-        operator: Equal
-        value: amd64
-
+              key: SERVICE_ROLE_KEY

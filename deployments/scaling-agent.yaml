@@ -4,7 +4,7 @@ metadata:
   labels:
     app: scaling-agent
   name: scaling-agent
-  namespace: dev
+  namespace: default
 spec:
   progressDeadlineSeconds: 600
   replicas: 1

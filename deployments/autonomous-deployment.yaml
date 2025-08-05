@@ -3,7 +3,7 @@ kind: Deployment
 metadata:
   annotations: {}
   name: autonomous-deployment
-  namespace: dev
+  namespace: default
 spec:
   progressDeadlineSeconds: 600
   replicas: 1
@@ -25,7 +25,7 @@ spec:
         - envFrom:
             - secretRef:
                 name: openai-secret
-          image: ghcr.io/uengine-oss/process-gpt-autonomous:b959437
+          image: ghcr.io/uengine-oss/process-gpt-autonomous:3087df9
           imagePullPolicy: IfNotPresent
           name: autonomous
           ports:

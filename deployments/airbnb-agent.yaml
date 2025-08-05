@@ -5,7 +5,7 @@ metadata:
   labels:
     app: airbnb-agent
   name: airbnb-agent
-  namespace: dev
+  namespace: default
 spec:
   progressDeadlineSeconds: 600
   replicas: 1

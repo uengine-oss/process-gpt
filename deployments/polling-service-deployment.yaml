@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: polling-service-deployment
-  namespace: dev
+  namespace: default
 spec:
   progressDeadlineSeconds: 600
   replicas: 1

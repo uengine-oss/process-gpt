@@ -3,7 +3,7 @@ kind: Deployment
 metadata:
   annotations: {}
   name: frontend-deployment
-  namespace: dev
+  namespace: default
 spec:
   progressDeadlineSeconds: 600
   replicas: 1
