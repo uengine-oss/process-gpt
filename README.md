@@ -78,6 +78,9 @@ SMTP_USERNAME: "your-smtp-username"
 # 1단계: 기본 설정 파일들 먼저 배포 (필수)
 kubectl apply -f secrets.yaml
 kubectl apply -f configmap.yaml
+
+kubectl apply -f secrets-test.yaml
+kubectl apply -f configmap-test.yaml
 kubectl apply -f rbac.yaml
 kubectl apply -f pvc.yaml
 
@@ -120,7 +123,11 @@ kubectl delete -f pvc.yaml
 kubectl delete -f rbac.yaml
 kubectl delete -f configmap.yaml
 kubectl delete -f secrets.yaml
+
+# Mac
 kind delete cluster --name process-gpt
+
+# Windows 
 .\kind.exe delete cluster --name process-gpt
 ```
 
