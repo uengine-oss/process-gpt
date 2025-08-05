@@ -3,7 +3,7 @@ kind: Deployment
 metadata:
   annotations: {}
   name: frontend-deployment
-  namespace: default
+  namespace: dev
 spec:
   progressDeadlineSeconds: 600
   replicas: 1
@@ -38,7 +38,7 @@ spec:
                 secretKeyRef:
                   key: SUPABASE_KEY
                   name: my-secrets
-          image: ghcr.io/uengine-oss/process-gpt:bfe4810
+          image: ghcr.io/uengine-oss/process-gpt:a305ea5
           imagePullPolicy: IfNotPresent
           name: frontend
           ports:

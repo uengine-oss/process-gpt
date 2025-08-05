@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: polling-service-deployment
-  namespace: default
+  namespace: dev
 spec:
   progressDeadlineSeconds: 600
   replicas: 1
@@ -80,7 +80,7 @@ spec:
                 secretKeyRef:
                   key: SMTP_PASSWORD
                   name: my-secrets
-          image: ghcr.io/uengine-oss/process-gpt-polling-service:29a9310
+          image: ghcr.io/uengine-oss/process-gpt-polling-service:a5dccf8
           imagePullPolicy: IfNotPresent
           lifecycle:
             preStop:

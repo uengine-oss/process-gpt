@@ -3,7 +3,7 @@ kind: Deployment
 metadata:
   annotations: {}
   name: memento-deployment
-  namespace: default
+  namespace: dev
 spec:
   progressDeadlineSeconds: 600
   replicas: 1
@@ -40,7 +40,7 @@ spec:
                   name: my-secrets
             - name: GOOGLE_APPLICATION_CREDENTIALS
               value: /secrets/credentials.json
-          image: ghcr.io/uengine-oss/process-gpt-memento:b82ac2e
+          image: ghcr.io/uengine-oss/process-gpt-memento:2e47a8f
           imagePullPolicy: IfNotPresent
           name: memento
           ports:

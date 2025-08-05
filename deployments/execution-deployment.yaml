@@ -3,7 +3,7 @@ kind: Deployment
 metadata:
   annotations: {}
   name: execution-deployment
-  namespace: default
+  namespace: dev
 spec:
   progressDeadlineSeconds: 600
   replicas: 1
@@ -80,7 +80,7 @@ spec:
                 secretKeyRef:
                   key: LANGSMITH_PROJECT
                   name: langsmith-secrets
-          image: ghcr.io/uengine-oss/process-gpt-execution:d5ba912
+          image: ghcr.io/uengine-oss/process-gpt-execution:eba1f5e
           imagePullPolicy: IfNotPresent
           name: execution
           ports:

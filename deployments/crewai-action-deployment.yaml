@@ -1,7 +1,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: crewai-deep-research-deployment
+  name: crewai-action-deployment
   namespace: dev
 spec:
   progressDeadlineSeconds: 600
@@ -9,7 +9,7 @@ spec:
   revisionHistoryLimit: 1
   selector:
     matchLabels:
-      app: crewai-deep-research
+      app: crewai-action
   strategy:
     rollingUpdate:
       maxSurge: 25%
@@ -18,7 +18,7 @@ spec:
   template:
     metadata:
       labels:
-        app: crewai-deep-research
+        app: crewai-action
     spec:
       containers:
         - env:
@@ -81,9 +81,9 @@ spec:
               value: "sonar"
             - name: MODEL
               value: "gpt-4.1"
-          image: ghcr.io/uengine-oss/crewai-deep-research:6214b08 # GitHub Actions가 자동 업데이트
+          image: ghcr.io/uengine-oss/crewai-action:a805e62 # GitHub Actions가 자동 업데이트
           imagePullPolicy: IfNotPresent
-          name: crewai-deep-research
+          name: crewai-action
           ports:
             - containerPort: 8000
               protocol: TCP
