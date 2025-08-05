@@ -1,0 +1,23 @@
+# Windows 실행 파일
+*.exe
+
+# 설정 파일들 (실제 값이 포함된 파일들)
+secrets-test.yaml
+configmap-test.yaml
+
+# IDE 파일들
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS 생성 파일들
+.DS_Store
+Thumbs.db
+
+# 로그 파일들
+*.log
+
+# 임시 파일들
+*.tmp
+*.temp 

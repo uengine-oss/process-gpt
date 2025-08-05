@@ -1,0 +1,144 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: polling-service-deployment
+  namespace: default
+spec:
+  progressDeadlineSeconds: 600
+  replicas: 1
+  revisionHistoryLimit: 1
+  selector:
+    matchLabels:
+      app: polling-service
+  strategy:
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+    type: RollingUpdate
+  template:
+    metadata:
+      annotations:
+        kubectl.kubernetes.io/restartedAt: "2025-07-04T16:14:38+09:00"
+      labels:
+        app: polling-service
+    spec:
+      containers:
+        - env:
+            - name: OPENAI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  key: OPENAI_API_KEY
+                  name: openai-secret
+            - name: SUPABASE_URL
+              valueFrom:
+                configMapKeyRef:
+                  key: SUPABASE_URL
+                  name: my-config
+            - name: SUPABASE_KEY
+              valueFrom:
+                secretKeyRef:
+                  key: SERVICE_ROLE_KEY
+                  name: my-secrets
+            - name: SUPABASE_JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  key: JWT_SECRET
+                  name: my-secrets
+            - name: EXECUTION_SERVICE_URL
+              value: http://execution-service:8000
+            - name: MEMENTO_SERVICE_URL
+              value: http://memento-service:8005
+            - name: ENV
+              value: production
+            - name: LANGSMITH_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  key: LANGSMITH_API_KEY
+                  name: langsmith-secrets
+            - name: LANGSMITH_PROJECT
+              valueFrom:
+                secretKeyRef:
+                  key: LANGSMITH_PROJECT
+                  name: langsmith-secrets
+            - name: SMTP_SERVER
+              valueFrom:
+                configMapKeyRef:
+                  key: SMTP_SERVER
+                  name: my-config
+            - name: SMTP_PORT
+              valueFrom:
+                configMapKeyRef:
+                  key: SMTP_PORT
+                  name: my-config
+            - name: SMTP_USERNAME
+              valueFrom:
+                configMapKeyRef:
+                  key: SMTP_USERNAME
+                  name: my-config
+            - name: SMTP_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  key: SMTP_PASSWORD
+                  name: my-secrets
+          image: ghcr.io/uengine-oss/process-gpt-polling-service:29a9310
+          imagePullPolicy: IfNotPresent
+          lifecycle:
+            preStop:
+              exec:
+                command:
+                  - sh
+                  - -c
+                  - echo 'Graceful shutdown initiated'; sleep 10
+          livenessProbe:
+            exec:
+              command:
+                - python
+                - -c
+                - import psutil; import os; pid=1; exit(0 if psutil.pid_exists(pid) else 1)
+            failureThreshold: 3
+            initialDelaySeconds: 30
+            periodSeconds: 15
+            successThreshold: 1
+            timeoutSeconds: 5
+          name: polling-service
+          ports:
+            - containerPort: 8000
+              protocol: TCP
+          readinessProbe:
+            exec:
+              command:
+                - python
+                - -c
+                - import requests; import os; url=os.getenv('SUPABASE_URL'); exit(0 if url else 1)
+            failureThreshold: 3
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 5
+          resources:
+            limits:
+              cpu: 500m
+              ephemeral-storage: 1Gi
+              memory: 512Mi
+            requests:
+              cpu: 100m
+              ephemeral-storage: 1Gi
+              memory: 256Mi
+          securityContext:
+            capabilities:
+              drop:
+                - NET_RAW
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+      dnsPolicy: ClusterFirst
+      restartPolicy: Always
+      schedulerName: default-scheduler
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
+      terminationGracePeriodSeconds: 300
+      tolerations:
+        - effect: NoSchedule
+          key: kubernetes.io/arch
+          operator: Equal
+          value: amd64

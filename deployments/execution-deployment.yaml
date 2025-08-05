@@ -1,0 +1,122 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations: {}
+  name: execution-deployment
+  namespace: default
+spec:
+  progressDeadlineSeconds: 600
+  replicas: 1
+  revisionHistoryLimit: 2
+  selector:
+    matchLabels:
+      app: execution
+  strategy:
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 25%
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app: execution
+    spec:
+      containers:
+        - env:
+            - name: OPENAI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  key: OPENAI_API_KEY
+                  name: openai-secret
+            - name: SUPABASE_URL
+              valueFrom:
+                configMapKeyRef:
+                  key: SUPABASE_URL
+                  name: my-config
+            - name: SUPABASE_KEY
+              valueFrom:
+                secretKeyRef:
+                  key: SERVICE_ROLE_KEY
+                  name: my-secrets
+            - name: SUPABASE_JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  key: JWT_SECRET
+                  name: my-secrets
+            - name: DB_NAME
+              valueFrom:
+                secretKeyRef:
+                  key: DB_NAME
+                  name: my-secrets
+            - name: DB_USER
+              valueFrom:
+                secretKeyRef:
+                  key: DB_USER
+                  name: my-secrets
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  key: DB_PASSWORD
+                  name: my-secrets
+            - name: DB_HOST
+              valueFrom:
+                secretKeyRef:
+                  key: DB_HOST
+                  name: my-secrets
+            - name: DB_PORT
+              valueFrom:
+                secretKeyRef:
+                  key: DB_PORT
+                  name: my-secrets
+            - name: ENV
+              value: production
+            - name: LANGSMITH_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  key: LANGSMITH_API_KEY
+                  name: langsmith-secrets
+            - name: LANGSMITH_PROJECT
+              valueFrom:
+                secretKeyRef:
+                  key: LANGSMITH_PROJECT
+                  name: langsmith-secrets
+          image: ghcr.io/uengine-oss/process-gpt-execution:d5ba912
+          imagePullPolicy: IfNotPresent
+          name: execution
+          ports:
+            - containerPort: 8000
+              protocol: TCP
+          resources:
+            limits:
+              ephemeral-storage: 1Gi
+            requests:
+              cpu: 200m
+              ephemeral-storage: 1Gi
+              memory: 512Mi
+          securityContext:
+            capabilities:
+              drop:
+                - NET_RAW
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+          volumeMounts:
+            - mountPath: /etc/secrets
+              name: firebase-credentials
+              readOnly: true
+      dnsPolicy: ClusterFirst
+      restartPolicy: Always
+      schedulerName: default-scheduler
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
+      terminationGracePeriodSeconds: 30
+      tolerations:
+        - effect: NoSchedule
+          key: kubernetes.io/arch
+          operator: Equal
+          value: amd64
+      volumes:
+        - name: firebase-credentials
+          secret:
+            defaultMode: 420
+            secretName: firebase-credentials

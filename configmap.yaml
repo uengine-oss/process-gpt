@@ -5,4 +5,7 @@ kind: ConfigMap
 metadata:
   name: my-config
 data:
-  SUPABASE_URL: "https://your-project-id.supabase.co"
+  SUPABASE_URL: "https://your-project.supabase.co"
+  SMTP_PORT: "587"
+  SMTP_SERVER: "smtp.gmail.com"
+  SMTP_USERNAME: "your-smtp-username"

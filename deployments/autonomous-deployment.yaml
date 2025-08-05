@@ -1,0 +1,58 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations: {}
+  name: autonomous-deployment
+  namespace: default
+spec:
+  progressDeadlineSeconds: 600
+  replicas: 1
+  revisionHistoryLimit: 2
+  selector:
+    matchLabels:
+      app: autonomous
+  strategy:
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 25%
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app: autonomous
+    spec:
+      containers:
+        - envFrom:
+            - secretRef:
+                name: openai-secret
+          image: ghcr.io/uengine-oss/process-gpt-autonomous:3087df9
+          imagePullPolicy: IfNotPresent
+          name: autonomous
+          ports:
+            - containerPort: 6789
+              protocol: TCP
+          resources:
+            limits:
+              ephemeral-storage: 1Gi
+            requests:
+              cpu: 100m
+              ephemeral-storage: 1Gi
+              memory: 128Mi
+          securityContext:
+            capabilities:
+              drop:
+                - NET_RAW
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+      dnsPolicy: ClusterFirst
+      restartPolicy: Always
+      schedulerName: default-scheduler
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
+      terminationGracePeriodSeconds: 30
+      tolerations:
+        - effect: NoSchedule
+          key: kubernetes.io/arch
+          operator: Equal
+          value: amd64

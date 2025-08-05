@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: react-voice-agent-service
+  labels:
+    app: react-voice-agent
+spec:
+  type: ClusterIP
+  ports:
+  - port: 3000
+    targetPort: 3000
+    protocol: TCP
+  selector:
+    app: react-voice-agent

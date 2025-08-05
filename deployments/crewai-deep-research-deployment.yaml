@@ -1,0 +1,121 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: crewai-deep-research-deployment
+  namespace: default
+spec:
+  progressDeadlineSeconds: 600
+  replicas: 1
+  revisionHistoryLimit: 1
+  selector:
+    matchLabels:
+      app: crewai-deep-research
+  strategy:
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 25%
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app: crewai-deep-research
+    spec:
+      containers:
+        - env:
+            - name: OPENAI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  key: OPENAI_API_KEY
+                  name: openai-secret
+            - name: MEM_ZERO_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  key: MEM_ZERO_API_KEY
+                  name: mem-zero-secret
+            - name: PERPLEXITY_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  key: PERPLEXITY_API_KEY
+                  name: perplexity-secret
+            - name: SUPABASE_URL
+              valueFrom:
+                configMapKeyRef:
+                  key: SUPABASE_URL
+                  name: my-config
+            - name: SUPABASE_KEY
+              valueFrom:
+                secretKeyRef:
+                  key: SERVICE_ROLE_KEY
+                  name: my-secrets
+            - name: SUPABASE_JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  key: JWT_SECRET
+                  name: my-secrets
+            - name: DB_NAME
+              valueFrom:
+                secretKeyRef:
+                  key: DB_NAME
+                  name: my-secrets
+            - name: DB_USER
+              valueFrom:
+                secretKeyRef:
+                  key: DB_USER
+                  name: my-secrets
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  key: DB_PASSWORD
+                  name: my-secrets
+            - name: DB_HOST
+              valueFrom:
+                secretKeyRef:
+                  key: DB_HOST
+                  name: my-secrets
+            - name: DB_PORT
+              valueFrom:
+                secretKeyRef:
+                  key: DB_PORT
+                  name: my-secrets
+            - name: PERPLEXITY_MODEL
+              value: "sonar"
+            - name: MODEL
+              value: "gpt-4.1"
+          image: ghcr.io/uengine-oss/crewai-deep-research:9ba532d  # GitHub Actions가 자동 업데이트
+          imagePullPolicy: IfNotPresent
+          name: crewai-deep-research
+          ports:
+            - containerPort: 8000
+              protocol: TCP
+          resources:
+            limits:
+              ephemeral-storage: 1Gi
+            requests:
+              cpu: 200m
+              ephemeral-storage: 1Gi
+              memory: 512Mi
+          securityContext:
+            capabilities:
+              drop:
+                - NET_RAW
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+          volumeMounts:
+            - mountPath: /data
+              name: cache-volume
+      dnsPolicy: ClusterFirst
+      restartPolicy: Always
+      schedulerName: default-scheduler
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
+      terminationGracePeriodSeconds: 30
+      tolerations:
+        - effect: NoSchedule
+          key: kubernetes.io/arch
+          operator: Equal
+          value: amd64
+      volumes:
+        - name: cache-volume
+          persistentVolumeClaim:
+            claimName: langchain-cache-pvc-execution 

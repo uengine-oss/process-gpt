@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: memento-service
+  namespace: default
+spec:
+  ipFamilies:
+    - IPv4
+  ipFamilyPolicy: SingleStack
+  ports:
+    - port: 8005
+      protocol: TCP
+      targetPort: 8005
+  selector:
+    app: memento
+  sessionAffinity: None
+  type: ClusterIP
