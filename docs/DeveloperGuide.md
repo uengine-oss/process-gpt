@@ -1,7 +1,7 @@
 
 
 
-# Process GPT 실전 매뉴얼
+# Process GPT 개발자 가이드
 
 ## 1. 전체 아키텍처 개요
 
