@@ -4,6 +4,7 @@ Process-GPT는 Agentic BPM 플랫폼으로 다음을 지원합니다:
 - BPMN-based Hybrid Process Execution (Deterministic / Stochastic Mode)
 - Collaborative Work through Agent 2 Agent (A2A) Protocol
 - Isolated Tool Invocation through Multiple MCP(Model Context Protocol) Servers (using Toolhive)
+- Integration with Browser-use, OpenAI Deep research, Supabase, N8n (todo)
 
 # Online Service
 www.process-gpt.io
@@ -137,6 +138,7 @@ kubectl port-forward service/frontend-service 3000:5173
 ### 배포 파일들:
 - **`deployments/`**: 모든 애플리케이션 배포 설정
 - **`services/`**: 모든 서비스 네트워킹 설정
+
 
 
 
