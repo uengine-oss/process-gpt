@@ -1,6 +1,19 @@
-# Process-GPT Kind 로컬 환경 가이드
+# Process GPT 프로젝트
+Process-GPT는 Agentic BPM 플랫폼으로 다음을 지원합니다:
+- Task Execution through Multi Agent System
+- BPMN-based Hybrid Process Execution (Deterministic / Stochastic Mode)
+- Agent 2 Agent (A2A) Protocol
+- Model Context Protocol
 
-Process-GPT를 로컬 Kubernetes 클러스터에서 실행하는 간단한 가이드입니다.
+# Online Service
+www.process-gpt.io
+
+# Demo Video
+https://youtu.be/KBxxQvxvmPo?si=dtuKqc-WMTzw0jVh
+
+# Process-GPT 로컬 설치 가이드 (Kind)
+
+Process-GPT를 로컬 Kubernetes/Kind 클러스터에서 실행하는 간단한 가이드입니다.
 
 ## 📋 필요 도구
 
@@ -123,4 +136,5 @@ kubectl port-forward service/frontend-service 3000:5173
 - openai-deep-research (오픈AI 기반 딥리서치 에이전트) : https://github.com/uengine-oss/process-gpt-openai-deep-research
 - react-voice-agent (음성 대화): https://github.com/uengine-oss/process-gpt-react-voice-agent
 - API gateway : https://github.com/uengine-oss/process-gpt-gateway
+
 
