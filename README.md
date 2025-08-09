@@ -11,6 +11,16 @@ www.process-gpt.io
 # Demo Video
 https://youtu.be/KBxxQvxvmPo?si=dtuKqc-WMTzw0jVh
 
+# 서브 프로젝트
+- execution (실행엔진): https://github.com/uengine-oss/process-gpt-execution
+- memento (문서기억저장소): https://github.com/uengine-oss/process-gpt-memento
+- crewai-action (MCP/멀티에이전트 기반 태스크 실행 에이전트): https://github.com/uengine-oss/prcoess-gpt-crewai-action
+- crewai-deep-research (멀티에이전트 기반 딥리서치 에이전트): https://github.com/uengine-oss/process-gpt-crewai-deep-research
+- openai-deep-research (오픈AI 기반 딥리서치 에이전트) : https://github.com/uengine-oss/process-gpt-openai-deep-research
+- react-voice-agent (음성 대화): https://github.com/uengine-oss/process-gpt-react-voice-agent
+- API gateway : https://github.com/uengine-oss/process-gpt-gateway
+
+
 # Process-GPT 로컬 설치 가이드 (Kind)
 
 Process-GPT를 로컬 Kubernetes/Kind 클러스터에서 실행하는 간단한 가이드입니다.
@@ -128,13 +138,6 @@ kubectl port-forward service/frontend-service 3000:5173
 - **`deployments/`**: 모든 애플리케이션 배포 설정
 - **`services/`**: 모든 서비스 네트워킹 설정
 
-## 서브 프로젝트
-- execution (실행엔진): https://github.com/uengine-oss/process-gpt-execution
-- memento (문서기억저장소): https://github.com/uengine-oss/process-gpt-memento
-- crewai-action (MCP/멀티에이전트 기반 태스크 실행 에이전트): https://github.com/uengine-oss/prcoess-gpt-crewai-action
-- crewai-deep-research (멀티에이전트 기반 딥리서치 에이전트): https://github.com/uengine-oss/process-gpt-crewai-deep-research
-- openai-deep-research (오픈AI 기반 딥리서치 에이전트) : https://github.com/uengine-oss/process-gpt-openai-deep-research
-- react-voice-agent (음성 대화): https://github.com/uengine-oss/process-gpt-react-voice-agent
-- API gateway : https://github.com/uengine-oss/process-gpt-gateway
+
 
 
