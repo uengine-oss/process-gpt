@@ -127,10 +127,10 @@ kubectl get configmaps
 #### 6. Access the Application
 
 ```bash
-kubectl port-forward service/frontend-service 3000:5173
+kubectl port-forward service/gateway 8088:80
 ```
 
-Open your browser and go to **[http://localhost:3000](http://localhost:3000)**
+Open your browser and go to **[http://localhost:8088](http://localhost:8088)**
 
 ---
 
