@@ -105,8 +105,6 @@ SMTP_USERNAME: "your-smtp-username"
 # Step 1: Deploy core configuration files (required)
 kubectl apply -f secrets.yaml
 kubectl apply -f configmap.yaml
-kubectl apply -f secrets-test.yaml
-kubectl apply -f configmap-test.yaml
 kubectl apply -f rbac.yaml
 kubectl apply -f pvc.yaml
 
