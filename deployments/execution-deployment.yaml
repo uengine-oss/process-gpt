@@ -80,7 +80,7 @@ spec:
                 secretKeyRef:
                   key: LANGSMITH_PROJECT
                   name: langsmith-secrets
-          image: ghcr.io/uengine-oss/process-gpt-execution:d5ba912
+          image: ghcr.io/uengine-oss/process-gpt-execution:6ff628a
           imagePullPolicy: IfNotPresent
           name: execution
           ports:

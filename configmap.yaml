@@ -9,3 +9,23 @@ data:
   SMTP_PORT: "587"
   SMTP_SERVER: "smtp.gmail.com"
   SMTP_USERNAME: "your-smtp-username"
+  application_yml: |
+    server:
+      port: 8080
+    spring:
+      profiles:
+        active: docker
+      cloud:
+        gateway:
+          routes:
+            - id: execution
+              uri: http://execution-service:8000
+              predicates:
+                - Path=/execution/**
+              filters:
+                - RewritePath=/execution/?(?<segment>.*), /$\{segment}
+            - id: frontend
+              uri: http://frontend-service:5173
+              predicates:
+                - Path=/**
+              order: 999 
