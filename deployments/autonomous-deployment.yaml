@@ -25,7 +25,7 @@ spec:
         - envFrom:
             - secretRef:
                 name: openai-secret
-          image: ghcr.io/uengine-oss/process-gpt-autonomous:3087df9
+          image: ghcr.io/uengine-oss/process-gpt-autonomous:7a2d480
           imagePullPolicy: IfNotPresent
           name: autonomous
           ports:

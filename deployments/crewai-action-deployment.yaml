@@ -81,7 +81,7 @@ spec:
               value: "sonar"
             - name: MODEL
               value: "gpt-4.1"
-          image: jhyg99/crewai-action:latest # 공개 Docker Hub 이미지로 변경
+          image: ghcr.io/uengine-oss/crewai-action:21d8ab1 # 공개 Docker Hub 이미지로 변경
           imagePullPolicy: IfNotPresent
           name: crewai-action
           ports:

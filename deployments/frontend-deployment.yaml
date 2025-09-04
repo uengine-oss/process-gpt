@@ -38,7 +38,7 @@ spec:
                 secretKeyRef:
                   key: SUPABASE_KEY
                   name: my-secrets
-          image: ghcr.io/uengine-oss/process-gpt:a305ea5
+          image: ghcr.io/uengine-oss/process-gpt:0a9099b
           imagePullPolicy: IfNotPresent
           name: frontend
           ports:

@@ -80,7 +80,7 @@ spec:
                 secretKeyRef:
                   key: SMTP_PASSWORD
                   name: my-secrets
-          image: ghcr.io/uengine-oss/process-gpt-polling-service:a5dccf8
+          image: ghcr.io/uengine-oss/process-gpt-polling-service:2f465a4
           imagePullPolicy: IfNotPresent
           lifecycle:
             preStop:

@@ -40,7 +40,7 @@ spec:
                   name: my-secrets
             - name: GOOGLE_APPLICATION_CREDENTIALS
               value: /secrets/credentials.json
-          image: ghcr.io/uengine-oss/process-gpt-memento:b82ac2e
+          image: ghcr.io/uengine-oss/process-gpt-memento:f0560a1
           imagePullPolicy: IfNotPresent
           name: memento
           ports:
