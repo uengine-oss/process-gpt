@@ -178,4 +178,9 @@ Open your browser and go to **[http://localhost:8088](http://localhost:8088)**
 * `deployments/`: Deployment configurations for all applications.
 * `services/`: Networking configurations for all services.
 
+**Database Scheme:**
+
+* `init.sql`: Supabase database table definition script.
+
+
 
