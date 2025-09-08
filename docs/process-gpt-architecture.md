@@ -81,10 +81,10 @@ erDiagram
     PROCESS_DEFINITION {
         UUID id PK
         string name
-        text bpmn_model  // BPMN XML or JSON definition
+        text bpmn_model
         text description
         timestamptz created_at
-        varchar created_by  // user id or email
+        varchar created_by
     }
     PROCESS_INSTANCE ||--o{ WORK_ITEM : "has"
     PROCESS_INSTANCE ||--o{ ROLE_MAPPING : "has"
@@ -102,19 +102,19 @@ erDiagram
         UUID process_instance_id FK "→ PROCESS_INSTANCE.id"
         varchar task_name
         varchar status
-        varchar assigned_to  // user or agent role
+        varchar assigned_to
         text result
     }
     ROLE_MAPPING {
         UUID id PK
         UUID process_instance_id FK "→ PROCESS_INSTANCE.id"
         varchar role_name
-        varchar user_email  // participant fulfilling the role
+        varchar user_email
     }
     CHAT_MESSAGE {
         UUID id PK
         UUID process_instance_id FK "→ PROCESS_INSTANCE.id"
-        varchar sender  // e.g., "User" or agent name
+        varchar sender
         text content
         timestamptz timestamp
     }
@@ -122,8 +122,8 @@ erDiagram
     DOCUMENT {
         UUID id PK
         text title
-        text content  // or URL if stored externally
-        vector embedding  // pgvector
+        text content
+        vector embedding
         timestamptz added_at
         varchar added_by
     }
