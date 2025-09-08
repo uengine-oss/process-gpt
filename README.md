@@ -18,6 +18,38 @@
 
 ---
 
+
+## Design Principles
+
+### Core Principle
+**Users should be able to declare and modify processes, rules, system integration mechanisms, etc. in natural language, and the system should automatically improve with minimal feedback provided during use.**
+
+All such changes must be **logged for tracking and recovery**, while users should simultaneously be able to directly control automation results and regulations through a **generalized UI** at any time.
+
+---
+
+### Principle 1. **Natural Language-Centric Definition and Training-Free Operation**
+- All **process definitions, rules, system integrations, and business interfaces** should be writable in **natural language** without requiring programming knowledge or complex logical/mathematical thinking.
+- Users should be able to design automation with **business objective or strategic-level descriptions** alone, without undergoing separate training processes.
+- The system should be progressively refined and managed through **minimal feedback (approval, modification, rejection)** provided during actual use.
+
+---
+
+### Principle 2. **Human-in-the-Loop and Learning by Example**
+- Automated agents must provide **human interfaces** that allow **people to substitute and perform tasks** at any time.
+- Each task should provide **necessary context (related data, previous step outputs, similar cases)** in a clear and organized manner to facilitate human processing.
+- Agents learn from **actual performance examples** where humans directly handle tasks, correcting and improving their execution knowledge. In other words, **human exemplars** become the agent's training data.
+
+---
+
+### Principle 3. **Automatic Compensation and Separation of Recovery Responsibility**
+- When errors or failures occur in automated processes performed by agents, recovery should be automatically implemented through **compensating transactions (rollback)**.
+- Operators should not need to track and correct agent details individually; **the system itself should take responsibility for failure recovery and processing**.
+- This liberates users from system imperfections and ensures overall business continuity.
+
+--- 
+
+
 ## Subprojects
 
 * **execution** (Execution Engine): [GitHub](https://github.com/uengine-oss/process-gpt-execution)
@@ -145,4 +177,5 @@ Open your browser and go to **[http://localhost:8088](http://localhost:8088)**
 
 * `deployments/`: Deployment configurations for all applications.
 * `services/`: Networking configurations for all services.
+
 
