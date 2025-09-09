@@ -2,7 +2,15 @@
 
 ## Process GPT Project
 
-**Process-GPT** is an Agentic BPM platform that supports:
+Core values of Process GPT:
+
+*   **Autonomous Business Process Automation**: Process GPT is designed to allow **AI agents to automatically execute defined business processes**, producing results without constant human instruction or manual execution of every step. This minimizes human intervention, embodying the ambient agent philosophy, and ensures that human involvement does not become a bottleneck, allowing agents to operate in highly automated processes.
+
+*   **Flexible and Robust Collaboration via Multi-Agent Systems**: Process GPT configures **multiple AI agents to collaborate within a single workflow**, enabling them to professionally handle complex tasks and share intermediate results. This reliably automates high-complexity work that would be difficult for a single agent. Each agent leverages specialized domain knowledge and tools, and can automatically call upon other specialized agents to delegate tasks when necessary.
+
+*   **Natural Language-Based Continuous Process Learning and Optimization**: Process GPT enables non-expert users to **define business processes using natural language**, which automatically generates initial process models. Moreover, it establishes an **automatic optimization cycle** by analyzing user feedback and system logs from agent performance, continuously improving processes and augmenting learning data for incorrect workflows to enhance future performance.
+
+### For Detail:
 
 * **Task Execution through a Multi-Agent System** (powered by CrewAI)
 * **BPMN-based Hybrid Process Execution** (Deterministic / Stochastic modes)
@@ -183,4 +191,8 @@ Open your browser and go to **[http://localhost:8088](http://localhost:8088)**
 * `init.sql`: Supabase database table definition script.
 
 
+---
+
+## User Manual
+📖 [Process-GPT User Manual](https://bpm-intro.uengine.io/process-gpt/)
 
