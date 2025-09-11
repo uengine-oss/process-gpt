@@ -38,7 +38,7 @@ spec:
               value: default
             - name: POLLING_INTERVAL
               value: 15s
-          image: asia-northeast3-docker.pkg.dev/process-gpt-419207/process-gpt-prod/scaling-agent:v0.1.6
+          image: ghcr.io/uengine-oss/scaling-agent:latest
           imagePullPolicy: IfNotPresent
           name: scaling-agent
           resources:

@@ -21,3 +21,6 @@ Thumbs.db
 # 임시 파일들
 *.tmp
 *.temp 
+
+kind-config.yaml
+README2.md
