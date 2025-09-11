@@ -81,7 +81,7 @@ spec:
               value: "sonar"
             - name: MODEL
               value: "gpt-4.1"
-          image: ghcr.io/uengine-oss/crewai-action:21d8ab1
+          image: ghcr.io/uengine-oss/crewai-action:3bdc716
           imagePullPolicy: IfNotPresent
           name: crewai-action
           ports:
