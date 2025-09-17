@@ -194,5 +194,6 @@ Open your browser and go to **[http://localhost:8088](http://localhost:8088)**
 ---
 
 ## User Manual
-📖 [Process-GPT User Manual](https://bpm-intro.uengine.io/process-gpt/)
+📖 [Process-GPT User Manual](https://docs.process-gpt.io/)
+
 
