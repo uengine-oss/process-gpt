@@ -149,7 +149,7 @@ SMTP_USERNAME: "your-smtp-username"
 - Go to "Integration" Menu and install "cron" extension (If not, you may encounter "cron schema doesn't exist ERROR")
 - Obtain values for SUPABASE_URL, SUPABASE_KEY, SERVICE_ROLE_KEY, JWT_SECRET, DB_HOST, DB_NAME, DB_USER for next configuration
 - SUPABASE_URL, SUPABASE_KEY, SERVICE_ROLE_KEY, JWT_SECRET could be obtained from Settings > API Keys / JWT Keys
-- DB_HOST, DB_NAME, DB_USER could be obtained from the screen that can be shown by clicking "Connect" menu and select "Python"
+- DB_HOST, DB_NAME, DB_USER could be obtained from the screen that can be shown by clicking "Connect" menu and select type as "Python" and method should be "Transaction pooler"
 
   > Youtube video required to understand how to getting this information
 
@@ -212,6 +212,7 @@ Open your browser and go to **[http://localhost:8088](http://localhost:8088)**
 
 ## User Manual
 📖 [Process-GPT User Manual](https://docs.process-gpt.io/)
+
 
 
 
