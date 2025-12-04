@@ -108,7 +108,12 @@ kind create cluster --name process-gpt
 .\kind.exe create cluster --name process-gpt
 ```
 
-#### 3. Update Configuration Files (Required)
+#### 3. Clone the repo and edit Configuration Files
+
+Clone this repo:
+```
+git clone https://github.com/uengine-oss/process-gpt
+```
 
 Edit `secrets.yaml` with your actual values:
 
@@ -195,5 +200,6 @@ Open your browser and go to **[http://localhost:8088](http://localhost:8088)**
 
 ## User Manual
 📖 [Process-GPT User Manual](https://docs.process-gpt.io/)
+
 
 
