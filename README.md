@@ -108,6 +108,10 @@ kind create cluster --name process-gpt
 .\kind.exe create cluster --name process-gpt
 ```
 
+#### 3. Create Database
+- Go to https://supabase.com/ and Click "Start Project" to create a new Project named "process-gpt"
+- Note the SUPABASE_URL, DB_NAME, DB_USER, SUPABASE_KEY, SERVICE_ROLE_KEY, JWT_SECRET from the configuration page for later use.
+
 #### 3. Clone the repo and edit Configuration Files
 
 Clone this repo:
@@ -200,6 +204,7 @@ Open your browser and go to **[http://localhost:8088](http://localhost:8088)**
 
 ## User Manual
 📖 [Process-GPT User Manual](https://docs.process-gpt.io/)
+
 
 
 
