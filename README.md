@@ -173,10 +173,21 @@ kubectl apply -f services/
 #### 7. Check Status
 
 ```bash
-kubectl get pods
-kubectl get services
-kubectl get secrets
-kubectl get configmaps
+kubectl get pods -w
+```
+then, wait until the logs look like this:
+```
+NAME                                               READY   STATUS    RESTARTS   AGE
+airbnb-agent-859f5b84f-jdtx2                       1/1     Running   0          84m
+autonomous-deployment-65cc4bd5d4-842m8             1/1     Running   0          84m
+crewai-action-deployment-778d9858dd-r9dwg          1/1     Running   0          84m
+crewai-deep-research-deployment-8645d9568d-tzxlt   1/1     Running   0          84m
+execution-deployment-cb7d8c4dc-smkm8               1/1     Running   0          5m44s
+frontend-deployment-84f95b8986-kk249               1/1     Running   0          84m
+gateway-6bc9494c54-wc8qm                           1/1     Running   0          84m
+memento-deployment-55879b968b-t9fbj                1/1     Running   0          84m
+polling-service-deployment-7dddbfb949-wdd8b        1/1     Running   0          84m
+react-voice-agent-75bdf46c58-vl4qv                 1/1     Running   0          84m
 ```
 
 #### 8. Access the Application
@@ -212,6 +223,7 @@ Open your browser and go to **[http://localhost:8088](http://localhost:8088)**
 
 ## User Manual
 📖 [Process-GPT User Manual](https://docs.process-gpt.io/)
+
 
 
 
