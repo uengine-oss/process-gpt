@@ -44,12 +44,20 @@ spec:
                 secretKeyRef:
                   key: JWT_SECRET
                   name: my-secrets
-            - name: EXECUTION_SERVICE_URL
-              value: http://execution-service:8000
+            - name: UPSTAGE_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  key: UPSTAGE_API_KEY
+                  name: my-secrets
+            - name: COMPLETION_SERVICE_URL
+              value: http://completion-service:8000
             - name: MEMENTO_SERVICE_URL
               value: http://memento-service:8005
             - name: ENV
-              value: production
+              valueFrom:
+                configMapKeyRef:
+                  key: ENV
+                  name: my-config
             - name: LANGSMITH_API_KEY
               valueFrom:
                 secretKeyRef:
@@ -80,7 +88,7 @@ spec:
                 secretKeyRef:
                   key: SMTP_PASSWORD
                   name: my-secrets
-          image: ghcr.io/uengine-oss/process-gpt-polling-service:2f465a4
+          image: ghcr.io/uengine-oss/process-gpt-polling-service:23bdd0f
           imagePullPolicy: IfNotPresent
           lifecycle:
             preStop:
@@ -117,9 +125,9 @@ spec:
             timeoutSeconds: 5
           resources:
             limits:
-              cpu: 500m
+              cpu: 200m
               ephemeral-storage: 1Gi
-              memory: 512Mi
+              memory: 1Gi
             requests:
               cpu: 100m
               ephemeral-storage: 1Gi

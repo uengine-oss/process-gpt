@@ -52,6 +52,11 @@ spec:
                 secretKeyRef:
                   key: JWT_SECRET
                   name: my-secrets
+            - name: ENV
+              valueFrom:
+                configMapKeyRef:
+                  key: ENV
+                  name: my-config
             - name: DB_NAME
               valueFrom:
                 secretKeyRef:
@@ -81,7 +86,9 @@ spec:
               value: "sonar"
             - name: MODEL
               value: "gpt-4.1"
-          image: ghcr.io/uengine-oss/crewai-deep-research:1b2814d  # GitHub Actions가 자동 업데이트
+            - name: MEMENTO_SERVICE_URL
+              value: http://memento-service:8005
+          image: ghcr.io/uengine-oss/crewai-deep-research:b82f8b0 # GitHub Actions가 자동 업데이트
           imagePullPolicy: IfNotPresent
           name: crewai-deep-research
           ports:
@@ -90,10 +97,11 @@ spec:
           resources:
             limits:
               ephemeral-storage: 1Gi
+              memory: 1Gi
             requests:
-              cpu: 200m
+              cpu: 50m
               ephemeral-storage: 1Gi
-              memory: 512Mi
+              memory: 256Mi
           securityContext:
             capabilities:
               drop:

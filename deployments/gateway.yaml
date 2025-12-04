@@ -34,7 +34,7 @@ spec:
                 secretKeyRef:
                   key: JWT_SECRET
                   name: my-secrets
-          image: ghcr.io/uengine-oss/process-gpt-gateway:v1.0.7
+          image: ghcr.io/uengine-oss/process-gpt-gateway:v1.1.7
           imagePullPolicy: IfNotPresent
           name: gateway
           ports:
@@ -43,10 +43,11 @@ spec:
           resources:
             limits:
               ephemeral-storage: 1Gi
-            requests:
-              cpu: 500m
-              ephemeral-storage: 1Gi
               memory: 2Gi
+            requests:
+              cpu: 100m
+              ephemeral-storage: 1Gi
+              memory: 512Mi
           securityContext:
             capabilities:
               drop:

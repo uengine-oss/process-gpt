@@ -114,9 +114,9 @@ Edit `secrets.yaml` with your actual values:
 
 ```yaml
 OPENAI_API_KEY: "sk-your-actual-openai-key"
-SUPABASE_KEY: "your-actual-supabase-anon-key"
-SERVICE_ROLE_KEY: "your-actual-supabase-service-role-key"
-JWT_SECRET: "your-actual-jwt-secret"
+SUPABASE_KEY: "your-actual-supabase-anon-key" # Project settings > api-keys
+SERVICE_ROLE_KEY: "your-actual-supabase-service-role-key" # Project settings > api-keys
+JWT_SECRET: "your-actual-jwt-secret" # Project settings > jwt-keys
 DB_NAME: "your-db-name"
 DB_USER: "your-db-user"
 DB_PASSWORD: "your-db-password"
@@ -133,7 +133,7 @@ PERPLEXITY_API_KEY: "your-perplexity-api-key"
 Edit `configmap.yaml` with your actual values:
 
 ```yaml
-SUPABASE_URL: "https://your-project.supabase.co"
+SUPABASE_URL: "https://your-project.supabase.co" # Connection > app framework
 SMTP_PORT: "587"
 SMTP_SERVER: "smtp.gmail.com"
 SMTP_USERNAME: "your-smtp-username"
@@ -148,7 +148,7 @@ kubectl apply -f configmap.yaml
 kubectl apply -f rbac.yaml
 kubectl apply -f pvc.yaml
 
-# Step 2: Deploy all deployments and services
+# Step 2: Deploy all other services
 kubectl apply -f deployments/
 kubectl apply -f services/
 ```
@@ -189,6 +189,11 @@ Open your browser and go to **[http://localhost:8088](http://localhost:8088)**
 **Database Scheme:**
 
 * `init.sql`: Supabase database table definition script.
+
+**Local Supabase Files:**
+
+* `deployments/supabase-deployment.yaml`: Local Supabase deployment (PostgreSQL + GoTrue + PostgREST)
+* `deployments/supabase-config-updater-job.yaml`: Job to update configs to use local Supabase
 
 
 ---

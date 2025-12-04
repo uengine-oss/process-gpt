@@ -23,6 +23,11 @@ spec:
     spec:
       containers:
         - env:
+            - name: VITE_UPSTAGE_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  key: UPSTAGE_API_KEY
+                  name: my-secrets
             - name: VITE_OPENAI_API_KEY
               valueFrom:
                 secretKeyRef:
@@ -38,7 +43,12 @@ spec:
                 secretKeyRef:
                   key: SUPABASE_KEY
                   name: my-secrets
-          image: ghcr.io/uengine-oss/process-gpt:ac6bf85
+            - name: UPSTAGE_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  key: UPSTAGE_API_KEY
+                  name: my-secrets
+          image: ghcr.io/uengine-oss/process-gpt:c8cfade
           imagePullPolicy: IfNotPresent
           name: frontend
           ports:
@@ -47,8 +57,9 @@ spec:
           resources:
             limits:
               ephemeral-storage: 1Gi
+              memory: 512Mi
             requests:
-              cpu: 100m
+              cpu: 50m
               ephemeral-storage: 1Gi
               memory: 128Mi
           securityContext:

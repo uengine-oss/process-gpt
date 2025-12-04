@@ -40,7 +40,7 @@ spec:
                   name: my-secrets
             - name: GOOGLE_APPLICATION_CREDENTIALS
               value: /secrets/credentials.json
-          image: ghcr.io/uengine-oss/process-gpt-memento:f0560a1
+          image: ghcr.io/uengine-oss/process-gpt-memento:59bd446
           imagePullPolicy: IfNotPresent
           name: memento
           ports:
@@ -49,10 +49,11 @@ spec:
           resources:
             limits:
               ephemeral-storage: 1Gi
+              memory: 1024Mi
             requests:
-              cpu: 100m
+              cpu: 50m
               ephemeral-storage: 1Gi
-              memory: 128Mi
+              memory: 640Mi
           securityContext:
             capabilities:
               drop:

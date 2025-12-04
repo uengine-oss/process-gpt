@@ -16,12 +16,12 @@ data:
       cloud:
         gateway:
           routes:
-            - id: execution
-              uri: http://execution-service:8000
+            - id: completion
+              uri: http://completion-service:8000
               predicates:
-                - Path=/execution/**
+                - Path=/completion/**
               filters:
-                - RewritePath=/execution/?(?<segment>.*), /$\{segment}
+                - RewritePath=/completion/?(?<segment>.*), /$\{segment}
             - id: memento
               uri: http://memento-service:8005
               predicates:

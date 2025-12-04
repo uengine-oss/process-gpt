@@ -2,8 +2,8 @@
 *.exe
 
 # 설정 파일들 (실제 값이 포함된 파일들)
-secrets-test.yaml
-configmap-test.yaml
+secrets.yaml
+configmap.yaml
 
 # IDE 파일들
 .vscode/

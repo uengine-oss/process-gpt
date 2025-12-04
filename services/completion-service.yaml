@@ -2,8 +2,7 @@ apiVersion: v1
 kind: Service
 metadata:
   annotations: {}
-  name: execution-service
-  namespace: default
+  name: completion-service
 spec:
   internalTrafficPolicy: Cluster
   ipFamilies:
@@ -14,6 +13,6 @@ spec:
       protocol: TCP
       targetPort: 8000
   selector:
-    app: execution
+    app: completion
   sessionAffinity: None
   type: ClusterIP

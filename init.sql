@@ -58,6 +58,34 @@
 -- Enable required extensions
 create extension if not exists vector;
 create extension if not exists pgcrypto;
+CREATE EXTENSION IF NOT EXISTS pg_cron;
+
+-- ==========================================
+-- ENUM 타입 정의
+-- ==========================================
+-- 프로세스 인스턴스 상태 enum
+CREATE TYPE process_status AS ENUM ('NEW', 'RUNNING', 'COMPLETED');
+-- 할일 항목 상태 enum
+CREATE TYPE todo_status AS ENUM ('NEW', 'TODO', 'IN_PROGRESS', 'SUBMITTED', 'PENDING', 'DONE', 'CANCELLED');
+-- 에이전트 모드 enum
+CREATE TYPE agent_mode AS ENUM ('DRAFT', 'COMPLETE');
+-- 오케스트레이션 방식 enum
+CREATE TYPE agent_orch AS ENUM ('crewai-action', 'openai-deep-research', 'crewai-deep-research', 'langchain-react', 'browser-automation-agent', 'a2a', 'visionparse');
+-- 드래프트 상태 enum
+CREATE TYPE draft_status AS ENUM ('STARTED', 'CANCELLED', 'COMPLETED', 'FB_REQUESTED', 'HUMAN_ASKED', 'FAILED');
+-- 이벤트 타입 enum
+CREATE TYPE event_type_enum AS ENUM (
+  'task_started',
+  'task_completed',
+  'tool_usage_started',
+  'tool_usage_finished',
+  'crew_completed',
+  'human_asked',
+  'human_response',
+  'error'
+);
+-- 이벤트 상태 enum
+CREATE TYPE event_status AS ENUM ('ASKED', 'APPROVED', 'REJECTED');
 
 -- Create tenant_id function
 create or replace function public.tenant_id()
@@ -100,11 +128,9 @@ create table if not exists public.users (
     role text null,
     tenant_id text null,
     device_token text null,
-    google_credentials jsonb,
-    google_credentials_updated_at TIMESTAMP WITH TIME ZONE,
     goal text null,
     persona text null,
-    url text null,
+    endpoint text null,
     description text null,
     tools text null,
     skills text null,
@@ -140,6 +166,8 @@ create table if not exists public.proc_def (
     uuid uuid not null default gen_random_uuid (),
     tenant_id text null default public.tenant_id(),
     isdeleted boolean not null default false,
+    owner text null,
+    type text null,
     constraint proc_def_pkey primary key (uuid),
     constraint proc_def_tenant_id_fkey foreign key (tenant_id) references tenants (id) on update cascade on delete cascade
 ) tablespace pg_default;
@@ -156,6 +184,22 @@ create table if not exists public.proc_def_arcv (
     tenant_id text null default public.tenant_id(),
     constraint proc_def_arcv_pkey primary key (uuid),
     constraint proc_def_arcv_tenant_id_fkey foreign key (tenant_id) references tenants (id) on update cascade on delete cascade
+) tablespace pg_default;
+
+create table if not exists public.proc_def_version (
+    arcv_id text not null,
+    proc_def_id text not null,
+    version text not null,
+    version_tag text null,
+    snapshot text null,
+    definition jsonb null,
+    "timeStamp" timestamp without time zone null default current_timestamp,
+    diff text null,
+    message text null,
+    uuid uuid not null default gen_random_uuid (),
+    tenant_id text null default public.tenant_id(),
+    constraint proc_def_version_pkey primary key (uuid),
+    constraint proc_def_version_tenant_id_fkey foreign key (tenant_id) references tenants (id) on update cascade on delete cascade
 ) tablespace pg_default;
 
 create table if not exists public.form_def (
@@ -192,7 +236,8 @@ create table if not exists public.lock (
     tenant_id text null default public.tenant_id(),
     uuid uuid not null default gen_random_uuid (),
     constraint lock_pkey primary key (uuid),
-    constraint lock_tenant_id_fkey foreign key (tenant_id) references tenants (id) on update cascade on delete cascade
+    constraint lock_tenant_id_fkey foreign key (tenant_id) references tenants (id) on update cascade on delete cascade,
+    constraint lock_tenant_id_id_unique unique (tenant_id, id)
 ) tablespace pg_default;
 
 create table if not exists public.bpm_proc_inst (
@@ -206,9 +251,11 @@ create table if not exists public.bpm_proc_inst (
     participants text[] null,
     role_bindings jsonb null,
     variables_data jsonb null,
-    status text null,
+    status process_status null,
     tenant_id text null default public.tenant_id(),
-    proc_def_version text null,
+     proc_def_version text null,
+    version_tag text null,
+    version text null,
     project_id uuid null,
     start_date timestamp without time zone null,
     end_date timestamp without time zone null,
@@ -216,6 +263,7 @@ create table if not exists public.bpm_proc_inst (
     updated_at timestamp with time zone default now(),
     is_deleted boolean not null default false,
     deleted_at timestamp with time zone null,
+    is_clean_up boolean not null default false,
     constraint bpm_proc_inst_pkey primary key (proc_inst_id),
     constraint bpm_proc_inst_tenant_id_fkey foreign key (tenant_id) references tenants (id) on update cascade on delete cascade
 ) tablespace pg_default;
@@ -228,11 +276,13 @@ create table if not exists public.todolist (
     root_proc_inst_id text null,
     execution_scope text null,
     proc_def_id text null,
+    version_tag text null,
+    version text null,
     activity_id text null,
     activity_name text null,
     start_date timestamp without time zone null,
     end_date timestamp without time zone null,
-    status text null,
+    status todo_status null,
     description text null,
     tool text null,
     due_date timestamp without time zone null,
@@ -247,14 +297,15 @@ create table if not exists public.todolist (
     log text null,
     project_id uuid null,
     draft jsonb null,
-    agent_mode text null,
-    agent_orch text null,
+    agent_mode agent_mode null,
+    agent_orch agent_orch null,
     feedback jsonb null,
-    draft_status text null,
+    draft_status draft_status null,
     updated_at timestamp with time zone default now(),
     temp_feedback text null,
     output_url text null,
     rework_count integer null default 0,
+    query text null,
     constraint todolist_pkey primary key (id),
     constraint todolist_tenant_id_fkey foreign key (tenant_id) references tenants (id) on update cascade on delete cascade
 ) tablespace pg_default;
@@ -411,14 +462,37 @@ create table if not exists public.events (
   job_id text not null,
   todo_id text null,
   proc_inst_id text null,
-  event_type text not null,
-  status text null,
+  event_type event_type_enum not null,
+  status event_status null,
   crew_type text null,
   data jsonb not null,
   timestamp timestamp with time zone null default now(),
   constraint events_pkey primary key (id)
 ) TABLESPACE pg_default;
 
+create or replace function match_documents(
+  query_embedding vector(1536),
+  filter jsonb default '{}'::jsonb,
+  match_count int default 5
+)
+returns table (
+  id uuid,
+  content text,
+  metadata jsonb,
+  similarity float
+)
+language sql
+as $$
+  select
+    documents.id,
+    documents.content,
+    documents.metadata,
+    1 - (documents.embedding <=> query_embedding) as similarity
+  from documents
+  where documents.metadata @> filter
+  order by documents.embedding <=> query_embedding
+  limit match_count;
+$$;
 
 
 ------------------ 결제시스템 ---------------------------
@@ -993,6 +1067,7 @@ ALTER TABLE configuration ENABLE ROW LEVEL SECURITY;
 ALTER TABLE proc_map_history ENABLE ROW LEVEL SECURITY;
 ALTER TABLE proc_def ENABLE ROW LEVEL SECURITY;
 ALTER TABLE proc_def_arcv ENABLE ROW LEVEL SECURITY;
+ALTER TABLE proc_def_version ENABLE ROW LEVEL SECURITY;
 ALTER TABLE form_def ENABLE ROW LEVEL SECURITY;
 ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
 ALTER TABLE lock ENABLE ROW LEVEL SECURITY;
@@ -1037,11 +1112,16 @@ CREATE POLICY proc_def_select_policy ON proc_def FOR SELECT TO authenticated USI
 CREATE POLICY proc_def_update_policy ON proc_def FOR UPDATE TO authenticated USING ((tenant_id = public.tenant_id()) AND (EXISTS (SELECT 1 FROM users WHERE users.id = auth.uid() AND users.is_admin = true)));
 CREATE POLICY proc_def_delete_policy ON proc_def FOR DELETE TO authenticated USING ((tenant_id = public.tenant_id()) AND (EXISTS (SELECT 1 FROM users WHERE users.id = auth.uid() AND users.is_admin = true)));
 
--- Proc def arcv policies
 CREATE POLICY proc_def_arcv_insert_policy ON proc_def_arcv FOR INSERT TO authenticated WITH CHECK (tenant_id = public.tenant_id());
 CREATE POLICY proc_def_arcv_select_policy ON proc_def_arcv FOR SELECT TO authenticated USING (tenant_id = public.tenant_id());
 CREATE POLICY proc_def_arcv_update_policy ON proc_def_arcv FOR UPDATE TO authenticated USING (tenant_id = public.tenant_id());
 CREATE POLICY proc_def_arcv_delete_policy ON proc_def_arcv FOR DELETE TO authenticated USING (tenant_id = public.tenant_id());
+
+-- Proc def version policies
+CREATE POLICY proc_def_version_insert_policy ON proc_def_version FOR INSERT TO authenticated WITH CHECK (tenant_id = public.tenant_id());
+CREATE POLICY proc_def_version_select_policy ON proc_def_version FOR SELECT TO authenticated USING (tenant_id = public.tenant_id());
+CREATE POLICY proc_def_version_update_policy ON proc_def_version FOR UPDATE TO authenticated USING (tenant_id = public.tenant_id());
+CREATE POLICY proc_def_version_delete_policy ON proc_def_version FOR DELETE TO authenticated USING (tenant_id = public.tenant_id());
 
 -- Form def policies
 CREATE POLICY form_def_insert_policy ON form_def FOR INSERT TO authenticated WITH CHECK (EXISTS (SELECT 1 FROM users WHERE users.id = auth.uid() AND users.is_admin = true));
@@ -1262,10 +1342,6 @@ GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA cron TO authenticated;
 -- ===============================================
 -- 테넌트 자동 삭제 기능 (deleted_at 기준 7일 후)
 -- ===============================================
-
--- pg_cron 확장 추가 (이미 있을 수 있지만 안전하게)
-CREATE EXTENSION IF NOT EXISTS pg_cron;
-
 -- 테넌트 정리 함수 (기존 start_process_scheduled 패턴과 동일)
 create or replace function public.cleanup_deleted_tenants_job(
   p_job_name text,
@@ -1565,30 +1641,13 @@ grant execute on all functions in schema cron to service_role;
 
 
 
--- enum 타입 추가
--- 프로세스 인스턴스 상태 enum
-CREATE TYPE process_status AS ENUM ('NEW', 'RUNNING', 'COMPLETED');
--- 할일 항목 상태 enum
-CREATE TYPE todo_status AS ENUM ('TODO', 'IN_PROGRESS', 'SUBMITTED', 'PENDING', 'DONE', 'CANCELLED');
--- 에이전트 모드 enum
-CREATE TYPE agent_mode AS ENUM ('NONE', 'A2A', 'DRAFT', 'COMPLETE');
--- 오케스트레이션 방식 enum
-CREATE TYPE agent_orch AS ENUM ('crewai-action', 'openai-deep-research', 'crewai-deep-research', 'langchain-react');
--- 드래프트 상태 enum
-CREATE TYPE draft_status AS ENUM ('STARTED', 'CANCELLED', 'COMPLETED', 'FB_REQUESTED', 'HUMAN_ASKED', 'FAILED');
--- 이벤트 타입 enum
-CREATE TYPE event_type_enum AS ENUM (
-  'task_started',
-  'task_completed',
-  'tool_usage_started',
-  'tool_usage_finished',
-  'crew_completed',
-  'human_asked',
-  'human_response'
-);
--- 이벤트 상태 enum
-CREATE TYPE event_status AS ENUM ('ASKED', 'APPROVED', 'REJECTED');
 
+-- ==========================================
+-- ENUM 타입 마이그레이션 쿼리
+-- ==========================================
+-- ※ 주의: 아래 마이그레이션 쿼리들은 해당 컬럼이 text 타입인 경우에만 실행하세요
+-- 이미 enum 타입으로 변경된 경우에는 실행하지 마세요
+--
 -- events 테이블 마이그레이션 (event_type)
 -- 1. 임시 컬럼 추가
 ALTER TABLE public.events ADD COLUMN event_type_new event_type_enum;
@@ -1662,11 +1721,9 @@ ALTER TABLE public.todolist ADD COLUMN agent_mode_new agent_mode;
 -- 2. 기존 데이터를 새 enum 타입으로 변환
 UPDATE public.todolist 
 SET agent_mode_new = CASE 
-    WHEN agent_mode = 'NONE' THEN 'NONE'::agent_mode
-    WHEN agent_mode = 'A2A' THEN 'A2A'::agent_mode
     WHEN agent_mode = 'DRAFT' THEN 'DRAFT'::agent_mode
     WHEN agent_mode = 'COMPLETE' THEN 'COMPLETE'::agent_mode
-    ELSE 'NONE'::agent_mode  -- 기본값 설정
+    ELSE NULL  -- 기본값 설정
 END;
 -- 3. 기존 컬럼 삭제 후 새 컬럼명 변경
 ALTER TABLE public.todolist DROP COLUMN agent_mode;
@@ -1683,6 +1740,8 @@ SET agent_orch_new = CASE
     WHEN agent_orch = 'openai-deep-research' THEN 'openai-deep-research'::agent_orch
     WHEN agent_orch = 'crewai-action' THEN 'crewai-action'::agent_orch
     WHEN agent_orch = 'langchain-react' THEN 'langchain-react'::agent_orch
+    WHEN agent_orch = 'browser-automation-agent' THEN 'browser-automation-agent'::agent_orch
+    WHEN agent_orch = 'visionparse' THEN 'visionparse'::agent_orch
     ELSE NULL  -- 기본값을 NULL로 설정
 END;
 -- 3. 기존 컬럼 삭제 후 새 컬럼명 변경
@@ -1717,8 +1776,7 @@ create table if not exists public.proc_inst_source (
     created_at timestamp with time zone not null default now(),
     is_process boolean not null default false,
     file_path text null,
-    constraint proc_inst_source_pkey primary key (id),
-    constraint proc_inst_source_proc_inst_id_fkey foreign key (proc_inst_id) references bpm_proc_inst (proc_inst_id) on update cascade on delete cascade
+    constraint proc_inst_source_pkey primary key (id)
 ) tablespace pg_default;
 
 
@@ -1738,8 +1796,10 @@ CREATE INDEX IF NOT EXISTS idx_document_images_document_id ON document_images(do
 CREATE INDEX IF NOT EXISTS idx_document_images_tenant_id ON document_images(tenant_id);
 
 
+
 -- ==========================================
 -- Mem0 vector store 함수 (vecs 스키마)
+-- ※ vecs 스키마가 있는 경우에만 아래 함수 생성 쿼리들을 실행하세요
 -- ==========================================
 -- 조회 (agent_id 필터링 + limit)
 create or replace function public.get_memories(agent text, lim int default 100)
@@ -1776,3 +1836,912 @@ $$;
 
 
 
+-- 1) 대기중인 작업 조회 및 상태 변경
+DROP FUNCTION IF EXISTS public.crewai_deep_fetch_pending_task(integer, text);
+
+CREATE OR REPLACE FUNCTION public.crewai_deep_fetch_pending_task(
+  p_limit    integer,
+  p_consumer text
+)
+RETURNS TABLE (
+  id uuid,
+  user_id text,
+  proc_inst_id text,
+  proc_def_id text,
+  activity_id text,
+  activity_name text,
+  start_date timestamp without time zone,
+  end_date timestamp without time zone,
+  description text,
+  tool text,
+  due_date timestamp without time zone,
+  tenant_id text,
+  reference_ids text[],
+  adhoc boolean,
+  assignees jsonb,
+  duration integer,
+  output jsonb,
+  retry integer,
+  consumer text,
+  log text,
+  draft jsonb,
+  project_id uuid,
+  feedback jsonb,
+  updated_at timestamp with time zone,
+  username text,
+  status public.todo_status,
+  agent_mode public.agent_mode,
+  agent_orch public.agent_orch,
+  temp_feedback text,
+  draft_status public.draft_status,
+  -- 가상 컬럼(업데이트 전 값)
+  task_type public.draft_status,
+  root_proc_inst_id text
+) AS $$
+BEGIN
+  RETURN QUERY
+    WITH cte AS (
+      SELECT
+        t.*,
+        t.draft_status AS task_type   -- 원본 보관
+      FROM todolist AS t
+      WHERE t.status = 'IN_PROGRESS'
+        AND t.agent_orch = 'crewai-deep-research'
+        AND (
+          (t.agent_mode IN ('DRAFT','COMPLETE') AND t.draft IS NULL AND t.draft_status IS NULL)
+          OR t.draft_status = 'FB_REQUESTED'
+        )
+      ORDER BY t.start_date
+      LIMIT p_limit
+      FOR UPDATE SKIP LOCKED
+    ),
+    upd AS (
+      UPDATE todolist AS t
+         SET draft_status = 'STARTED',
+             consumer     = p_consumer
+        FROM cte
+       WHERE t.id = cte.id
+       RETURNING
+         t.id,
+         t.user_id,
+         t.proc_inst_id,
+         t.proc_def_id,
+         t.activity_id,
+         t.activity_name,
+         t.start_date,
+         t.end_date,
+         t.description,
+         t.tool,
+         t.due_date,
+         t.tenant_id,
+         t.reference_ids,
+         t.adhoc,
+         t.assignees,
+         t.duration,
+         t.output,
+         t.retry,
+         t.consumer,
+         t.log,
+         t.draft,
+         t.project_id,
+         t.feedback,
+         t.updated_at,
+         t.username,
+         t.status,
+         t.agent_mode,
+         t.agent_orch,
+         t.temp_feedback,
+         t.draft_status,              -- 변경 후 값 (STARTED)
+         cte.task_type,
+         t.root_proc_inst_id
+    )
+    SELECT * FROM upd;
+END;
+$$ LANGUAGE plpgsql VOLATILE;
+
+
+DROP FUNCTION IF EXISTS public.crewai_deep_fetch_pending_task_dev(integer, text, text);
+
+CREATE OR REPLACE FUNCTION public.crewai_deep_fetch_pending_task_dev(
+  p_limit      integer,
+  p_consumer   text,
+  p_tenant_id  text
+)
+RETURNS TABLE (
+  id uuid,
+  user_id text,
+  proc_inst_id text,
+  proc_def_id text,
+  activity_id text,
+  activity_name text,
+  start_date timestamp without time zone,
+  end_date timestamp without time zone,
+  description text,
+  tool text,
+  due_date timestamp without time zone,
+  tenant_id text,
+  reference_ids text[],
+  adhoc boolean,
+  assignees jsonb,
+  duration integer,
+  output jsonb,
+  retry integer,
+  consumer text,
+  log text,
+  draft jsonb,
+  project_id uuid,
+  feedback jsonb,
+  updated_at timestamp with time zone,
+  username text,
+  status public.todo_status,
+  agent_mode public.agent_mode,
+  agent_orch public.agent_orch,
+  temp_feedback text,
+  draft_status public.draft_status,
+  -- 가상 컬럼(업데이트 전 값)
+  task_type public.draft_status,
+  root_proc_inst_id text
+) AS $$
+BEGIN
+  RETURN QUERY
+    WITH cte AS (
+      SELECT
+        t.*,
+        t.draft_status AS task_type   -- 원본 보관
+      FROM todolist AS t
+      WHERE t.status = 'IN_PROGRESS'
+        AND t.agent_orch = 'crewai-deep-research'
+        AND t.tenant_id = p_tenant_id
+        AND (
+          (t.agent_mode IN ('DRAFT','COMPLETE') AND t.draft IS NULL AND t.draft_status IS NULL)
+          OR t.draft_status = 'FB_REQUESTED'
+        )
+      ORDER BY t.start_date
+      LIMIT p_limit
+      FOR UPDATE SKIP LOCKED
+    ),
+    upd AS (
+      UPDATE todolist AS t
+         SET draft_status = 'STARTED',
+             consumer     = p_consumer
+        FROM cte
+       WHERE t.id = cte.id
+       RETURNING
+         t.id,
+         t.user_id,
+         t.proc_inst_id,
+         t.proc_def_id,
+         t.activity_id,
+         t.activity_name,
+         t.start_date,
+         t.end_date,
+         t.description,
+         t.tool,
+         t.due_date,
+         t.tenant_id,
+         t.reference_ids,
+         t.adhoc,
+         t.assignees,
+         t.duration,
+         t.output,
+         t.retry,
+         t.consumer,
+         t.log,
+         t.draft,
+         t.project_id,
+         t.feedback,
+         t.updated_at,
+         t.username,
+         t.status,
+         t.agent_mode,
+         t.agent_orch,
+         t.temp_feedback,
+         t.draft_status,              -- 변경 후 값 (STARTED)
+         cte.task_type,               -- 변경 전 값
+         t.root_proc_inst_id
+    )
+    SELECT * FROM upd;
+END;
+$$ LANGUAGE plpgsql VOLATILE;
+
+
+
+-- 2) 완료된 데이터(output/feedback) 조회
+DROP FUNCTION IF EXISTS public.fetch_done_data(text);
+
+CREATE OR REPLACE FUNCTION public.fetch_done_data(
+  p_proc_inst_id text
+)
+RETURNS TABLE (
+  output jsonb
+)
+LANGUAGE SQL
+AS $$
+  SELECT t.output
+    FROM public.todolist AS t
+   WHERE (t.root_proc_inst_id = p_proc_inst_id OR t.proc_inst_id = p_proc_inst_id)
+     AND t.status = 'DONE'
+     AND t.output IS NOT NULL
+   ORDER BY t.start_date;
+$$;
+
+-- 3) 결과 저장 (중간/최종)
+CREATE OR REPLACE FUNCTION public.save_task_result(
+  p_todo_id uuid,
+  p_payload jsonb,
+  p_final   boolean
+)
+RETURNS void AS $$
+DECLARE
+  v_mode text;
+BEGIN
+  SELECT agent_mode
+    INTO v_mode
+    FROM todolist
+   WHERE id = p_todo_id;
+
+  IF p_final THEN
+    IF v_mode = 'COMPLETE' THEN
+      UPDATE todolist
+         SET output       = p_payload,
+             status       = 'SUBMITTED',
+             draft_status = 'COMPLETED',
+             consumer     = NULL
+       WHERE id = p_todo_id;
+    ELSE
+      UPDATE todolist
+         SET draft        = p_payload,
+             draft_status = 'COMPLETED',
+             consumer     = NULL
+       WHERE id = p_todo_id;
+    END IF;
+  ELSE
+    UPDATE todolist
+       SET draft = p_payload
+     WHERE id = p_todo_id;
+  END IF;
+END;
+$$ LANGUAGE plpgsql VOLATILE;
+
+-- 익명(anon) 역할에 실행 권한 부여
+GRANT EXECUTE ON FUNCTION public.crewai_deep_fetch_pending_task(integer, text) TO anon;
+GRANT EXECUTE ON FUNCTION public.crewai_deep_fetch_pending_task_dev(integer, text, text) TO anon;
+GRANT EXECUTE ON FUNCTION public.fetch_done_data(text) TO anon;
+GRANT EXECUTE ON FUNCTION public.save_task_result(uuid, jsonb, boolean) TO anon;
+
+
+-- 기존 함수가 있다면 먼저 삭제
+DROP FUNCTION IF EXISTS public.crewai_action_fetch_pending_task(integer, text);
+
+CREATE OR REPLACE FUNCTION public.crewai_action_fetch_pending_task(
+  p_limit    integer,
+  p_consumer text
+)
+RETURNS TABLE (
+  id uuid,
+  user_id text,
+  proc_inst_id text,
+  proc_def_id text,
+  activity_id text,
+  activity_name text,
+  start_date timestamp without time zone,
+  end_date timestamp without time zone,
+  description text,
+  tool text,
+  due_date timestamp without time zone,
+  tenant_id text,
+  reference_ids text[],
+  adhoc boolean,
+  assignees jsonb,
+  duration integer,
+  output jsonb,
+  retry integer,
+  consumer text,
+  log text,
+  draft jsonb,
+  project_id uuid,
+  feedback jsonb,
+  updated_at timestamp with time zone,
+  username text,
+  status public.todo_status,
+  agent_mode public.agent_mode,
+  agent_orch public.agent_orch,
+  temp_feedback text,
+  draft_status public.draft_status,
+  -- 가상 컬럼(업데이트 전 값)
+  task_type public.draft_status,
+  root_proc_inst_id text
+) AS $$
+BEGIN
+  RETURN QUERY
+    WITH cte AS (
+      SELECT
+        t.*,
+        t.draft_status AS task_type   -- 원본 보관
+      FROM todolist AS t
+      WHERE t.status = 'IN_PROGRESS'
+        AND t.agent_orch = 'crewai-action'
+        AND (
+          (t.agent_mode IN ('DRAFT','COMPLETE') AND t.draft IS NULL AND t.draft_status IS NULL)
+          OR t.draft_status = 'FB_REQUESTED'
+        )
+      ORDER BY t.start_date
+      LIMIT p_limit
+      FOR UPDATE SKIP LOCKED
+    ),
+    upd AS (
+      UPDATE todolist AS t
+         SET draft_status = 'STARTED',
+             consumer     = p_consumer
+        FROM cte
+       WHERE t.id = cte.id
+       RETURNING
+         t.id,
+         t.user_id,
+         t.proc_inst_id,
+         t.proc_def_id,
+         t.activity_id,
+         t.activity_name,
+         t.start_date,
+         t.end_date,
+         t.description,
+         t.tool,
+         t.due_date,
+         t.tenant_id,
+         t.reference_ids,
+         t.adhoc,
+         t.assignees,
+         t.duration,
+         t.output,
+         t.retry,
+         t.consumer,
+         t.log,
+         t.draft,
+         t.project_id,
+         t.feedback,
+         t.updated_at,
+         t.username,
+         t.status,
+         t.agent_mode,
+         t.agent_orch,
+         t.temp_feedback,
+         t.draft_status,              -- 변경 후 값 (STARTED)
+         cte.task_type,      -- 변경 전 값
+         t.root_proc_inst_id
+    )
+    SELECT * FROM upd;
+END;
+$$ LANGUAGE plpgsql VOLATILE;
+
+
+DROP FUNCTION IF EXISTS public.crewai_action_fetch_pending_task_dev(integer, text, text);
+
+CREATE OR REPLACE FUNCTION public.crewai_action_fetch_pending_task_dev(
+  p_limit      integer,
+  p_consumer   text,
+  p_tenant_id  text
+)
+RETURNS TABLE (
+  id uuid,
+  user_id text,
+  proc_inst_id text,
+  proc_def_id text,
+  activity_id text,
+  activity_name text,
+  start_date timestamp without time zone,
+  end_date timestamp without time zone,
+  description text,
+  tool text,
+  due_date timestamp without time zone,
+  tenant_id text,
+  reference_ids text[],
+  adhoc boolean,
+  assignees jsonb,
+  duration integer,
+  output jsonb,
+  retry integer,
+  consumer text,
+  log text,
+  draft jsonb,
+  project_id uuid,
+  feedback jsonb,
+  updated_at timestamp with time zone,
+  username text,
+  status public.todo_status,
+  agent_mode public.agent_mode,
+  agent_orch public.agent_orch,
+  temp_feedback text,
+  draft_status public.draft_status,
+  -- 가상 컬럼(업데이트 전 값)
+  task_type public.draft_status,
+  root_proc_inst_id text
+) AS $$
+BEGIN
+  RETURN QUERY
+    WITH cte AS (
+      SELECT
+        t.*,
+        t.draft_status AS task_type   -- 원본 보관
+      FROM todolist AS t
+      WHERE t.status = 'IN_PROGRESS'
+        AND t.agent_orch = 'crewai-action'
+        AND t.tenant_id = p_tenant_id
+        AND (
+          (t.agent_mode IN ('DRAFT','COMPLETE') AND t.draft IS NULL AND t.draft_status IS NULL)
+          OR t.draft_status = 'FB_REQUESTED'
+        )
+      ORDER BY t.start_date
+      LIMIT p_limit
+      FOR UPDATE SKIP LOCKED
+    ),
+    upd AS (
+      UPDATE todolist AS t
+         SET draft_status = 'STARTED',
+             consumer     = p_consumer
+        FROM cte
+       WHERE t.id = cte.id
+       RETURNING
+         t.id,
+         t.user_id,
+         t.proc_inst_id,
+         t.proc_def_id,
+         t.activity_id,
+         t.activity_name,
+         t.start_date,
+         t.end_date,
+         t.description,
+         t.tool,
+         t.due_date,
+         t.tenant_id,
+         t.reference_ids,
+         t.adhoc,
+         t.assignees,
+         t.duration,
+         t.output,
+         t.retry,
+         t.consumer,
+         t.log,
+         t.draft,
+         t.project_id,
+         t.feedback,
+         t.updated_at,
+         t.username,
+         t.status,
+         t.agent_mode,
+         t.agent_orch,
+         t.temp_feedback,
+         t.draft_status,              -- 변경 후 값 (STARTED)
+         cte.task_type,                -- 변경 전 값
+         t.root_proc_inst_id
+    )
+    SELECT * FROM upd;
+END;
+$$ LANGUAGE plpgsql VOLATILE;
+
+GRANT EXECUTE ON FUNCTION public.crewai_action_fetch_pending_task(integer, text) TO anon;
+GRANT EXECUTE ON FUNCTION public.crewai_action_fetch_pending_task_dev(integer, text, text) TO anon;
+
+-- 1) 대기중인 작업 조회 및 상태 변경
+DROP FUNCTION IF EXISTS public.openai_deep_fetch_pending_task(integer, text);
+
+CREATE OR REPLACE FUNCTION public.openai_deep_fetch_pending_task(
+  p_limit    integer,
+  p_consumer text
+)
+RETURNS TABLE (
+  id uuid,
+  user_id text,
+  proc_inst_id text,
+  proc_def_id text,
+  activity_id text,
+  activity_name text,
+  start_date timestamp without time zone,
+  end_date timestamp without time zone,
+  description text,
+  tool text,
+  due_date timestamp without time zone,
+  tenant_id text,
+  reference_ids text[],
+  adhoc boolean,
+  assignees jsonb,
+  duration integer,
+  output jsonb,
+  retry integer,
+  consumer text,
+  log text,
+  draft jsonb,
+  project_id uuid,
+  feedback jsonb,
+  updated_at timestamp with time zone,
+  username text,
+  status public.todo_status,
+  agent_mode public.agent_mode,
+  agent_orch public.agent_orch,
+  temp_feedback text,
+  draft_status public.draft_status,
+  -- 가상 컬럼(업데이트 전 값)
+  task_type public.draft_status
+) AS $$
+BEGIN
+  RETURN QUERY
+    WITH cte AS (
+      SELECT
+        t.*,
+        t.draft_status AS task_type   -- 원본 보관
+      FROM todolist AS t
+      WHERE t.status = 'IN_PROGRESS'
+        AND t.agent_orch = 'openai-deep-research'
+        AND (
+          (t.agent_mode IN ('DRAFT','COMPLETE') AND t.draft IS NULL AND t.draft_status IS NULL)
+          OR t.draft_status = 'FB_REQUESTED'
+        )
+      ORDER BY t.start_date
+      LIMIT p_limit
+      FOR UPDATE SKIP LOCKED
+    ),
+    upd AS (
+      UPDATE todolist AS t
+         SET draft_status = 'STARTED',
+             consumer     = p_consumer
+        FROM cte
+       WHERE t.id = cte.id
+       RETURNING
+         t.id,
+         t.user_id,
+         t.proc_inst_id,
+         t.proc_def_id,
+         t.activity_id,
+         t.activity_name,
+         t.start_date,
+         t.end_date,
+         t.description,
+         t.tool,
+         t.due_date,
+         t.tenant_id,
+         t.reference_ids,
+         t.adhoc,
+         t.assignees,
+         t.duration,
+         t.output,
+         t.retry,
+         t.consumer,
+         t.log,
+         t.draft,
+         t.project_id,
+         t.feedback,
+         t.updated_at,
+         t.username,
+         t.status,
+         t.agent_mode,
+         t.agent_orch,
+         t.temp_feedback,
+         t.draft_status,              -- 변경 후 값 (STARTED)
+         cte.task_type      -- 변경 전 값
+    )
+    SELECT * FROM upd;
+END;
+$$ LANGUAGE plpgsql VOLATILE;
+
+
+
+DROP FUNCTION IF EXISTS public.openai_deep_fetch_pending_task_dev(integer, text, text);
+
+CREATE OR REPLACE FUNCTION public.openai_deep_fetch_pending_task_dev(
+  p_limit      integer,
+  p_consumer   text,
+  p_tenant_id  text
+)
+RETURNS TABLE (
+  id uuid,
+  user_id text,
+  proc_inst_id text,
+  proc_def_id text,
+  activity_id text,
+  activity_name text,
+  start_date timestamp without time zone,
+  end_date timestamp without time zone,
+  description text,
+  tool text,
+  due_date timestamp without time zone,
+  tenant_id text,
+  reference_ids text[],
+  adhoc boolean,
+  assignees jsonb,
+  duration integer,
+  output jsonb,
+  retry integer,
+  consumer text,
+  log text,
+  draft jsonb,
+  project_id uuid,
+  feedback jsonb,
+  updated_at timestamp with time zone,
+  username text,
+  status public.todo_status,
+  agent_mode public.agent_mode,
+  agent_orch public.agent_orch,
+  temp_feedback text,
+  draft_status public.draft_status,
+  -- 가상 컬럼(업데이트 전 값)
+  task_type public.draft_status
+) AS $$
+BEGIN
+  RETURN QUERY
+    WITH cte AS (
+      SELECT
+        t.*,
+        t.draft_status AS task_type   -- 원본 보관
+      FROM todolist AS t
+      WHERE t.status = 'IN_PROGRESS'
+        AND t.agent_orch = 'openai-deep-research'
+        AND t.tenant_id = p_tenant_id
+        AND (
+          (t.agent_mode IN ('DRAFT','COMPLETE') AND t.draft IS NULL AND t.draft_status IS NULL)
+          OR t.draft_status = 'FB_REQUESTED'
+        )
+      ORDER BY t.start_date
+      LIMIT p_limit
+      FOR UPDATE SKIP LOCKED
+    ),
+    upd AS (
+      UPDATE todolist AS t
+         SET draft_status = 'STARTED',
+             consumer     = p_consumer
+        FROM cte
+       WHERE t.id = cte.id
+       RETURNING
+         t.id,
+         t.user_id,
+         t.proc_inst_id,
+         t.proc_def_id,
+         t.activity_id,
+         t.activity_name,
+         t.start_date,
+         t.end_date,
+         t.description,
+         t.tool,
+         t.due_date,
+         t.tenant_id,
+         t.reference_ids,
+         t.adhoc,
+         t.assignees,
+         t.duration,
+         t.output,
+         t.retry,
+         t.consumer,
+         t.log,
+         t.draft,
+         t.project_id,
+         t.feedback,
+         t.updated_at,
+         t.username,
+         t.status,
+         t.agent_mode,
+         t.agent_orch,
+         t.temp_feedback,
+         t.draft_status,              -- 변경 후 값 (STARTED)
+         cte.task_type                -- 변경 전 값
+    )
+    SELECT * FROM upd;
+END;
+$$ LANGUAGE plpgsql VOLATILE;
+
+-- 익명(anon) 역할에 실행 권한 부여
+GRANT EXECUTE ON FUNCTION public.openai_deep_fetch_pending_task(integer, text) TO anon;
+
+-- 0) 공용 대기 작업 조회 및 상태 변경 (agent_orch 인자로 필터)
+DROP FUNCTION IF EXISTS public.fetch_pending_task(text, text, integer);
+
+CREATE OR REPLACE FUNCTION public.fetch_pending_task(
+  p_agent_orch text,
+  p_consumer   text,
+  p_limit      integer
+)
+RETURNS TABLE (
+  id uuid,
+  user_id text,
+  proc_inst_id text,
+  proc_def_id text,
+  activity_id text,
+  activity_name text,
+  start_date timestamp without time zone,
+  end_date timestamp without time zone,
+  description text,
+  tool text,
+  due_date timestamp without time zone,
+  tenant_id text,
+  reference_ids text[],
+  adhoc boolean,
+  assignees jsonb,
+  duration integer,
+  output jsonb,
+  retry integer,
+  consumer text,
+  log text,
+  draft jsonb,
+  project_id uuid,
+  feedback jsonb,
+  updated_at timestamp with time zone,
+  username text,
+  status public.todo_status,
+  agent_mode public.agent_mode,
+  agent_orch public.agent_orch,
+  temp_feedback text,
+  draft_status public.draft_status,
+  task_type public.draft_status
+)
+AS $$
+BEGIN
+  RETURN QUERY
+    WITH cte AS (
+      SELECT
+        t.*,
+        t.draft_status AS task_type
+      FROM todolist AS t
+      WHERE t.status = 'IN_PROGRESS'
+        AND (p_agent_orch IS NULL OR p_agent_orch = '' OR t.agent_orch::text = p_agent_orch)
+        AND (
+          (t.agent_mode IN ('DRAFT','COMPLETE') AND t.draft IS NULL AND t.draft_status IS NULL)
+          OR t.draft_status = 'FB_REQUESTED'
+        )
+      ORDER BY t.start_date
+      LIMIT p_limit
+      FOR UPDATE SKIP LOCKED
+    ),
+    upd AS (
+      UPDATE todolist AS t
+         SET draft_status = 'STARTED',
+             consumer     = p_consumer
+        FROM cte
+       WHERE t.id = cte.id
+       RETURNING
+         t.id,
+         t.user_id,
+         t.proc_inst_id,
+         t.proc_def_id,
+         t.activity_id,
+         t.activity_name,
+         t.start_date,
+         t.end_date,
+         t.description,
+         t.tool,
+         t.due_date,
+         t.tenant_id,
+         t.reference_ids,
+         t.adhoc,
+         t.assignees,
+         t.duration,
+         t.output,
+         t.retry,
+         t.consumer,
+         t.log,
+         t.draft,
+         t.project_id,
+         t.feedback,
+         t.updated_at,
+         t.username,
+         t.status,
+         t.agent_mode,
+         t.agent_orch,
+         t.temp_feedback,
+         t.draft_status,
+         cte.task_type
+    )
+    SELECT * FROM upd;
+END;
+$$ LANGUAGE plpgsql VOLATILE;
+
+DROP FUNCTION IF EXISTS public.fetch_pending_task_dev(text, text, integer, text);
+
+CREATE OR REPLACE FUNCTION public.fetch_pending_task_dev(
+  p_agent_orch text,
+  p_consumer   text,
+  p_limit      integer,
+  p_tenant_id  text
+)
+RETURNS TABLE (
+  id uuid,
+  user_id text,
+  proc_inst_id text,
+  proc_def_id text,
+  activity_id text,
+  activity_name text,
+  start_date timestamp without time zone,
+  end_date timestamp without time zone,
+  description text,
+  tool text,
+  due_date timestamp without time zone,
+  tenant_id text,
+  reference_ids text[],
+  adhoc boolean,
+  assignees jsonb,
+  duration integer,
+  output jsonb,
+  retry integer,
+  consumer text,
+  log text,
+  draft jsonb,
+  project_id uuid,
+  feedback jsonb,
+  updated_at timestamp with time zone,
+  username text,
+  status public.todo_status,
+  agent_mode public.agent_mode,
+  agent_orch public.agent_orch,
+  temp_feedback text,
+  draft_status public.draft_status,
+  task_type public.draft_status
+)
+AS $$
+BEGIN
+  RETURN QUERY
+    WITH cte AS (
+      SELECT
+        t.*,
+        t.draft_status AS task_type
+      FROM todolist AS t
+      WHERE t.status = 'IN_PROGRESS'
+        AND t.tenant_id = p_tenant_id
+        AND (p_agent_orch IS NULL OR p_agent_orch = '' OR t.agent_orch::text = p_agent_orch)
+        AND (
+          (t.agent_mode IN ('DRAFT','COMPLETE') AND t.draft IS NULL AND t.draft_status IS NULL)
+          OR t.draft_status = 'FB_REQUESTED'
+        )
+      ORDER BY t.start_date
+      LIMIT p_limit
+      FOR UPDATE SKIP LOCKED
+    ),
+    upd AS (
+      UPDATE todolist AS t
+         SET draft_status = 'STARTED',
+             consumer     = p_consumer
+        FROM cte
+       WHERE t.id = cte.id
+       RETURNING
+         t.id,
+         t.user_id,
+         t.proc_inst_id,
+         t.proc_def_id,
+         t.activity_id,
+         t.activity_name,
+         t.start_date,
+         t.end_date,
+         t.description,
+         t.tool,
+         t.due_date,
+         t.tenant_id,
+         t.reference_ids,
+         t.adhoc,
+         t.assignees,
+         t.duration,
+         t.output,
+         t.retry,
+         t.consumer,
+         t.log,
+         t.draft,
+         t.project_id,
+         t.feedback,
+         t.updated_at,
+         t.username,
+         t.status,
+         t.agent_mode,
+         t.agent_orch,
+         t.temp_feedback,
+         t.draft_status,
+         cte.task_type
+    )
+    SELECT * FROM upd;
+END;
+$$ LANGUAGE plpgsql VOLATILE;
+
+
+-- 익명(anon) 역할에 실행 권한 부여
+GRANT EXECUTE ON FUNCTION public.fetch_pending_task(text, text, integer) TO anon;
+GRANT EXECUTE ON FUNCTION public.fetch_pending_task_dev(text, text, integer, text) TO anon;
+
+
+CREATE TABLE env (
+    key VARCHAR(255) NOT NULL,        -- 'browser_use'
+    value TEXT,                       -- 시크릿 데이터 (JSON)
+    tenant_id VARCHAR(255) PRIMARY KEY  -- 테넌트 ID
+);

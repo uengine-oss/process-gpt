@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   annotations: {}
-  name: execution-deployment
+  name: completion-deployment
   namespace: default
 spec:
   progressDeadlineSeconds: 600
@@ -10,7 +10,7 @@ spec:
   revisionHistoryLimit: 2
   selector:
     matchLabels:
-      app: execution
+      app: completion
   strategy:
     rollingUpdate:
       maxSurge: 25%
@@ -19,7 +19,7 @@ spec:
   template:
     metadata:
       labels:
-        app: execution
+        app: completion
     spec:
       containers:
         - env:
@@ -42,6 +42,11 @@ spec:
               valueFrom:
                 secretKeyRef:
                   key: JWT_SECRET
+                  name: my-secrets
+            - name: UPSTAGE_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  key: UPSTAGE_API_KEY
                   name: my-secrets
             - name: DB_NAME
               valueFrom:
@@ -69,7 +74,10 @@ spec:
                   key: DB_PORT
                   name: my-secrets
             - name: ENV
-              value: production
+              valueFrom:
+                configMapKeyRef:
+                  key: ENV
+                  name: my-config
             - name: LANGSMITH_API_KEY
               valueFrom:
                 secretKeyRef:
@@ -80,17 +88,18 @@ spec:
                 secretKeyRef:
                   key: LANGSMITH_PROJECT
                   name: langsmith-secrets
-          image: ghcr.io/uengine-oss/process-gpt-execution:2f465a4
+          image: ghcr.io/uengine-oss/process-gpt-completion:23bdd0f
           imagePullPolicy: IfNotPresent
-          name: execution
+          name: completion
           ports:
             - containerPort: 8000
               protocol: TCP
           resources:
             limits:
               ephemeral-storage: 1Gi
+              memory: 2Gi
             requests:
-              cpu: 200m
+              cpu: 50m
               ephemeral-storage: 1Gi
               memory: 512Mi
           securityContext:
