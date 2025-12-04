@@ -108,18 +108,14 @@ kind create cluster --name process-gpt
 .\kind.exe create cluster --name process-gpt
 ```
 
-#### 3. Create Database
-- Go to https://supabase.com/ and Click "Start Project" to create a new Project named "process-gpt"
-- Note the SUPABASE_URL, DB_NAME, DB_USER, SUPABASE_KEY, SERVICE_ROLE_KEY, JWT_SECRET from the configuration page for later use.
-
-#### 3. Clone the repo and edit Configuration Files
+#### 3. Clone the repo and see Configuration Files
 
 Clone this repo:
 ```
 git clone https://github.com/uengine-oss/process-gpt
 ```
 
-Edit `secrets.yaml` with your actual values:
+See `secrets.yaml`:
 
 ```yaml
 OPENAI_API_KEY: "sk-your-actual-openai-key"
@@ -139,7 +135,7 @@ PERPLEXITY_API_KEY: "your-perplexity-api-key"
 # Google Cloud settings: contents of credentials.json for the google-credentials secret
 ```
 
-Edit `configmap.yaml` with your actual values:
+See `configmap.yaml`:
 
 ```yaml
 SUPABASE_URL: "https://your-project.supabase.co"
@@ -148,7 +144,18 @@ SMTP_SERVER: "smtp.gmail.com"
 SMTP_USERNAME: "your-smtp-username"
 ```
 
-#### 4. Deployment Order
+#### 4. Create Database and Obtain the configuration values
+- Go to https://supabase.com/ and Click "Start Project" to create a new Project named "process-gpt"
+- Obtain values for SUPABASE_URL, SUPABASE_KEY, SERVICE_ROLE_KEY, JWT_SECRET, DB_HOST, DB_NAME, DB_USER for next configuration
+- SUPABASE_URL, SUPABASE_KEY, SERVICE_ROLE_KEY, JWT_SECRET could be obtained from Settings > API Keys / JWT Keys
+- DB_HOST, DB_NAME, DB_USER could be obtained from the screen that can be shown by clicking "Connect" menu and select "Python"
+
+  > Youtube video required to understand how to getting this information
+
+#### 5. Create Tables
+- Go to "SQL Editor", paste the DDL Script from 'init.sql'
+
+#### 6. Deployment
 
 ```bash
 # Step 1: Deploy core configuration files (required)
@@ -162,7 +169,7 @@ kubectl apply -f deployments/
 kubectl apply -f services/
 ```
 
-#### 5. Check Status
+#### 7. Check Status
 
 ```bash
 kubectl get pods
@@ -171,7 +178,7 @@ kubectl get secrets
 kubectl get configmaps
 ```
 
-#### 6. Access the Application
+#### 8. Access the Application
 
 ```bash
 kubectl port-forward service/gateway 8088:80
@@ -204,6 +211,7 @@ Open your browser and go to **[http://localhost:8088](http://localhost:8088)**
 
 ## User Manual
 📖 [Process-GPT User Manual](https://docs.process-gpt.io/)
+
 
 
 
