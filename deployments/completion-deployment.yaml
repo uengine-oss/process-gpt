@@ -88,7 +88,7 @@ spec:
                 secretKeyRef:
                   key: LANGSMITH_PROJECT
                   name: langsmith-secrets
-          image: ghcr.io/uengine-oss/process-gpt-completion:23bdd0f
+          image: ghcr.io/uengine-oss/process-gpt-completion:d3d506e
           imagePullPolicy: IfNotPresent
           name: completion
           ports:

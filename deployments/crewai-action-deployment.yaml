@@ -86,7 +86,7 @@ spec:
               value: "sonar"
             - name: MODEL
               value: "gpt-4.1"
-          image: ghcr.io/uengine-oss/crewai-action:f28bb8f # GitHub Actions가 자동 업데이트
+          image: ghcr.io/uengine-oss/crewai-action:49fa839 # GitHub Actions가 자동 업데이트
           imagePullPolicy: IfNotPresent
           name: crewai-action
           ports:

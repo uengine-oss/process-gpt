@@ -48,7 +48,7 @@ spec:
                 secretKeyRef:
                   key: UPSTAGE_API_KEY
                   name: my-secrets
-          image: ghcr.io/uengine-oss/process-gpt:c8cfade
+          image: ghcr.io/uengine-oss/process-gpt:828007c
           imagePullPolicy: IfNotPresent
           name: frontend
           ports:
