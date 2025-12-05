@@ -1,10 +1,6 @@
 # Windows 실행 파일
 *.exe
 
-# 설정 파일들 (실제 값이 포함된 파일들)
-secrets.yaml
-configmap.yaml
-
 # IDE 파일들
 .vscode/
 .idea/
@@ -24,3 +20,5 @@ Thumbs.db
 
 kind-config.yaml
 README2.md
+secrets.yaml
+configmap.yaml

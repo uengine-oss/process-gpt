@@ -3,6 +3,7 @@ kind: ConfigMap
 metadata:
   name: my-config
 data:
+  ENV: "dev"
   SUPABASE_URL: "https://your-project.supabase.co"
   SMTP_PORT: "587"
   SMTP_SERVER: "smtp.gmail.com"
