@@ -66,6 +66,7 @@ All such changes must be **logged for tracking and recovery**, while users shoul
 * **crewai-deep-research** (Multi-Agent Deep Research Agent): [GitHub](https://github.com/uengine-oss/process-gpt-crewai-deep-research)
 * **openai-deep-research** (OpenAI-based Deep Research Agent): [GitHub](https://github.com/uengine-oss/process-gpt-openai-deep-research)
 * **react-voice-agent** (Voice Interaction Agent): [GitHub](https://github.com/uengine-oss/process-gpt-react-voice-agent)
+* **frontend** (Vue3 Frontend): [GitHub](https://github.com/uengine-oss/process-gpt-vue3)
 * **API gateway**: [GitHub](https://github.com/uengine-oss/process-gpt-gateway)
 
 ---
