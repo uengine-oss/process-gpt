@@ -2,7 +2,7 @@
 
 ## Process GPT Project
 
-Core values of Process GPT:
+An Agent Orchestration Framework
 
 *   **Autonomous Business Process Automation**: Process GPT is designed to allow **AI agents to automatically execute defined business processes**, producing results without constant human instruction or manual execution of every step. This minimizes human intervention, embodying the ambient agent philosophy, and ensures that human involvement does not become a bottleneck, allowing agents to operate in highly automated processes.
 
