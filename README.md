@@ -24,6 +24,10 @@ A Multi-Agent Orchestration Framework
 **Demo Video**
 🎥 [Watch on YouTube](https://youtu.be/KBxxQvxvmPo?si=dtuKqc-WMTzw0jVh)
 
+**Documentation**
+📃 [Official Docs](https://docs.process-gpt.io)
+
+
 ---
 
 ## Subprojects
