@@ -2,20 +2,20 @@
 
 ## Process GPT Project
 
-An Agent Orchestration Framework
-
-*   **Autonomous Business Process Automation**: Process GPT is designed to allow **AI agents to automatically execute defined business processes**, producing results without constant human instruction or manual execution of every step. This minimizes human intervention, embodying the ambient agent philosophy, and ensures that human involvement does not become a bottleneck, allowing agents to operate in highly automated processes.
+A Multi-Agent Orchestration Framework
 
 *   **Flexible and Robust Collaboration via Multi-Agent Systems**: Process GPT configures **multiple AI agents to collaborate within a single workflow**, enabling them to professionally handle complex tasks and share intermediate results. This reliably automates high-complexity work that would be difficult for a single agent. Each agent leverages specialized domain knowledge and tools, and can automatically call upon other specialized agents to delegate tasks when necessary.
+
+*   **Autonomous Business Process Automation**: Process GPT is designed to allow **AI agents to automatically execute defined business processes**, producing results without constant human instruction or manual execution of every step. This minimizes human intervention, embodying the ambient agent philosophy, and ensures that human involvement does not become a bottleneck, allowing agents to operate in highly automated processes.
 
 *   **Natural Language-Based Continuous Process Learning and Optimization**: Process GPT enables non-expert users to **define business processes using natural language**, which automatically generates initial process models. Moreover, it establishes an **automatic optimization cycle** by analyzing user feedback and system logs from agent performance, continuously improving processes and augmenting learning data for incorrect workflows to enhance future performance.
 
 ### For Detail:
 
-* **Task Execution through a Multi-Agent System** (powered by CrewAI)
+* **Framework-agnositc Multi-Agent System** (powered by Langchain Deepagents, CrewAI and more)
 * **BPMN-based Hybrid Process Execution** (Deterministic / Stochastic modes)
 * **Collaborative Work via the Agent-to-Agent (A2A) Protocol**
-* **Isolated Tool Invocation** through multiple MCP (Model Context Protocol) servers (using Toolhive)
+* **Isolated Agent/Tool Execution** through multiple Container (Kubernetes) for MCP & A2A servers
 * **Integrations** with Browser-use, OpenAI Deep Research, Supabase, and N8n *(coming soon)*
 
 **Online Service**
@@ -26,10 +26,25 @@ An Agent Orchestration Framework
 
 ---
 
+## Subprojects
+
+* **execution** (Execution Engine): [GitHub](https://github.com/uengine-oss/process-gpt-execution)
+* **memento** (Document Memory Storage): [GitHub](https://github.com/uengine-oss/process-gpt-memento)
+* **crewai-action** (MCP / Multi-Agent Task Execution Agent): [GitHub](https://github.com/uengine-oss/prcoess-gpt-crewai-action)
+* **crewai-deep-research** (Multi-Agent Deep Research Agent): [GitHub](https://github.com/uengine-oss/process-gpt-crewai-deep-research)
+* **openai-deep-research** (OpenAI-based Deep Research Agent): [GitHub](https://github.com/uengine-oss/process-gpt-openai-deep-research)
+* **react-voice-agent** (Voice Interaction Agent): [GitHub](https://github.com/uengine-oss/process-gpt-react-voice-agent)
+* **frontend** (Vue3 Frontend): [GitHub](https://github.com/uengine-oss/process-gpt-vue3)
+* **API gateway**: [GitHub](https://github.com/uengine-oss/process-gpt-gateway)
+
+### Syster(Related) Projects
+* **Robo Architect**: [GitHub](https://github.com/uengine-oss/robo-architect)
+
+---
 
 ## Design Principles
 
-### Core Principle
+### Design Principles
 **Users should be able to declare and modify processes, rules, system integration mechanisms, etc. in natural language, and the system should automatically improve with minimal feedback provided during use.**
 
 All such changes must be **logged for tracking and recovery**, while users should simultaneously be able to directly control automation results and regulations through a **generalized UI** at any time.
@@ -56,22 +71,6 @@ All such changes must be **logged for tracking and recovery**, while users shoul
 - This liberates users from system imperfections and ensures overall business continuity.
 
 --- 
-
-
-## Subprojects
-
-* **execution** (Execution Engine): [GitHub](https://github.com/uengine-oss/process-gpt-execution)
-* **memento** (Document Memory Storage): [GitHub](https://github.com/uengine-oss/process-gpt-memento)
-* **crewai-action** (MCP / Multi-Agent Task Execution Agent): [GitHub](https://github.com/uengine-oss/prcoess-gpt-crewai-action)
-* **crewai-deep-research** (Multi-Agent Deep Research Agent): [GitHub](https://github.com/uengine-oss/process-gpt-crewai-deep-research)
-* **openai-deep-research** (OpenAI-based Deep Research Agent): [GitHub](https://github.com/uengine-oss/process-gpt-openai-deep-research)
-* **react-voice-agent** (Voice Interaction Agent): [GitHub](https://github.com/uengine-oss/process-gpt-react-voice-agent)
-* **frontend** (Vue3 Frontend): [GitHub](https://github.com/uengine-oss/process-gpt-vue3)
-* **API gateway**: [GitHub](https://github.com/uengine-oss/process-gpt-gateway)
-
-### Syster(Related) Projects
-* **Robo Architect**: [GitHub](https://github.com/uengine-oss/robo-architect)
----
 
 ## Process-GPT Local Installation Guide (Kind)
 
