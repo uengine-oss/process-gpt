@@ -69,6 +69,8 @@ All such changes must be **logged for tracking and recovery**, while users shoul
 * **frontend** (Vue3 Frontend): [GitHub](https://github.com/uengine-oss/process-gpt-vue3)
 * **API gateway**: [GitHub](https://github.com/uengine-oss/process-gpt-gateway)
 
+### Syster(Related) Projects
+* **Robo Architect**: [GitHub](https://github.com/uengine-oss/robo-architect)
 ---
 
 ## Process-GPT Local Installation Guide (Kind)
