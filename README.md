@@ -86,8 +86,6 @@ Process GPT is the only player in the **"BPMN + AI Hybrid"** category — purpos
 
 Maintained by **uEngine Solutions** · learning@uengine.org
 
-**Documentation**
-📃 [Official Docs](https://docs.process-gpt.io)
 
 
 ---
