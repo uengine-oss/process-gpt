@@ -1,28 +1,90 @@
 
 
 ## Process GPT Project
+**A BPMN-based Multi-Agent Orchestration Framework for the Enterprise**
 
-A Multi-Agent Orchestration Framework
+Process GPT is an open-source platform that combines the 30-year-proven BPMN (Business Process Model and Notation) international standard with the autonomy of modern AI agents. It lets non-technical users design business processes in natural language, lets multiple specialized agents collaborate to execute them, and continuously learns from feedback to make every future run better.
 
-*   **Flexible and Robust Collaboration via Multi-Agent Systems**: Process GPT configures **multiple AI agents to collaborate within a single workflow**, enabling them to professionally handle complex tasks and share intermediate results. This reliably automates high-complexity work that would be difficult for a single agent. Each agent leverages specialized domain knowledge and tools, and can automatically call upon other specialized agents to delegate tasks when necessary.
+Where classic BPM requires code and specialists, and pure agent frameworks (CrewAI, LangGraph, AutoGen, Swarm/OpenAI SDK) leave you without visual processes, audit trails, or compensation semantics — Process GPT sits at the intersection: **visual + code + standards-based, engineered for production**.
 
-*   **Autonomous Business Process Automation**: Process GPT is designed to allow **AI agents to automatically execute defined business processes**, producing results without constant human instruction or manual execution of every step. This minimizes human intervention, embodying the ambient agent philosophy, and ensures that human involvement does not become a bottleneck, allowing agents to operate in highly automated processes.
+---
 
-*   **Natural Language-Based Continuous Process Learning and Optimization**: Process GPT enables non-expert users to **define business processes using natural language**, which automatically generates initial process models. Moreover, it establishes an **automatic optimization cycle** by analyzing user feedback and system logs from agent performance, continuously improving processes and augmenting learning data for incorrect workflows to enhance future performance.
+### Why Process GPT
 
-### For Detail:
+*   **Flexible and Robust Collaboration via Multi-Agent Systems** — Process GPT configures **multiple AI agents to collaborate within a single BPMN-based business process**, so that multiple agent frameworks can professionally handle complex tasks and share intermediate results. This reliably automates high-complexity work that would be difficult for a single agent. Each agent leverages specialized domain knowledge and tools, and can automatically call upon other specialized agents to delegate tasks when necessary.
 
-* **Framework-agnositc Multi-Agent System** (powered by Langchain Deepagents, CrewAI and more)
-* **BPMN-based Hybrid Process Execution** (Deterministic / Stochastic modes)
-* **Collaborative Work via the Agent-to-Agent (A2A) Protocol**
-* **Isolated Agent/Tool Execution** through multiple Container (Kubernetes) for MCP & A2A servers
-* **Integrations** with Browser-use, OpenAI Deep Research, Supabase, and N8n *(coming soon)*
+*   **Automated Business Process Generation** — Process GPT is designed to let **AI agents automatically define business processes**, producing results without constant human instruction or manual execution of every step. This minimizes human intervention, embodying the *ambient agent* philosophy, and ensures that human involvement does not become a bottleneck.
 
-**Online Service**
-🌐 [www.process-gpt.io](http://www.process-gpt.io)
+*   **Natural-Language-Based Continuous Process Learning and Optimization** — Non-expert users can **define business processes using natural language**, which automatically generates initial process models. An **automatic optimization cycle** analyzes user feedback and agent execution logs, continuously improving processes and augmenting training data for workflows that need correction.
 
-**Demo Video**
-🎥 [Watch on YouTube](https://youtu.be/KBxxQvxvmPo?si=dtuKqc-WMTzw0jVh)
+*   **Deterministic Regularization of AI Decisions** — When agents repeatedly make the same kind of judgment, Process GPT automatically converts it into a **DMN decision table or Python rule**, guaranteeing that "same input = same output" for enterprise-critical paths while keeping AI flexibility for exceptions.
+
+*   **Enterprise-Grade Reliability** — BPMN Compensation Events provide automatic rollback and compensating transactions on failure. Human-in-the-Loop is a native BPMN pattern, not a workaround. Every step is auditable against an ISO/IEC 19510 process model.
+
+---
+
+### What's Under the Hood
+
+*   **Framework-agnostic Multi-Agent System** — powered by LangChain Deepagents, CrewAI, and more; pick the best runtime per task
+*   **BPMN-based Hybrid Process Execution** — deterministic (DMN/code) and stochastic (LLM reasoning) modes in one diagram
+*   **Collaborative Work via the Agent-to-Agent (A2A) Protocol** — agents discover and negotiate with each other through Agent Cards
+*   **Isolated Agent/Tool Execution** — each MCP and A2A server runs in its own container, orchestrated on Kubernetes with KEDA queue-based autoscaling and a Sidecar isolation pattern
+*   **Skill Self-Learning & Feedback Loops** — agents improve their own Skills through a Think → Execute → Reflect cycle driven by user feedback
+*   **Context Engineering** — Mem0 + Neo4j knowledge graph + Memento RAG service give agents deep organizational context
+*   **Voice & Realtime Channels** — GPT-4 Realtime API + Twilio PSTN integration for voice-driven process triggers
+*   **Process Marketplace** — share and reuse verified process templates across teams and organizations
+*   **Integrations** — Browser-use, OpenAI Deep Research, Supabase (Postgres, Realtime, Storage, Auth), ERP/CRM via MCP, N8n *(coming soon)*
+
+---
+
+### Core Architecture (5 Layers)
+
+| Layer | Role | Key Components |
+|---|---|---|
+| **UI & Gateway** | User entry & routing | Vue 3 Frontend, React Voice Agent, Nginx / Spring Cloud Gateway |
+| **Core Process** | BPMN definition, instance lifecycle, polling | Execution Engine (FastAPI), Polling Service |
+| **Knowledge & RAG** | Document parsing, embedding, retrieval | Memento (Supabase vector DB, Google Drive ingestion) |
+| **AI Agents** | Task execution | CrewAI Action, CrewAI Deep Research, OpenAI Deep Research, Browser-Use, BPMN Extractor |
+| **Infrastructure** | State, events, storage, auth | Supabase (Postgres, Realtime, Storage, Auth), Docker Compose / Kubernetes |
+
+---
+
+### Where Process GPT Sits in the Market
+
+Process GPT is the only player in the **"BPMN + AI Hybrid"** category — purpose-built for enterprises that need the governance of BPM and the autonomy of modern agents at the same time.
+
+| | ProcessGPT | CrewAI / LangGraph / AutoGen | Dify.ai / n8n | Google ADK / AWS Bedrock |
+|---|---|---|---|---|
+| **Orchestration** | **BPMN visual modeling** | Code-based roles/graphs | Visual low-code | Console / blueprint |
+| **Determinism** | **DMN + Python auto-conversion** | None | Conditional nodes | Guardrails only |
+| **Agent-to-Agent** | **A2A + event-driven** | Sequential / group chat | N/A | A2A (Google) / internal |
+| **Self-learning** | **Skills + feedback loop** | Memory only | None | None |
+| **Compensation** | **BPMN Compensation Events** | None | Basic error branches | None |
+| **Autoscaling** | **KEDA + Sidecar** | Manual | Manual | Managed (vendor-locked) |
+| **Non-developer access** | **High (NL + visual)** | Low (code) | High | Medium |
+| **Deployment** | **Open source, multi-cloud, on-prem** | Library-level | SaaS / self-host | Cloud-locked |
+
+---
+
+### Who It's For
+
+*   **Enterprises modernizing legacy BPM** — keep your BPMN assets, add AI autonomy
+*   **Regulated industries** — finance, healthcare, public sector where audit trails and compliance are non-negotiable
+*   **Citizen developers** — business users automating their own work in natural language, no coding required
+*   **AI teams building production agents** — skip the infrastructure rebuild; get K8s-native isolation, scaling, and observability out of the box
+
+---
+
+### Get Started
+
+*   **Website:** [process-gpt.io](https://www.process-gpt.io)
+*   **Documentation:** [docs.process-gpt.io](https://docs.process-gpt.io)
+*   **SaaS:** try it instantly at [process-gpt.io](https://process-gpt.io)
+*   **Self-host:** `docker compose up` deploys the full stack; Kubernetes manifests included for production
+
+> *Process GPT creates a new category — "the BPMN of AI agents" — and sets the standard for enterprise multi-agent orchestration.*
+
+Maintained by **uEngine Solutions** · learning@uengine.org
 
 **Documentation**
 📃 [Official Docs](https://docs.process-gpt.io)
