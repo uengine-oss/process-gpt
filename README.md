@@ -3,9 +3,26 @@
 ## Process GPT Project
 **A BPMN-based Multi-Agent Orchestration Framework for the Enterprise**
 
+![Overall Architecture](docs/thumbnails/process-gpt.png)
+
 Process GPT is an open-source platform that combines the 30-year-proven BPMN (Business Process Model and Notation) international standard with the autonomy of modern AI agents. It lets non-technical users design business processes in natural language, lets multiple specialized agents collaborate to execute them, and continuously learns from feedback to make every future run better.
 
 Where classic BPM requires code and specialists, and pure agent frameworks (CrewAI, LangGraph, AutoGen, Swarm/OpenAI SDK) leave you without visual processes, audit trails, or compensation semantics — Process GPT sits at the intersection: **visual + code + standards-based, engineered for production**.
+
+**Online Service**
+🌐 [www.process-gpt.io](http://www.process-gpt.io)
+
+## Process-GPT Related Videos
+
+[![대화로 HWPX 문서를 생성하고 편집하는 [ProcessGPT]](docs/thumbnails/HpcG2IV9nqA.jpg)](https://youtu.be/HpcG2IV9nqA) [![HWPX 문서를 생성하는 AI [ProcessGPT]](docs/thumbnails/jigU-3CY87Y.jpg)](https://youtu.be/jigU-3CY87Y) [![나노바나나 기반 슬라이드 생성 [ProcessGPT]](docs/thumbnails/SVrVh_YrF7U.jpg)](https://youtu.be/SVrVh_YrF7U)
+
+[![6. ProcessGPT 아키텍처](docs/thumbnails/QXS-tL8raqM.jpg)](https://youtu.be/QXS-tL8raqM) [![ProcessGPT 26년 1월 웨비나_빈 캔버스 위, AI가 그리는 비즈니스의 미래 (Full)](docs/thumbnails/t28gqnPyofg.jpg)](https://youtu.be/t28gqnPyofg) [![Agent Ops 구현 미리보기 - [Process GPT] 휴먼-에이전트 성과 분석](docs/thumbnails/GZ8WY8LSgeA.jpg)](https://youtu.be/GZ8WY8LSgeA)
+
+[![ProcessGPT 웨비나 Full](docs/thumbnails/kq4IiPDngQw.jpg)](https://youtu.be/kq4IiPDngQw) [![ProcessGPT   AI 에이전트 팀이 만드는 완전 자율 업무 시대](docs/thumbnails/eyME6A6K9CM.jpg)](https://youtu.be/eyME6A6K9CM) [![Process GPT - 나의 친구, 나의 AI 에이전트 (full)](docs/thumbnails/KBxxQvxvmPo.jpg)](https://youtu.be/KBxxQvxvmPo)
+
+[![Process GPT - 나의 친구, 나의 AI 에이전트](docs/thumbnails/kd6_hKSQDYc.jpg)](https://youtu.be/kd6_hKSQDYc) [![[Process-GPT] AI를 이용한 비즈니스 프로세스 / 폼 자동 생성](docs/thumbnails/DI4vLwijsMs.jpg)](https://youtu.be/DI4vLwijsMs) [![ProcessGPT 1차 프로모션 영상](docs/thumbnails/pUiFodjImcc.jpg)](https://youtu.be/pUiFodjImcc)
+
+[![Process-GPT e2e 데모](docs/thumbnails/U_21lPKoGOI.jpg)](https://youtu.be/U_21lPKoGOI) [![process-gpt 채팅 기능 데모](docs/thumbnails/UA7kYEk4sAk.jpg)](https://youtu.be/UA7kYEk4sAk) [![process-gpt 인스턴스 실행 데모](docs/thumbnails/mRTGKSd8Jhg.jpg)](https://youtu.be/mRTGKSd8Jhg)
 
 ---
 
@@ -94,12 +111,27 @@ Maintained by **uEngine Solutions** · learning@uengine.org
 
 * **execution** (Execution Engine): [GitHub](https://github.com/uengine-oss/process-gpt-execution)
 * **memento** (Document Memory Storage): [GitHub](https://github.com/uengine-oss/process-gpt-memento)
-* **crewai-action** (MCP / Multi-Agent Task Execution Agent): [GitHub](https://github.com/uengine-oss/prcoess-gpt-crewai-action)
+* **crewai-action** (MCP / Multi-Agent Task Execution Agent): [GitHub](https://github.com/uengine-oss/process-gpt-crewai-action)
 * **crewai-deep-research** (Multi-Agent Deep Research Agent): [GitHub](https://github.com/uengine-oss/process-gpt-crewai-deep-research)
 * **openai-deep-research** (OpenAI-based Deep Research Agent): [GitHub](https://github.com/uengine-oss/process-gpt-openai-deep-research)
 * **react-voice-agent** (Voice Interaction Agent): [GitHub](https://github.com/uengine-oss/process-gpt-react-voice-agent)
-* **frontend** (Vue3 Frontend): [GitHub](https://github.com/uengine-oss/process-gpt-vue3)
 * **API gateway**: [GitHub](https://github.com/uengine-oss/process-gpt-gateway)
+* **frontend**: [GitHub](https://github.com/uengine-oss/process-gpt-vue3)
+* **completion**: [GitHub](https://github.com/uengine-oss/process-gpt-completion)
+* **autonomous-execution**: [GitHub](https://github.com/uengine-oss/process-gpt-autonomous-execution)
+* **agents.github.io**: [GitHub](https://github.com/uengine-oss/process-gpt-agents.github.io)
+* **generic-agent**: [GitHub](https://github.com/uengine-oss/process-gpt-generic-agent)
+* **agent-feedback**: [GitHub](https://github.com/uengine-oss/process-gpt-agent-feedback)
+* **mcp-validator**: [GitHub](https://github.com/uengine-oss/process-gpt-mcp-validator)
+* **agent-sdk**: [GitHub](https://github.com/uengine-oss/process-gpt-agent-sdk)
+* **langchain-react**: [GitHub](https://github.com/uengine-oss/process-gpt-langchain-react)
+* **a2a-orch**: [GitHub](https://github.com/uengine-oss/process-gpt-a2a-orch)
+* **agent-utils**: [GitHub](https://github.com/uengine-oss/process-gpt-agent-utils)
+* **bpmn-extractor** (ProcessGPT BPMN extractor from PDFs): [GitHub](https://github.com/uengine-oss/process-gpt-bpmn-extractor)
+* **computer-use**: [GitHub](https://github.com/uengine-oss/process-gpt-computer-use)
+* **claude-skills** (MCP server for searching and retrieving Claude Agent Skills using vector search): [GitHub](https://github.com/uengine-oss/process-gpt-claude-skills)
+* **deep-research**: [GitHub](https://github.com/uengine-oss/process-gpt-deep-research)
+* **office-mcp**: [GitHub](https://github.com/uengine-oss/process-gpt-office-mcp)
 
 ### Syster(Related) Projects
 * **Robo Architect**: [GitHub](https://github.com/uengine-oss/robo-architect)
@@ -136,153 +168,10 @@ All such changes must be **logged for tracking and recovery**, while users shoul
 
 --- 
 
+
 ## Process-GPT Local Installation Guide (Kind)
 
-This is a quick guide to running Process-GPT on a local Kubernetes/Kind cluster.
-
-### 📋 Prerequisites
-
-* Docker
-* kubectl
-* kind
-
-### 🚀 Installation & Execution
-
-#### 1. Install Required Tools
-
-```bash
-# Install and run Docker Desktop
-docker --version
-
-# Install kubectl
-# https://kubernetes.io/docs/tasks/tools/install-kubectl/
-
-# Install kind (Mac)
-brew install kind
-
-# Install kind (Windows)
-curl.exe -Lo kind.exe https://kind.sigs.k8s.io/dl/v0.20.0/kind-windows-amd64
-```
-
-#### 2. Create the Cluster
-
-```bash
-# Mac
-kind create cluster --name process-gpt
-
-# Windows
-.\kind.exe create cluster --name process-gpt
-```
-
-#### 3. Clone the repo and see Configuration Files
-
-Clone this repo:
-```
-git clone https://github.com/uengine-oss/process-gpt
-```
-
-See `secrets.yaml`:
-
-```yaml
-OPENAI_API_KEY: "sk-your-actual-openai-key"
-SUPABASE_KEY: "your-actual-supabase-anon-key"
-SERVICE_ROLE_KEY: "your-actual-supabase-service-role-key"
-JWT_SECRET: "your-actual-jwt-secret"
-DB_NAME: "your-db-name"
-DB_USER: "your-db-user"
-DB_PASSWORD: "your-db-password"
-DB_HOST: "your-db-host"
-DB_PORT: "your-db-port"
-SMTP_PASSWORD: "your-smtp-password"
-LANGSMITH_API_KEY: "your-langsmith-api-key"
-LANGSMITH_PROJECT: "your-langsmith-project"
-MEM_ZERO_API_KEY: "your-mem-zero-api-key"
-PERPLEXITY_API_KEY: "your-perplexity-api-key"
-# Google Cloud settings: contents of credentials.json for the google-credentials secret
-```
-
-See `configmap.yaml`:
-
-```yaml
-SUPABASE_URL: "https://your-project.supabase.co"
-SMTP_PORT: "587"
-SMTP_SERVER: "smtp.gmail.com"
-SMTP_USERNAME: "your-smtp-username"
-```
-
-#### 4. Create Database and Obtain the configuration values
-- Go to https://supabase.com/ and Click "Start Project" to create a new Project named "process-gpt"
-- Go to "Integration" Menu and install "cron" extension (If not, you may encounter "cron schema doesn't exist ERROR")
-- Obtain values for SUPABASE_URL, SUPABASE_KEY, SERVICE_ROLE_KEY, JWT_SECRET, DB_HOST, DB_NAME, DB_USER for next configuration
-- SUPABASE_URL, SUPABASE_KEY, SERVICE_ROLE_KEY, JWT_SECRET could be obtained from Settings > API Keys / JWT Keys
-- DB_HOST, DB_NAME, DB_USER could be obtained from the screen that can be shown by clicking "Connect" menu and select type as "Python" and method should be "Transaction pooler"
-
-  > Youtube video required to understand how to getting this information
-
-#### 5. Create Tables
-- Go to "SQL Editor", paste the DDL Script from 'init.sql'
-
-#### 6. Deployment
-
-```bash
-# Step 1: Deploy core configuration files (required)
-kubectl apply -f secrets.yaml
-kubectl apply -f configmap.yaml
-kubectl apply -f rbac.yaml
-kubectl apply -f pvc.yaml
-
-# Step 2: Deploy all deployments and services
-kubectl apply -f deployments/
-kubectl apply -f services/
-```
-
-#### 7. Check Status
-
-```bash
-kubectl get pods -w
-```
-then, wait until the logs look like this:
-```
-NAME                                               READY   STATUS    RESTARTS   AGE
-airbnb-agent-859f5b84f-jdtx2                       1/1     Running   0          84m
-autonomous-deployment-65cc4bd5d4-842m8             1/1     Running   0          84m
-crewai-action-deployment-778d9858dd-r9dwg          1/1     Running   0          84m
-crewai-deep-research-deployment-8645d9568d-tzxlt   1/1     Running   0          84m
-execution-deployment-cb7d8c4dc-smkm8               1/1     Running   0          5m44s
-frontend-deployment-84f95b8986-kk249               1/1     Running   0          84m
-gateway-6bc9494c54-wc8qm                           1/1     Running   0          84m
-memento-deployment-55879b968b-t9fbj                1/1     Running   0          84m
-polling-service-deployment-7dddbfb949-wdd8b        1/1     Running   0          84m
-react-voice-agent-75bdf46c58-vl4qv                 1/1     Running   0          84m
-```
-
-#### 8. Access the Application
-
-```bash
-kubectl port-forward service/gateway 8088:80
-```
-
-Open your browser and go to **[http://localhost:8088](http://localhost:8088)**
-
----
-
-### 📚 File Descriptions
-
-**Core Config Files:**
-
-* `secrets.yaml`: Sensitive values (API keys, DB credentials, JWT secrets) — must be updated with real values.
-* `configmap.yaml`: Public configuration values (e.g., Supabase URL) — must be updated with real values.
-* `rbac.yaml`: Service account permissions for the MCP Proxy (Role-Based Access Control).
-* `pvc.yaml`: Persistent Volume Claim for LangChain caching.
-
-**Deployment Files:**
-
-* `deployments/`: Deployment configurations for all applications.
-* `services/`: Networking configurations for all services.
-
-**Database Scheme:**
-
-* `init.sql`: Supabase database table definition script.
+Please refer to the [Local Installation Guide](docs/local-installation-guide.md).
 
 
 ---
