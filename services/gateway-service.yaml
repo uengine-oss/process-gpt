@@ -1,16 +1,24 @@
 apiVersion: v1
 kind: Service
 metadata:
+  name: gateway
+  # namespace: dev
   labels:
     app: gateway
-  name: gateway
-  namespace: default
 spec:
-  ports:
-    - port: 80
-      protocol: TCP
-      targetPort: 8080
+  type: LoadBalancer
   selector:
     app: gateway
-  sessionAffinity: None
-  type: ClusterIP
+  ports:
+    - name: http
+      protocol: TCP
+      port: 80
+      targetPort: 8080
+    - name: vnc
+      protocol: TCP
+      port: 6080
+      targetPort: 8080
+    - name: api
+      protocol: TCP
+      port: 5001
+      targetPort: 8080

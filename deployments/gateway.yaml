@@ -5,7 +5,7 @@ metadata:
   labels:
     app: gateway
   name: gateway
-  namespace: default
+  namespace: dev
 spec:
   progressDeadlineSeconds: 600
   replicas: 1
@@ -23,18 +23,19 @@ spec:
       labels:
         app: gateway
     spec:
+      # Spot VM 사용 (비용 절감)
+      nodeSelector:
+        cloud.google.com/gke-spot: "true"
       containers:
         - env:
             - name: SPRING_PROFILES_ACTIVE
-              value: "docker"     
-            - name: SPRING_CONFIG_ADDITIONAL_LOCATION
-              value: "file:/config/"
+              value: "docker"
             - name: SECRET_KEY
               valueFrom:
                 secretKeyRef:
                   key: JWT_SECRET
                   name: my-secrets
-          image: ghcr.io/uengine-oss/process-gpt-gateway:v1.1.7
+          image: ghcr.io/uengine-oss/process-gpt-gateway:b4e3cd4
           imagePullPolicy: IfNotPresent
           name: gateway
           ports:
@@ -54,10 +55,6 @@ spec:
                 - NET_RAW
           terminationMessagePath: /dev/termination-log
           terminationMessagePolicy: File
-          volumeMounts:
-            - name: gateway-config
-              mountPath: /config
-              readOnly: true
       dnsPolicy: ClusterFirst
       restartPolicy: Always
       schedulerName: default-scheduler
@@ -70,10 +67,7 @@ spec:
           key: kubernetes.io/arch
           operator: Equal
           value: amd64
-      volumes:
-        - name: gateway-config
-          configMap:
-            name: my-config
-            items:
-              - key: application_yml
-                path: application.yml
+        - effect: NoSchedule
+          key: cloud.google.com/gke-spot
+          operator: Equal
+          value: "true"

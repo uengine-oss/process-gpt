@@ -4,7 +4,7 @@ metadata:
   labels:
     app: react-voice-agent
   name: react-voice-agent
-  namespace: default
+  namespace: dev
 spec:
   progressDeadlineSeconds: 600
   replicas: 1
@@ -19,47 +19,53 @@ spec:
     type: RollingUpdate
   template:
     metadata:
+      annotations:
+        kubectl.kubernetes.io/restartedAt: "2025-07-23T19:15:04+09:00"
+      creationTimestamp: null
       labels:
         app: react-voice-agent
     spec:
+      # Spot VM 사용 (비용 절감)
+      nodeSelector:
+        cloud.google.com/gke-spot: "true"
       containers:
-      - env:
-        - name: OPENAI_API_KEY
-          valueFrom:
-            secretKeyRef:
-              key: OPENAI_API_KEY
-              name: openai-secret
-        - name: SUPABASE_URL
-          valueFrom:
-            configMapKeyRef:
-              key: SUPABASE_URL
-              name: my-config
-        - name: SUPABASE_KEY
-          valueFrom:
-            secretKeyRef:
-              key: SERVICE_ROLE_KEY
-              name: my-secrets
-        image: ghcr.io/uengine-oss/react-voice-agent:latest
-        imagePullPolicy: Always
-        name: react-voice-agent
-        ports:
-        - containerPort: 3000
-          protocol: TCP
-        resources:
-          limits:
-            cpu: 500m
-            ephemeral-storage: 1Gi
-            memory: 512Mi
-          requests:
-            cpu: 50m
-            ephemeral-storage: 1Gi
-            memory: 128Mi
-        securityContext:
-          capabilities:
-            drop:
-            - NET_RAW
-        terminationMessagePath: /dev/termination-log
-        terminationMessagePolicy: File
+        - env:
+            - name: OPENAI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  key: OPENAI_API_KEY
+                  name: openai-secret
+            - name: SUPABASE_URL
+              valueFrom:
+                configMapKeyRef:
+                  key: SUPABASE_URL
+                  name: my-config
+            - name: SUPABASE_KEY
+              valueFrom:
+                secretKeyRef:
+                  key: SERVICE_ROLE_KEY
+                  name: my-secrets
+          image: ghcr.io/uengine-oss/react-voice-agent:b79f700
+          imagePullPolicy: Always
+          name: react-voice-agent
+          ports:
+            - containerPort: 3000
+              protocol: TCP
+          resources:
+            limits:
+              cpu: 500m
+              ephemeral-storage: 1Gi
+              memory: 512Mi
+            requests:
+              cpu: 50m
+              ephemeral-storage: 1Gi
+              memory: 128Mi
+          securityContext:
+            capabilities:
+              drop:
+                - NET_RAW
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
       dnsPolicy: ClusterFirst
       restartPolicy: Always
       schedulerName: default-scheduler
@@ -68,8 +74,11 @@ spec:
           type: RuntimeDefault
       terminationGracePeriodSeconds: 30
       tolerations:
-      - effect: NoSchedule
-        key: kubernetes.io/arch
-        operator: Equal
-        value: amd64
-
+        - effect: NoSchedule
+          key: kubernetes.io/arch
+          operator: Equal
+          value: amd64
+        - effect: NoSchedule
+          key: cloud.google.com/gke-spot
+          operator: Equal
+          value: "true"

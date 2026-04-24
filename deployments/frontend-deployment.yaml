@@ -3,7 +3,7 @@ kind: Deployment
 metadata:
   annotations: {}
   name: frontend-deployment
-  namespace: default
+  # namespace: dev
 spec:
   progressDeadlineSeconds: 600
   replicas: 1
@@ -21,6 +21,9 @@ spec:
       labels:
         app: frontend
     spec:
+      # Spot VM 사용 (비용 절감)
+      nodeSelector:
+        cloud.google.com/gke-spot: "true"
       containers:
         - env:
             - name: VITE_UPSTAGE_API_KEY
@@ -43,12 +46,12 @@ spec:
                 secretKeyRef:
                   key: SUPABASE_KEY
                   name: my-secrets
-            - name: UPSTAGE_API_KEY
+            - name: VITE_UPSTAGE_API_KEY
               valueFrom:
                 secretKeyRef:
                   key: UPSTAGE_API_KEY
                   name: my-secrets
-          image: ghcr.io/uengine-oss/process-gpt:828007c
+          image: ghcr.io/uengine-oss/process-gpt:b4e3cd4
           imagePullPolicy: IfNotPresent
           name: frontend
           ports:
@@ -80,3 +83,7 @@ spec:
           key: kubernetes.io/arch
           operator: Equal
           value: amd64
+        - effect: NoSchedule
+          key: cloud.google.com/gke-spot
+          operator: Equal
+          value: "true"

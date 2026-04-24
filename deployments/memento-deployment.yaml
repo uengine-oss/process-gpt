@@ -3,7 +3,7 @@ kind: Deployment
 metadata:
   annotations: {}
   name: memento-deployment
-  namespace: default
+  namespace: dev
 spec:
   progressDeadlineSeconds: 600
   replicas: 1
@@ -21,8 +21,24 @@ spec:
       labels:
         app: memento
     spec:
+      # Spot VM 사용 (비용 절감)
+      nodeSelector:
+        cloud.google.com/gke-spot: "true"
       containers:
         - env:
+            - name: PYTHONUNBUFFERED
+              value: "1"
+            - name: MEMENTO_LLM_PROVIDER
+              value: "openai"
+            - name: MEMENTO_EMBEDDING_PROVIDER
+              value: "openai"
+            - name: LLM_PROXY_URL
+              value: "http://litellm-proxy:4000"
+            - name: LLM_PROXY_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: litellm-proxy-secret
+                  key: LLM_PROXY_API_KEY
             - name: OPENAI_API_KEY
               valueFrom:
                 secretKeyRef:
@@ -38,9 +54,7 @@ spec:
                 secretKeyRef:
                   key: SERVICE_ROLE_KEY
                   name: my-secrets
-            - name: GOOGLE_APPLICATION_CREDENTIALS
-              value: /secrets/credentials.json
-          image: ghcr.io/uengine-oss/process-gpt-memento:59bd446
+          image: ghcr.io/uengine-oss/process-gpt-memento:44d28f7
           imagePullPolicy: IfNotPresent
           name: memento
           ports:
@@ -76,6 +90,10 @@ spec:
           key: kubernetes.io/arch
           operator: Equal
           value: amd64
+        - effect: NoSchedule
+          key: cloud.google.com/gke-spot
+          operator: Equal
+          value: "true"
       volumes:
         - name: google-credentials
           secret:

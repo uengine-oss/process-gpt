@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: polling-service-deployment
-  namespace: default
+  namespace: dev
 spec:
   progressDeadlineSeconds: 600
   replicas: 1
@@ -22,8 +22,20 @@ spec:
       labels:
         app: polling-service
     spec:
+      # Spot VM 사용 (비용 절감)
+      nodeSelector:
+        cloud.google.com/gke-spot: "true"
       containers:
         - env:
+            - name: LLM_MODEL
+              value: "gpt-4o"
+            - name: LLM_PROXY_URL
+              value: "http://litellm-proxy:4000"
+            - name: LLM_PROXY_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: litellm-proxy-secret
+                  key: LLM_PROXY_API_KEY
             - name: OPENAI_API_KEY
               valueFrom:
                 secretKeyRef:
@@ -88,7 +100,7 @@ spec:
                 secretKeyRef:
                   key: SMTP_PASSWORD
                   name: my-secrets
-          image: ghcr.io/uengine-oss/process-gpt-polling-service:d3d506e
+          image: ghcr.io/uengine-oss/process-gpt-polling-service:9b1055c
           imagePullPolicy: IfNotPresent
           lifecycle:
             preStop:
@@ -150,3 +162,7 @@ spec:
           key: kubernetes.io/arch
           operator: Equal
           value: amd64
+        - effect: NoSchedule
+          key: cloud.google.com/gke-spot
+          operator: Equal
+          value: "true"

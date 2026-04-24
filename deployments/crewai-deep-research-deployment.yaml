@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: crewai-deep-research-deployment
-  namespace: default
+  namespace: dev
 spec:
   progressDeadlineSeconds: 600
   replicas: 1
@@ -20,6 +20,9 @@ spec:
       labels:
         app: crewai-deep-research
     spec:
+      # Spot VM 사용 (비용 절감)
+      nodeSelector:
+        cloud.google.com/gke-spot: "true"
       containers:
         - env:
             - name: OPENAI_API_KEY
@@ -88,7 +91,7 @@ spec:
               value: "gpt-4.1"
             - name: MEMENTO_SERVICE_URL
               value: http://memento-service:8005
-          image: ghcr.io/uengine-oss/crewai-deep-research:b82f8b0 # GitHub Actions가 자동 업데이트
+          image: ghcr.io/uengine-oss/crewai-deep-research:49e2b12 # GitHub Actions가 자동 업데이트
           imagePullPolicy: IfNotPresent
           name: crewai-deep-research
           ports:
@@ -108,9 +111,6 @@ spec:
                 - NET_RAW
           terminationMessagePath: /dev/termination-log
           terminationMessagePolicy: File
-          volumeMounts:
-            - mountPath: /data
-              name: cache-volume
       dnsPolicy: ClusterFirst
       restartPolicy: Always
       schedulerName: default-scheduler
@@ -123,7 +123,7 @@ spec:
           key: kubernetes.io/arch
           operator: Equal
           value: amd64
-      volumes:
-        - name: cache-volume
-          persistentVolumeClaim:
-            claimName: langchain-cache-pvc-execution 
+        - effect: NoSchedule
+          key: cloud.google.com/gke-spot
+          operator: Equal
+          value: "true"

@@ -3,7 +3,6 @@ kind: Service
 metadata:
   annotations: {}
   name: frontend-service
-  namespace: default
 spec:
   internalTrafficPolicy: Cluster
   ipFamilies:
