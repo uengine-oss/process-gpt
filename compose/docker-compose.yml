@@ -1,0 +1,560 @@
+# =====================================================================
+# Process-GPT Microservices
+# ---------------------------------------------------------------------
+# All ProcessGPT microservices. They depend on the infra stack
+# (db, rest, neo4j, ...) defined in infra/docker-compose.yml.
+#
+# Run alongside the infra stack so depends_on is resolvable:
+#   docker compose \
+#     -f infra/docker-compose.yml \
+#     -f compose/docker-compose.yml \
+#     --env-file .env \
+#     up -d <service-1> <service-2> ...
+#
+# Or, more easily, use the helper scripts in the project root:
+#   ./start-all-services.sh
+#   .\start-all-services.ps1
+# =====================================================================
+
+name: process-gpt
+
+services:
+  # ------------------------------------------------------------------
+  # Frontend (Vue 3)
+  # ------------------------------------------------------------------
+  frontend:
+    image: ghcr.io/uengine-oss/process-gpt:e343845
+    container_name: process-gpt-frontend
+    environment:
+      VITE_SUPABASE_URL: ${API_EXTERNAL_URL}
+      VITE_SUPABASE_KEY: ${ANON_KEY}
+      VITE_OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      VITE_GS_MODE: "false"
+
+  # ------------------------------------------------------------------
+  # Core - Completion / Polling / Memento
+  # ------------------------------------------------------------------
+  completion:
+    image: ghcr.io/uengine-oss/process-gpt-completion:9b1055c
+    container_name: process-gpt-completion
+    ports:
+      - "8000:8000"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8000/langchain-chat/sanity-check', timeout=3).read()"
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 18
+      start_period: 30s
+    environment:
+      LLM_MODEL: ${LLM_MODEL}
+      LLM_PROXY_URL: ${LLM_PROXY_URL}
+      LLM_PROXY_API_KEY: ${LLM_PROXY_API_KEY}
+      OPENAI_API_KEY: ${LLM_PROXY_API_KEY:-${OPENAI_API_KEY}}
+      OPENAI_BASE_URL: ${LLM_PROXY_URL:-${OPENAI_BASE_URL}}
+      OPENAI_MODEL: ${LLM_MODEL:-${OPENAI_MODEL}}
+      SUPABASE_URL: ${SUPABASE_INTERNAL_URL}
+      SUPABASE_KEY: ${SERVICE_ROLE_KEY}
+      SUPABASE_JWT_SECRET: ${JWT_SECRET}
+      DB_NAME: ${DB_NAME:-${POSTGRES_DB}}
+      DB_USER: supabase_admin
+      DB_PASSWORD: ${DB_PASSWORD:-${POSTGRES_PASSWORD}}
+      DB_HOST: ${DB_HOST:-${POSTGRES_HOST}}
+      DB_PORT: ${DB_PORT:-${POSTGRES_PORT}}
+      ENV: ${ENV}
+      SMTP_SERVER: ${SMTP_SERVER:-${SMTP_HOST}}
+      SMTP_PORT: ${SMTP_PORT}
+      SMTP_USERNAME: ${SMTP_USERNAME:-${SMTP_USER}}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-${SMTP_PASS}}
+    depends_on:
+      db:
+        condition: service_healthy
+      rest:
+        condition: service_started
+
+  polling-service:
+    image: ghcr.io/uengine-oss/process-gpt-polling-service:9b1055c
+    container_name: process-gpt-polling-service
+    ports:
+      - "8010:8000"
+    environment:
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      SUPABASE_URL: ${SUPABASE_INTERNAL_URL}
+      SUPABASE_KEY: ${SERVICE_ROLE_KEY}
+      SUPABASE_JWT_SECRET: ${JWT_SECRET}
+      COMPLETION_SERVICE_URL: http://completion:8000
+      MEMENTO_SERVICE_URL: http://memento:8005
+      ENV: ${ENV}
+      SMTP_SERVER: ${SMTP_SERVER:-${SMTP_HOST}}
+      SMTP_PORT: ${SMTP_PORT}
+      SMTP_USERNAME: ${SMTP_USERNAME:-${SMTP_USER}}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-${SMTP_PASS}}
+    depends_on:
+      - completion
+      - memento
+      - db
+
+  memento:
+    image: ghcr.io/uengine-oss/process-gpt-memento:44d28f7
+    container_name: process-gpt-memento
+    ports:
+      - "8005:8005"
+    environment:
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      SUPABASE_URL: ${SUPABASE_INTERNAL_URL}
+      SUPABASE_KEY: ${SERVICE_ROLE_KEY}
+      CHROMA_PERSIST_DIRECTORY: "/usr/src/app/chroma_db"
+    volumes:
+      - memento-chroma:/usr/src/app/chroma_db
+    depends_on:
+      - db
+      - rest
+
+  # ------------------------------------------------------------------
+  # Glossary / catalog
+  # ------------------------------------------------------------------
+  robo-data-glossary-backend:
+    image: ${ROBO_GLOSSARY_BACKEND_IMAGE:-ghcr.io/uengine-oss/process-gpt-glossary-backend:latest}
+    container_name: process-gpt-glossary-backend
+    ports:
+      - "${ROBO_GLOSSARY_BACKEND_PORT:-5504}:5504"
+    environment:
+      HOST: "0.0.0.0"
+      PORT: "5504"
+      SUPABASE_URL: ${SUPABASE_INTERNAL_URL}
+      SUPABASE_ANON_KEY: ${ANON_KEY}
+      SUPABASE_SERVICE_ROLE_KEY: ${SERVICE_ROLE_KEY}
+      SUPABASE_DB_HOST: ${DB_HOST:-${POSTGRES_HOST}}
+      SUPABASE_DB_PORT: ${DB_PORT:-${POSTGRES_PORT}}
+      SUPABASE_DB_USER: supabase_admin
+      SUPABASE_DB_PASSWORD: ${DB_PASSWORD:-${POSTGRES_PASSWORD}}
+      SUPABASE_DB_NAME: ${DB_NAME:-${POSTGRES_DB}}
+      LLM_API_KEY: ${OPENAI_API_KEY}
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+    depends_on:
+      db:
+        condition: service_healthy
+      rest:
+        condition: service_started
+
+  # ------------------------------------------------------------------
+  # Agents
+  # ------------------------------------------------------------------
+  crewai-action:
+    image: ghcr.io/uengine-oss/crewai-action:ecdf8de
+    container_name: process-gpt-crewai-action
+    ports:
+      - "8001:8000"
+    environment:
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      SUPABASE_URL: ${SUPABASE_INTERNAL_URL}
+      SUPABASE_KEY: ${SERVICE_ROLE_KEY}
+      ENV: ${ENV}
+      DB_NAME: ${DB_NAME:-${POSTGRES_DB}}
+      DB_USER: supabase_admin
+      DB_PASSWORD: ${DB_PASSWORD:-${POSTGRES_PASSWORD}}
+      DB_HOST: ${DB_HOST:-${POSTGRES_HOST}}
+      DB_PORT: ${DB_PORT:-${POSTGRES_PORT}}
+    depends_on:
+      - db
+      - rest
+
+  crewai-deep-research:
+    image: ghcr.io/uengine-oss/crewai-deep-research:49e2b12
+    container_name: process-gpt-crewai-deep-research
+    ports:
+      - "8002:8002"
+    environment:
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      SUPABASE_URL: ${SUPABASE_INTERNAL_URL}
+      SUPABASE_KEY: ${SERVICE_ROLE_KEY}
+      ENV: ${ENV}
+      DB_NAME: ${DB_NAME:-${POSTGRES_DB}}
+      DB_USER: supabase_admin
+      DB_PASSWORD: ${DB_PASSWORD:-${POSTGRES_PASSWORD}}
+      DB_HOST: ${DB_HOST:-${POSTGRES_HOST}}
+      DB_PORT: ${DB_PORT:-${POSTGRES_PORT}}
+    depends_on:
+      - db
+      - rest
+
+  openai-deep-research:
+    image: ghcr.io/uengine-oss/openai-deep-research:49ddcd9
+    container_name: process-gpt-openai-deep-research
+    ports:
+      - "8003:8000"
+    environment:
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      SUPABASE_URL: ${SUPABASE_INTERNAL_URL}
+      SUPABASE_KEY: ${SERVICE_ROLE_KEY}
+      SUPABASE_JWT_SECRET: ${JWT_SECRET}
+      DB_NAME: ${DB_NAME:-${POSTGRES_DB}}
+      DB_USER: ${DB_USER:-${POSTGRES_USER}}
+      DB_PASSWORD: ${DB_PASSWORD:-${POSTGRES_PASSWORD}}
+      DB_HOST: ${DB_HOST:-${POSTGRES_HOST}}
+      DB_PORT: ${DB_PORT:-${POSTGRES_PORT}}
+      ENV: ${ENV}
+    depends_on:
+      - db
+      - rest
+
+  browser-use:
+    image: ghcr.io/uengine-oss/process-gpt-browser-server:v0.1.31
+    container_name: process-gpt-browser-use
+    ports:
+      - "5001:5001"
+      - "5900:5900"
+      - "6080:6080"
+    environment:
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      SUPABASE_URL: ${SUPABASE_INTERNAL_URL}
+      SUPABASE_ANON_KEY: ${ANON_KEY}
+      SERVICE_ROLE_KEY: ${SERVICE_ROLE_KEY}
+      MODEL: ${LLM_MODEL}
+      BROWSER_HEADLESS: "true"
+      MAX_ACTIONS: "10"
+      TASK_TIMEOUT: "300"
+      POLLING_INTERVAL: "5"
+      AGENT_ORCH: "browser-automation-agent"
+
+  a2a-orch:
+    image: ghcr.io/uengine-oss/process-gpt-a2a-orch:241433c
+    container_name: process-gpt-a2a-orch
+    ports:
+      - "8006:8000"
+    environment:
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      SUPABASE_URL: ${SUPABASE_INTERNAL_URL}
+      SUPABASE_KEY: ${SERVICE_ROLE_KEY}
+      SUPABASE_ANON_KEY: ${ANON_KEY}
+      ENV: ${ENV}
+    depends_on:
+      - db
+      - rest
+
+  agent-router:
+    image: ghcr.io/uengine-oss/agent-router:latest
+    container_name: process-gpt-agent-router
+    environment:
+      HOST: "0.0.0.0"
+      PORT: "8001"
+      WARMUP_TIMEOUT: "90"
+      TARGET_BASE_URL_TEMPLATE: "http://agent-{agent_id}:8000"
+      K8S_NAMESPACE: "dev"
+      AGENT_RUNTIME_IMAGE: "ghcr.io/uengine-oss/agent-runtime-template:latest"
+      AGENT_RUNTIME_PORT: "8000"
+      TTL_SECONDS: "600"
+      SWEEPER_INTERVAL_SECONDS: "30"
+      AGENT_RUNTIME_ENV_SECRET_NAME: "agent-runtime-secrets"
+      SUPABASE_URL: ${SUPABASE_INTERNAL_URL}
+      SUPABASE_SERVICE_ROLE_KEY: ${SERVICE_ROLE_KEY}
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      GOOGLE_API_KEY: ${GOOGLE_API_KEY:-}
+      ROUTER_LLM_MODEL: ${LLM_MODEL}
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8001/health', timeout=3).read()"
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    depends_on:
+      db:
+        condition: service_healthy
+      rest:
+        condition: service_started
+
+  # ------------------------------------------------------------------
+  # Voice / Chat
+  # ------------------------------------------------------------------
+  react-voice-agent:
+    image: ghcr.io/uengine-oss/react-voice-agent:b79f700
+    container_name: process-gpt-react-voice-agent
+    ports:
+      - "3000:3000"
+    environment:
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      SUPABASE_URL: ${SUPABASE_INTERNAL_URL}
+      SUPABASE_KEY: ${SERVICE_ROLE_KEY}
+    depends_on:
+      - db
+      - rest
+
+  # ------------------------------------------------------------------
+  # LangChain / Skills / Deep agents
+  # ------------------------------------------------------------------
+  base-agent-langchain-react:
+    image: ghcr.io/uengine-oss/process-gpt-base-agent-langchain-react:v0.0.7
+    container_name: process-gpt-base-agent-langchain-react
+    ports:
+      - "8008:8000"
+    environment:
+      MODEL_PROVIDER: "openai"
+      MODEL_NAME: ${LLM_MODEL}
+      LLM_MODEL: ${LLM_MODEL}
+      LLM_PROXY_URL: ${LLM_PROXY_URL}
+      LLM_PROXY_API_KEY: ${LLM_PROXY_API_KEY}
+      TEMPERATURE: "0"
+      OPENAI_API_KEY: ${LLM_PROXY_API_KEY}
+      OPENAI_BASE_URL: ${LLM_PROXY_URL}
+      SUPABASE_URL: ${SUPABASE_INTERNAL_URL}
+      SUPABASE_ANON_KEY: ${ANON_KEY}
+      HOST: "0.0.0.0"
+      PORT: "8000"
+      MCP_CONFIG_PATH: "/app/mcp_config.json"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3).read()"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    depends_on:
+      - db
+      - rest
+
+  claude-skills:
+    image: ghcr.io/uengine-oss/claude-skills:456d56f
+    container_name: process-gpt-claude-skills
+    environment:
+      PYTHONUNBUFFERED: "1"
+      SKILLS_STORAGE_PATH: /app/skills
+    ports:
+      - "8765:8765"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8765/health', timeout=3).read()"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    volumes:
+      - claude-skills-storage:/app/skills
+
+  computer-use:
+    image: ghcr.io/uengine-oss/computer-use:latest
+    container_name: process-gpt-computer-use
+    environment:
+      IN_CLUSTER: "false"
+      SUPABASE_URL: ${SUPABASE_INTERNAL_URL}
+      SUPABASE_KEY: ${SERVICE_ROLE_KEY}
+    ports:
+      - "8007:8000"
+
+  agent-feedback:
+    image: ghcr.io/uengine-oss/agent-feedback:85b7b5a
+    container_name: process-gpt-agent-feedback
+    ports:
+      - "6789:6789"
+    environment:
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      SUPABASE_URL: ${SUPABASE_INTERNAL_URL}
+      SUPABASE_KEY: ${SERVICE_ROLE_KEY}
+    depends_on:
+      - db
+      - rest
+
+  process-gpt-analytic:
+    image: ghcr.io/uengine-oss/process-gpt-analytic:b281d36
+    container_name: process-gpt-analytic
+    ports:
+      - "8009:8000"
+    environment:
+      DB_HOST: ${DB_HOST:-${POSTGRES_HOST}}
+      DB_PORT: ${DB_PORT:-${POSTGRES_PORT}}
+      DB_NAME: ${DB_NAME:-${POSTGRES_DB}}
+      DB_USER: ${DB_USER:-${POSTGRES_USER}}
+      DB_PASSWORD: ${DB_PASSWORD:-${POSTGRES_PASSWORD}}
+      ETL_AUTO_START: "true"
+      ETL_INTERVAL_SECONDS: "60"
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3).read()"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    depends_on:
+      - db
+      - rest
+
+  langchain-react:
+    image: ghcr.io/uengine-oss/langchain-react:16e1f38
+    container_name: process-gpt-langchain-react
+    ports:
+      - "8011:8000"
+    environment:
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      SUPABASE_URL: ${SUPABASE_INTERNAL_URL}
+      ENV: ${ENV}
+      SUPABASE_KEY: ${SERVICE_ROLE_KEY}
+      SUPABASE_JWT_SECRET: ${JWT_SECRET}
+      DB_NAME: ${DB_NAME:-${POSTGRES_DB}}
+      DB_USER: ${DB_USER:-${POSTGRES_USER}}
+      DB_PASSWORD: ${DB_PASSWORD:-${POSTGRES_PASSWORD}}
+      DB_HOST: ${DB_HOST:-${POSTGRES_HOST}}
+      DB_PORT: ${DB_PORT:-${POSTGRES_PORT}}
+      PERPLEXITY_MODEL: "sonar"
+      MODEL: "gpt-4.1"
+    depends_on:
+      - db
+      - rest
+
+  bpmn-extractor:
+    image: ghcr.io/uengine-oss/process-gpt-bpmn-extractor:afad8f1
+    container_name: process-gpt-bpmn-extractor
+    entrypoint:
+      [
+        "/bin/bash",
+        "-lc",
+        "cd /app && uv run --with process-gpt-agent-sdk==0.4.13 --with supabase python pdf2bpmn_agent_server.py",
+      ]
+    ports:
+      - "8012:8012"
+    environment:
+      ENV: ${ENV}
+      # ---- Supabase (reached through the in-network Kong gateway) ----
+      SUPABASE_URL: ${SUPABASE_INTERNAL_URL}
+      SUPABASE_ANON_KEY: ${ANON_KEY}
+      SERVICE_ROLE_KEY: ${SERVICE_ROLE_KEY}
+      # ---- LLM / Embedding (OpenAI-compatible) -----------------------
+      # New PDF2BPMN code reads LLM_BASE_URL + EMBEDDING_BASE_URL. We also
+      # keep OPENAI_API_KEY / OPENAI_BASE_URL set so legacy code paths
+      # inside the SDK that still consult the OpenAI env vars keep working.
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      OPENAI_BASE_URL: ${LLM_BASE_URL}
+      LLM_MODEL: ${LLM_MODEL}
+      LLM_BASE_URL: ${LLM_BASE_URL}
+      OCR_MODEL: ${OCR_MODEL:-${LLM_MODEL}}
+      OCR_BASE_URL: ${OCR_BASE_URL:-${LLM_BASE_URL}}
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-text-embedding-3-small}
+      EMBEDDING_BASE_URL: ${EMBEDDING_BASE_URL:-${LLM_BASE_URL}}
+      EMBEDDING_DIMENSIONS: ${EMBEDDING_DIMENSIONS:-}
+      TEMPERATURE: ${TEMPERATURE:-0}
+      # ---- Agent / polling ------------------------------------------
+      AGENT_ORCH: ${AGENT_ORCH:-pdf2bpmn}
+      POLLING_INTERVAL: ${POLLING_INTERVAL:-5}
+      TASK_TIMEOUT: ${TASK_TIMEOUT:-3600}
+      ENABLE_AUTO_AGENT_CREATION: ${ENABLE_AUTO_AGENT_CREATION:-true}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      # ---- OCR -------------------------------------------------------
+      ENABLE_OCR: ${ENABLE_OCR:-true}
+      OCR_ENGINE: ${OCR_ENGINE:-synap}
+      OCR_ALWAYS_IF_IMAGES: ${OCR_ALWAYS_IF_IMAGES:-true}
+      # ---- Process definition / skill extraction --------------------
+      FORCE_SINGLE_SECTION: ${FORCE_SINGLE_SECTION:-false}
+      USE_LLM_PROCDEF_ENRICH: ${USE_LLM_PROCDEF_ENRICH:-true}
+      SKILL_EXTRACTION_MIN_RATIO: ${SKILL_EXTRACTION_MIN_RATIO:-0.0}
+      SKILL_EXTRACTION_MIN_COUNT: ${SKILL_EXTRACTION_MIN_COUNT:-2}
+      SKILL_CLUSTER_SIMILARITY: ${SKILL_CLUSTER_SIMILARITY:-0.55}
+      AGENT_CREATION_MIN_TASKS_PER_SKILL_PER_LANE: ${AGENT_CREATION_MIN_TASKS_PER_SKILL_PER_LANE:-2}
+      AGENT_CREATION_REQUIRE_AUTOMATION: ${AGENT_CREATION_REQUIRE_AUTOMATION:-false}
+      SKILL_LLM_ENRICHMENT: ${SKILL_LLM_ENRICHMENT:-true}
+      SKILL_LLM_MODEL: ${SKILL_LLM_MODEL:-}
+      SKILL_LLM_TIMEOUT_SEC: ${SKILL_LLM_TIMEOUT_SEC:-60}
+      SKILL_LLM_MAX_CONCURRENCY: ${SKILL_LLM_MAX_CONCURRENCY:-3}
+      # ---- Memento (RAG) --------------------------------------------
+      MEMENTO_URL: ${MEMENTO_URL:-http://memento:8005}
+      MEMENTO_BASE_URL: ${MEMENTO_BASE_URL:-http://memento:8005}
+      # ---- Graph stores ---------------------------------------------
+      NEO4J_URI: ${NEO4J_URI}
+      NEO4J_USER: ${NEO4J_USER}
+      NEO4J_PASSWORD: ${NEO4J_PASSWORD}
+      AGE_DSN: ${AGE_DSN}
+      AGE_GRAPH_NAME: ${AGE_GRAPH_NAME:-pdf2bpmn}
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8012/api/health', timeout=3).read()",
+        ]
+      interval: 20s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    depends_on:
+      - db
+      - rest
+      - neo4j
+
+  office-mcp:
+    image: ghcr.io/uengine-oss/process-gpt-office-mcp:7eb5fc5
+    container_name: process-gpt-office-mcp
+    ports:
+      - "1192:1192"
+    environment:
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      GOOGLE_API_KEY: ${GOOGLE_API_KEY:-}
+
+  deep-research:
+    image: ghcr.io/uengine-oss/process-gpt-deep-research:8a343e2
+    container_name: process-gpt-deep-research
+    ports:
+      - "8020:3000"
+    environment:
+      PORT: "3000"
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      TAVILY_API_KEY: ${TAVILY_API_KEY:-}
+      GOOGLE_API_KEY: ${GOOGLE_API_KEY:-}
+      SUPABASE_URL: ${SUPABASE_INTERNAL_URL}
+      SUPABASE_KEY: ${SERVICE_ROLE_KEY}
+    depends_on:
+      - db
+      - rest
+
+  deepagents:
+    image: ghcr.io/uengine-oss/process-gpt-deepagents:d558a94
+    container_name: deepagents
+    ports:
+      - "8021:8888"
+    environment:
+      PYTHONUNBUFFERED: "1"
+      SUPABASE_URL: ${SUPABASE_INTERNAL_URL}
+      SUPABASE_KEY: ${SERVICE_ROLE_KEY}
+      SKILLS_ROOT_DIR: "/app/skills"
+      PROCESSGPT_SKILLS_API_BASE_URL: "http://claude-skills:8765"
+      MEMENTO_RETRIEVE_URL: "http://memento:8005/retrieve"
+      LLM_MODEL: ${LLM_MODEL}
+      LLM_PROXY_URL: ${LLM_PROXY_URL}
+      LLM_PROXY_API_KEY: ${LLM_PROXY_API_KEY}
+      OPENAI_API_KEY: ${LLM_PROXY_API_KEY:-${OPENAI_API_KEY}}
+    volumes:
+      - claude-skills-storage:/app/skills
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8888/health', timeout=3).read()"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    depends_on:
+      - db
+      - rest
+      - memento
+      - claude-skills
+
+  mcp-proxy:
+    image: ghcr.io/uengine-oss/process-gpt-mcp-proxy:v0.3.8
+    container_name: process-gpt-mcp-proxy
+    ports:
+      - "8081:8080"
+    environment:
+      SUPABASE_URL: ${SUPABASE_INTERNAL_URL}
+      SUPABASE_ANON_KEY: ${ANON_KEY}
+    depends_on:
+      - db
+      - rest
+
+volumes:
+  claude-skills-storage:
+  memento-chroma:

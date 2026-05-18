@@ -134,6 +134,7 @@ Maintained by **uEngine Solutions** · learning@uengine.org
 * **claude-skills** (MCP server for searching and retrieving Claude Agent Skills using vector search): [GitHub](https://github.com/uengine-oss/process-gpt-claude-skills)
 * **deep-research**: [GitHub](https://github.com/uengine-oss/process-gpt-deep-research)
 * **office-mcp**: [GitHub](https://github.com/uengine-oss/process-gpt-office-mcp)
+* **docs**: [GitHub](https://github.com/uengine-oss/process-gpt-docs.github.io.git)
 
 ### Syster(Related) Projects
 * **Robo Architect**: [GitHub](https://github.com/uengine-oss/robo-architect)
@@ -170,6 +171,249 @@ All such changes must be **logged for tracking and recovery**, while users shoul
 
 --- 
 
+
+## Repository Structure (Monorepo)
+
+This repo is a **meta-project**: every microservice listed above lives as a Git
+submodule under `services/`, while infrastructure, gateway and orchestration
+glue stay locally in the root project.
+
+```
+process-gpt/
+├── .gitmodules                    # Submodule definitions (auto-managed)
+├── docker-compose.yml             # Root wrapper (include: infra + compose + gateway)
+├── .env.example                   # Shared env template (copy to .env)
+│
+├── start-all-services.sh / .ps1   # Interactive launcher  (Bash + PowerShell)
+├── stop-all-services.sh  / .ps1   # Stop / teardown helpers
+│
+├── infra/                         # Shared infrastructure (LOCAL, not a submodule)
+│   ├── docker-compose.yml         #   Supabase, Postgres, Neo4j, LiteLLM
+│   ├── litellm_config.yaml
+│   └── volumes/                   #   db / api / functions / logs / pooler ...
+│
+├── gateway/                       # Nginx reverse proxy (LOCAL, not a submodule)
+│   ├── docker-compose.yml
+│   └── nginx/nginx.conf
+│
+├── compose/                       # Microservice compose definitions (LOCAL)
+│   └── docker-compose.yml         #   frontend, completion, memento, crewai-*, ...
+│
+├── scripts/
+│   ├── init-submodules.sh         # One-shot submodule add (Bash)
+│   └── init-submodules.ps1        # One-shot submodule add (PowerShell)
+│
+└── services/                      # All subprojects (submodules — external repos)
+    ├── execution/                 # process-gpt-execution
+    ├── memento/                   # process-gpt-memento
+    ├── frontend/                  # process-gpt-vue3
+    ├── completion/                # process-gpt-completion
+    ├── crewai-action/             # process-gpt-crewai-action
+    ├── crewai-deep-research/
+    ├── openai-deep-research/
+    ├── react-voice-agent/
+    ├── autonomous-execution/
+    ├── agents.github.io/
+    ├── generic-agent/
+    ├── agent-feedback/
+    ├── mcp-validator/
+    ├── agent-sdk/
+    ├── langchain-react/
+    ├── a2a-orch/
+    ├── agent-utils/
+    ├── bpmn-extractor/
+    ├── computer-use/
+    ├── claude-skills/
+    ├── deep-research/
+    ├── office-mcp/
+    └── docs/                      # process-gpt-docs.github.io
+```
+
+### Cloning with submodules
+
+```bash
+# Fresh clone (one shot)
+git clone --recurse-submodules https://github.com/uengine-oss/process-gpt.git
+
+# Already cloned? Fetch the submodules:
+cd process-gpt
+git submodule update --init --recursive
+```
+
+### Adding / updating submodules later
+
+Re-run the initializer (idempotent; existing submodules are skipped):
+
+```bash
+# Linux / macOS / Git Bash
+./scripts/init-submodules.sh
+
+# Windows PowerShell
+.\scripts\init-submodules.ps1
+```
+
+To pull the latest commit of every submodule:
+
+```bash
+git submodule update --remote --merge
+```
+
+---
+
+## Running the Stack with Docker Compose
+
+> Requires **Docker Compose v2.20+** (uses `include`).
+
+### 1. Configure environment
+
+```bash
+cp .env.example .env
+# Open .env and fill in: secrets, API keys, host IP, SMTP, etc.
+```
+
+### 2. Start everything (or a subset) interactively
+
+The launcher prompts you to start **all services**, **infrastructure only**,
+or **pick individual microservices** (multi-select with ranges).
+
+```bash
+# Linux / macOS / Git Bash
+./start-all-services.sh
+
+# Windows PowerShell
+.\start-all-services.ps1
+```
+
+Example interactive session:
+
+```text
+Choose a start mode:
+  1) ALL services (everything in infra + compose + gateway)
+  2) Individual services (select multiple)
+  3) Just the infra stack (db / supabase / neo4j / litellm)
+  q) Quit
+Selection [1/2/3/q]: 2
+```
+
+> **Infra (Supabase / Postgres / Neo4j / LiteLLM) and the gateway (Nginx) are always
+> started automatically.** You only select which application microservices to add.
+
+Picking `2` opens a keyboard-driven checkbox menu — no typing required:
+
+```text
+Process-GPT - select microservices to start
+
+  [Up/Down] move   [Space] toggle   [A] all/none   [Enter] confirm   [Q] cancel
+  Selected: 3 / 23
+
+  > [✓]  1) Frontend (Vue 3)
+    [✓]  2) Completion (LangChain chat / form gen)
+    [ ]  3) Polling Service
+    [✓]  4) Memento (RAG / vector store)
+    [ ]  5) Glossary Backend
+    [ ]  6) CrewAI Action (multi-agent tasks)
+    ...
+    [ ] 23) MCP Proxy
+```
+
+| Key             | Action                                |
+|-----------------|---------------------------------------|
+| `↑` / `↓`       | Move the cursor                       |
+| `PgUp` / `PgDn` | Move 5 rows at a time                 |
+| `Home` / `End`  | Jump to first / last row              |
+| `Space`         | Toggle the highlighted row            |
+| `A`             | Select all / clear all                |
+| `Enter`         | Confirm and start the selected stack  |
+| `Q` or `Esc`    | Cancel without starting anything      |
+
+The infra stack (Supabase, Postgres, Neo4j, LiteLLM) is **always** brought up
+first; selected services and their `depends_on` graph follow.
+
+### 3. Non-interactive shortcuts
+
+```bash
+# Everything at once
+./start-all-services.sh all
+.\start-all-services.ps1 -All
+
+# Specific services from the CLI (deps resolved automatically)
+./start-all-services.sh frontend memento completion
+.\start-all-services.ps1 -Services frontend,memento,completion
+
+# Just infra (no app services)
+.\start-all-services.ps1 -InfraOnly
+```
+
+### 3.1 Repeat last selection / Named presets
+
+Each interactive run saves your selection so you can re-run it without
+re-picking. You can also save named presets.
+
+```bash
+# Re-run whatever you started last time (one-key shortcut: option 4 in the menu)
+./start-all-services.sh --last
+.\start-all-services.ps1 -Last
+
+# Save the current selection as a named preset
+.\start-all-services.ps1 -Services frontend,memento,completion -SaveAs dev
+./start-all-services.sh frontend memento completion --save-as dev
+
+# Load it later (menu option 5 or):
+.\start-all-services.ps1 -Preset dev
+./start-all-services.sh --preset dev
+```
+
+State lives in `.process-gpt-state/` (git-ignored):
+
+```
+.process-gpt-state/
+├── last-selection.txt        # auto-updated every run
+└── presets/
+    ├── dev.txt
+    ├── voice-demo.txt
+    └── ...
+```
+
+In the **checkbox menu** option (2), the items from your last run come
+**pre-checked**, so usually you only need to press Enter to repeat them.
+
+### 4. Stop / clean up
+
+```bash
+# Stop everything
+./stop-all-services.sh
+.\stop-all-services.ps1
+
+# Stop just a few services
+./stop-all-services.sh frontend memento
+.\stop-all-services.ps1 -Services frontend,memento
+
+# Tear down AND wipe volumes (destructive!)
+./stop-all-services.sh --volumes
+.\stop-all-services.ps1 -Volumes
+
+# DEEP CLEAN: also wipe bind-mount dirs (db data, storage, logs).
+# Use this if Postgres gets stuck in a restart loop with
+#   "Database directory appears to contain a database; Skipping initialization"
+#   "could not open directory \"pg_notify\""
+./stop-all-services.sh --wipe
+.\stop-all-services.ps1 -Wipe
+```
+
+### 5. Default ports
+
+| Service           | URL                                          |
+|-------------------|----------------------------------------------|
+| Gateway (Nginx)   | http://localhost:8088                        |
+| Frontend          | http://localhost:8080 (proxied via gateway)  |
+| Completion        | http://localhost:8000                        |
+| Memento           | http://localhost:8005                        |
+| Supabase Kong     | http://localhost:54321                       |
+| Supabase Studio   | http://localhost:`${STUDIO_PORT}` (3001 default) |
+| Neo4j Browser     | http://localhost:7474                        |
+| LiteLLM Proxy     | http://localhost:4000                        |
+
+---
 
 ## Process-GPT Local Installation Guide (Kind)
 

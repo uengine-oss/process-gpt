@@ -22,3 +22,19 @@ kind-config.yaml
 README2.md
 secrets.yaml
 configmap.yaml
+
+# Local environment / secrets
+.env
+.env.local
+.env.*.local
+
+# Compose runtime data (do NOT commit DB data, storage, logs)
+infra/volumes/db/data/
+infra/volumes/storage/
+infra/volumes/logs/
+
+# Legacy compose stack (kept locally during migration; ignored from VCS)
+docker-compose/
+
+# Launcher state (last selection + per-user presets — local only)
+.process-gpt-state/

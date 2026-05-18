@@ -1,0 +1,69 @@
+[submodule "services/execution"]
+	path = services/execution
+	url = https://github.com/uengine-oss/process-gpt-execution.git
+[submodule "services/memento"]
+	path = services/memento
+	url = https://github.com/uengine-oss/process-gpt-memento.git
+[submodule "services/crewai-action"]
+	path = services/crewai-action
+	url = https://github.com/uengine-oss/process-gpt-crewai-action.git
+[submodule "services/crewai-deep-research"]
+	path = services/crewai-deep-research
+	url = https://github.com/uengine-oss/process-gpt-crewai-deep-research.git
+[submodule "services/openai-deep-research"]
+	path = services/openai-deep-research
+	url = https://github.com/uengine-oss/process-gpt-openai-deep-research.git
+[submodule "services/react-voice-agent"]
+	path = services/react-voice-agent
+	url = https://github.com/uengine-oss/process-gpt-react-voice-agent.git
+[submodule "services/frontend"]
+	path = services/frontend
+	url = https://github.com/uengine-oss/process-gpt-vue3.git
+[submodule "services/completion"]
+	path = services/completion
+	url = https://github.com/uengine-oss/process-gpt-completion.git
+[submodule "services/autonomous-execution"]
+	path = services/autonomous-execution
+	url = https://github.com/uengine-oss/process-gpt-autonomous-execution.git
+[submodule "services/agents.github.io"]
+	path = services/agents.github.io
+	url = https://github.com/uengine-oss/process-gpt-agents.github.io.git
+[submodule "services/generic-agent"]
+	path = services/generic-agent
+	url = https://github.com/uengine-oss/process-gpt-generic-agent.git
+[submodule "services/agent-feedback"]
+	path = services/agent-feedback
+	url = https://github.com/uengine-oss/process-gpt-agent-feedback.git
+[submodule "services/mcp-validator"]
+	path = services/mcp-validator
+	url = https://github.com/uengine-oss/process-gpt-mcp-validator.git
+[submodule "services/agent-sdk"]
+	path = services/agent-sdk
+	url = https://github.com/uengine-oss/process-gpt-agent-sdk.git
+[submodule "services/langchain-react"]
+	path = services/langchain-react
+	url = https://github.com/uengine-oss/process-gpt-langchain-react.git
+[submodule "services/a2a-orch"]
+	path = services/a2a-orch
+	url = https://github.com/uengine-oss/process-gpt-a2a-orch.git
+[submodule "services/agent-utils"]
+	path = services/agent-utils
+	url = https://github.com/uengine-oss/process-gpt-agent-utils.git
+[submodule "services/bpmn-extractor"]
+	path = services/bpmn-extractor
+	url = https://github.com/uengine-oss/process-gpt-bpmn-extractor.git
+[submodule "services/computer-use"]
+	path = services/computer-use
+	url = https://github.com/uengine-oss/process-gpt-computer-use.git
+[submodule "services/claude-skills"]
+	path = services/claude-skills
+	url = https://github.com/uengine-oss/process-gpt-claude-skills.git
+[submodule "services/deep-research"]
+	path = services/deep-research
+	url = https://github.com/uengine-oss/process-gpt-deep-research.git
+[submodule "services/office-mcp"]
+	path = services/office-mcp
+	url = https://github.com/uengine-oss/process-gpt-office-mcp.git
+[submodule "services/docs"]
+	path = services/docs
+	url = https://github.com/uengine-oss/process-gpt-docs.github.io.git
