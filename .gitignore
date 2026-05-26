@@ -38,3 +38,6 @@ docker-compose/
 
 # Launcher state (last selection + per-user presets — local only)
 .process-gpt-state/
+
+**/node_modules/
+_private/

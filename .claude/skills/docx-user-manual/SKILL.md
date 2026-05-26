@@ -15,13 +15,21 @@ metadata:
 
 Create a professional `.docx` user manual from product specs, scenario documents, UI behavior references, execution notes, and screenshots.
 
-**Input**: One or more OpenSpec `spec.md` files, scenario documents, UI behavior references, screenshot artifacts, related app/service folders, and an output directory such as `docs/`.
+**Input**: One or more OpenSpec `spec.md` files, scenario documents, UI behavior references, screenshot artifacts, related app/service folders, and the spec-local output directory `openspec/specs/<spec-name>/docs/`.
 
-**Direct command input**: When invoked as `/docx-user-manual <spec-name>`, use `$spec_name` as the exact OpenSpec folder name. If `$spec_name` is empty, ask for the spec folder name. Find the matching folder under `openspec/`, read every `spec.md` and related artifact in that folder, then find related E2E scenario documents, test code, result files, execution summaries, and screenshots before generating the manual. If the folder or E2E evidence is missing or ambiguous, report what was found and ask for the missing selection instead of guessing.
+**Direct command input**: When invoked as `/docx-user-manual <spec-name>`, use `$spec_name` as the exact OpenSpec folder name. Project feature specs MUST use the service-prefixed OpenSpec ID format: `<microservice>_<domain>-<feature>` for cross-domain services or `<microservice>_<feature>` for single-domain/domain-expressive services (for example `completion_agent-memory-chat` or `billing_invoice-search`). If `$spec_name` is empty, ask for the spec folder name. Find `openspec/specs/<spec-name>/spec.md`, read it and related artifacts, then find related E2E scenario documents, test code, result files, execution summaries, and screenshots under `openspec/specs/<spec-name>/e2e/` before generating the manual. If the folder or E2E evidence is missing or ambiguous, report what was found and ask for the missing selection instead of guessing.
+
+**Feature Traceability Rule**: For service-prefixed specs, use the exact spec folder name as the E2E suite slug and manual output slug. For example, `openspec/specs/completion_agent-memory-chat/spec.md` maps to `openspec/specs/completion_agent-memory-chat/e2e/` and `openspec/specs/completion_agent-memory-chat/docs/completion_agent-memory-chat-user-manual.docx`. Do not rewrite underscores or hyphens because they preserve the service/domain/feature boundary.
+
+**Spec-Local Output Rule**: Generated manuals MUST be colocated with the source spec. For `openspec/specs/<spec-name>/spec.md`, create or update `openspec/specs/<spec-name>/docs/` and put both the generation script and the `.docx` output there. Do not create manual outputs under root `docs/`.
+
+**Microservice Prefix Consistency Rule**: If the source spec, E2E evidence, or related service path shows that the feature belongs to a specific microservice/service folder, the spec ID must start with that service name followed by `_`. For example, manuals for `services/completion` features should be based on specs such as `completion_agent-memory-chat`, `completion_mcp-server-config`, or `completion_notification-push-delivery`. If the source spec replaces the service prefix with a discovered subdomain or resource name, such as `agent_memory-chat`, `mcp_server-config`, or `notification_push-delivery`, or if it drops the underscore boundary, such as `agent-feedback-feedback-processing` for `services/agent-feedback`, stop and report that the OpenSpec/E2E evidence should be regenerated or renamed around the service-name prefix first.
+
+**Backend-Associated Evidence Rule**: Generate manuals only for specs and E2E evidence tied to repository-owned backend/product behavior. Do not generate a manual from frontend-only specs or spec IDs whose service prefix or domain discriminator is an implementation layer such as `frontend`, `ui`, `react`, `page`, or `component`. If the source spec is frontend-only, stop and report that the spec/E2E evidence should be regenerated around the owning backend/product capability first.
 
 **Core Rule**: The DOCX must read like a product manual for first-time end users. Use verification artifacts only as evidence. Do not copy their structure, headings, commands, internal identifiers, assertions, routes, fixtures, or pass/fail summaries into the user-facing document.
 
-**Korean Writing Rule**: Generate the DOCX manual in Korean by default. Use Korean for the document title, section headings, body text, captions, table headers, workflow names, error guidance, FAQ, and procedure text. Keep product names, UI labels, paths, and identifiers in their original form only when they are visible to users or required for accuracy. Use another language only when the user explicitly requests it.
+**Korean Writing Rule**: Generate the DOCX manual in Korean by default. Use Korean for the document title, section headings, body text, captions, table headers, workflow names, error guidance, FAQ, and procedure text. If source OpenSpec specs, E2E documents, execution summaries, or screenshots contain English prose, translate the user-facing meaning into Korean instead of copying it. Keep product names, UI labels, paths, API routes, field names, event names, enum values, SQL keywords, and identifiers in their original form only when they are visible to users or required for accuracy. Use another language only when the user explicitly requests it.
 
 **Style Consistency Rule**: Use [STYLE_REFERENCE.py](STYLE_REFERENCE.py) as the default visual style baseline. It is a compressed copy of the previous polished manual generator with one representative user flow. Before writing or rewriting a generation script, read it and reuse its document structure, helper functions, spacing, table style, cover layout, heading colors, font choices, caption style, and page footer approach unless the user asks for a new design.
 
@@ -57,25 +65,26 @@ Translate them into user-visible behavior instead:
 Before writing the manual, read all relevant inputs the user provides:
 
 - OpenSpec `spec.md` files: extract purpose, requirements, scenarios, public fields, status values, and user-visible labels.
-- Scenario and coverage documents: use them to identify which user behaviors must be covered, not as the manual outline.
+- If OpenSpec Requirement/Scenario text is in English, translate its user-facing meaning into Korean for the manual while preserving exact identifiers.
+- Scenario and coverage documents under `openspec/specs/<spec-name>/e2e/scenarios/`: use them to identify which user behaviors must be covered, not as the manual outline.
 - UI automation or execution references: confirm exact user actions, visible labels, screenshots, and observable screen outcomes. Do not copy assertions, commands, or internal data.
 - Execution summaries/results: use them only to understand available screenshots and known evidence quality. Do not include run status, pass/fail counts, commands, report paths, or known test gaps in an end-user manual.
-- Screenshot directory under the E2E result folder: insert meaningful screenshots at the matching workflow sections.
+- Screenshot directory under `openspec/specs/<spec-name>/e2e/results/screenshots/`: insert meaningful screenshots at the matching workflow sections.
 - Existing DOCX generation guidance or scripts in the repo, especially any `docx` skill or helper script.
 - [STYLE_REFERENCE.py](STYLE_REFERENCE.py): bundled style reference copied and compressed from the previous polished manual generator. Use it as the canonical layout, helper, table, caption, cover, and footer baseline.
-- Previous polished manual generators under `docs/prev/`, if present: use only as additional evidence when the bundled style reference is insufficient or the user asks to compare against a specific previous output.
 
 ## Output Contract
 
-Write generated manuals under the user-requested output directory, normally:
+Write generated manuals under the source spec folder:
 
 ```text
-docs/
-  <suite-or-feature>-user-manual.docx
-  generate_<suite-or-feature>_user_manual.py
+openspec/specs/<spec-name>/
+  docs/
+    <suite-or-feature>-user-manual.docx
+    generate_<suite-or-feature>_user_manual.py
 ```
 
-Keep the generation script when practical so the document can be regenerated after specs, screenshots, or E2E results change.
+For service-prefixed specs, `<suite-or-feature>` should be the exact spec folder name, for example `completion_agent-memory-chat` or `billing_invoice-search`. Keep the generation script when practical so the document can be regenerated after specs, screenshots, or E2E results change.
 
 ## Required Manual Structure
 
@@ -117,24 +126,36 @@ The DOCX must include these sections in this order unless the user explicitly as
 
 1. **Collect evidence**
    - Read all source specs before drafting.
+   - For service-prefixed source specs, preserve the exact spec ID as the suite/manual evidence key.
+   - If source evidence ties the feature to a microservice/service folder, confirm the spec ID starts with that service folder name followed by `_`.
+   - If the service spans multiple domains, confirm the spec ID includes a domain discriminator after the service prefix. If the service is single-domain or domain-expressive, confirm the spec ID keeps the `<microservice>_` prefix and does not redundantly repeat the same domain.
+   - Confirm the source spec service prefix and domain discriminator are backend/product capability terms, not `frontend`, `ui`, `react`, `page`, or `component`.
+   - Confirm related E2E evidence exercised the real frontend-to-gateway/backend path, not frontend-only behavior.
    - Read the coverage/scenario documents to identify user-visible behaviors.
    - Read UI automation references only to confirm exact labels, actions, and screenshots.
    - Read execution summaries only to understand which screenshot artifacts are available.
    - List screenshot files and map each screenshot to a scenario checkpoint.
+   - Locate E2E evidence under the source spec folder, for example `openspec/specs/completion_agent-memory-chat/e2e/` for `openspec/specs/completion_agent-memory-chat/spec.md`.
    - Read [STYLE_REFERENCE.py](STYLE_REFERENCE.py) before choosing visual styles.
-   - Locate any previous polished manual generator for the same or similar feature under `docs/prev/` only when additional comparison evidence is needed.
    - Step checklist:
      - [ ] Every provided or discoverable source spec has been read.
+     - [ ] English prose from source specs or E2E evidence has been translated into Korean user-facing wording, except exact identifiers.
+     - [ ] Service-prefixed spec IDs, E2E suite slugs, and manual output slugs are aligned exactly when present.
+     - [ ] Manual output path is `openspec/specs/<spec-name>/docs/`.
+     - [ ] Related E2E evidence has been searched under `openspec/specs/<spec-name>/e2e/`.
+     - [ ] Microservice/service-backed specs start with the service-name prefix followed by `_`, not a discovered subdomain/resource name or `<microservice>-<feature>`.
+     - [ ] Cross-domain specs include a domain discriminator, while single-domain/domain-expressive specs avoid redundant domain repetition and keep the `<microservice>_` prefix.
+     - [ ] Source specs and E2E evidence are backend-associated and not frontend-only.
      - [ ] Related scenario, coverage, execution summary, result, and screenshot artifacts have been located or explicitly reported missing.
      - [ ] Screenshots are mapped to scenario checkpoints or marked as unavailable.
      - [ ] User-visible labels, actions, roles, states, and error messages are identified from evidence.
      - [ ] Bundled style reference [STYLE_REFERENCE.py](STYLE_REFERENCE.py) has been read.
-     - [ ] Additional previous manual generator evidence under `docs/prev/` has been read when needed, or its absence has been reported.
      - [ ] Missing or ambiguous evidence has been resolved with repository evidence or reported to the user before outlining.
 
 2. **Build the user-facing outline**
    - Use the required manual structure exactly.
    - Draft every user-facing title, heading, paragraph, caption, table header, and procedure in Korean.
+   - Translate English OpenSpec/E2E scenario names and descriptions into Korean task names and guidance. Do not copy English prose into the manual body.
    - Rename technical scenario titles into user tasks, for example "cache hit" → "이전과 같은 질문 빠르게 확인하기".
    - Keep domain-specific examples only when they come from the source material. Do not add unrelated domain terminology.
    - Treat verification fixtures as examples, not as production promises, and do not label them as fixtures.
@@ -143,6 +164,7 @@ The DOCX must include these sections in this order unless the user explicitly as
      - [ ] The outline contains every required manual section in the required order.
      - [ ] Every relevant source behavior is assigned to a user-facing workflow, screen explanation, result section, error section, FAQ, or tips section.
      - [ ] Technical scenario IDs, commands, assertions, internal routes, internal event names, and verification wording are excluded from the outline.
+     - [ ] English source prose has not been copied into the outline; it has been converted to Korean user-facing wording.
      - [ ] All planned headings, workflow names, table titles, and captions are Korean unless the user requested another language.
      - [ ] No DOCX generation has started before the outline is complete.
 
@@ -177,13 +199,15 @@ The DOCX must include these sections in this order unless the user explicitly as
    - Ensure every separate procedure list restarts at 1. With `python-docx`, the built-in `List Number` style can continue numbering across sections; create a fresh numbering definition or write explicit `1.`, `2.`, `3.` prefixes for each procedure list.
    - Add page numbers in the footer when supported.
    - Keep image width within the page margins and preserve aspect ratio.
+   - Write the generation script and `.docx` output under `openspec/specs/<spec-name>/docs/`.
    - Step checklist:
-     - [ ] The generation approach and output path are selected before writing files.
+     - [ ] The generation approach and spec-local output path are selected before writing files.
      - [ ] [STYLE_REFERENCE.py](STYLE_REFERENCE.py) has been mirrored for layout, colors, fonts, tables, captions, and footer unless intentionally changed.
      - [ ] The DOCX includes every required section in order.
      - [ ] Korean-capable fonts, real headings, tables, page layout, captions, and image sizing are applied.
      - [ ] Every procedure list starts at 1 and does not inherit numbering from another section.
      - [ ] The regeneration script is created or updated when practical.
+     - [ ] The regeneration script and DOCX output are under `openspec/specs/<spec-name>/docs/`.
 
 5. **Validate**
    - Open or parse the generated DOCX with the available tool/library to confirm it is readable.
@@ -238,6 +262,7 @@ Do not copy automation assertions verbatim into the manual. Translate assertions
 - Screen option tables should include required/optional status and default values when specified.
 - Permissions should be conservative: mark features as "권한 필요" when the source does not prove every user can perform them.
 - Do not include known verification gaps, command output, report paths, or implementation caveats in an end-user manual unless explicitly requested.
+- Do not copy English prose from source specs, E2E documents, or execution notes into the user-facing manual. Translate the meaning to Korean and keep only exact identifiers unchanged.
 
 ## Style Reference
 

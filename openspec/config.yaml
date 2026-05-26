@@ -3,10 +3,28 @@ schema: spec-driven
 context: |
   Language: Korean (ko-KR)
   모든 OpenSpec 산출물은 한국어로 작성한다.
+  proposal, design, tasks, planning, specs의 제목, 설명, 본문, 표, 체크리스트, Requirement 제목, Requirement 본문, Scenario 제목, Scenario 단계는 모두 한국어로 작성한다.
+  OpenSpec 문법상 필요한 `### Requirement:`와 `#### Scenario:` 접두어, API 경로, HTTP method, 요청/응답 필드명, 이벤트명, enum 값, 설정 키, 환경 변수명, SQL 키워드, 파일 경로, 코드 식별자만 원문을 유지한다.
+  "The system SHALL ...", "When the client ...", "The response includes ..."처럼 일반 문장을 영어로 쓰지 않는다. SHALL/MUST 같은 규범 키워드가 필요하면 한국어 문장 안에서만 사용한다.
 
   이 저장소의 OpenSpec 문서는 "구현 요약"이 아니라 "시스템이 외부에 보장해야 하는 행위와 계약"을 표현한다.
   스펙은 코드의 함수명, 클래스명, 내부 변수명, 파일 라인 번호를 나열하지 않는다.
   코드 구조를 설명해야 할 때도 구현 세부가 아니라 사용자/클라이언트/운영자가 관찰할 수 있는 입력, 출력, 상태 변화, 오류 처리, 보안/성능 제약으로 추상화한다.
+
+  이 저장소의 main spec은 마이크로서비스 전체가 아니라 하나의 피쳐 단위를 다룬다.
+  code-to-spec으로 마이크로서비스/서비스 폴더를 분석할 때는 main spec 폴더명이 항상 입력 마이크로서비스/서비스 폴더명 뒤에 `_`를 붙인 서비스 접두어로 시작해야 한다. 서비스명, 도메인명, 피쳐명은 모두 lowercase kebab-case로 정규화한다.
+  main spec 폴더명은 항상 <microservice>_<feature> 또는 <microservice>_<domain>-<feature> 형식을 사용한다. 예를 들어 services/agent-feedback의 feedback processing은 agent-feedback_feedback-processing처럼 작성하고, services/completion이 agent memory, MCP server, notification push를 함께 제공하면 completion_agent-memory-chat, completion_mcp-server-config, completion_notification-push-delivery처럼 서비스 접두어 뒤에서 업무 도메인과 피쳐를 함께 드러낸다.
+  마이크로서비스가 하나의 업무 도메인에 집중되어 있거나 마이크로서비스명이 이미 도메인을 충분히 드러내더라도 서비스 접두어 뒤의 `_`는 생략하지 않는다. 이 경우 도메인 구분자는 생략하고 <microservice>_<feature> 형식으로 작성한다. 예를 들어 billing 서비스의 invoice search는 billing_invoice-search처럼 작성한다.
+  입력이 여러 서비스가 섞인 큰 소스 폴더라면 먼저 실제 서비스 경계를 식별한 뒤 각 spec 폴더명을 해당 서비스명으로 시작한다.
+  하나의 spec.md는 하나의 E2E suite로 자연스럽게 연결될 수 있을 만큼 응집된 피쳐 범위여야 한다.
+  spec에서 파생되는 E2E 산출물과 DOCX 매뉴얼 산출물은 루트 e2e/ 또는 docs/ 아래로 흩뜨리지 않고 해당 spec 폴더 안에 응집시킨다.
+  E2E 시나리오 문서, seed/stub, Playwright 테스트 스크립트, 실행 결과, 스크린샷은 기본적으로 openspec/specs/<spec-name>/e2e/ 아래에 둔다.
+  DOCX 사용자 매뉴얼 생성 스크립트와 실제 .docx 산출물은 기본적으로 openspec/specs/<spec-name>/docs/ 아래에 둔다.
+  루트 docker-compose.e2e.yml처럼 여러 suite가 공유하는 실행 환경 파일은 루트에 둘 수 있지만, suite별 산출물과 테스트 스크립트는 spec 폴더 내부 경로를 우선한다.
+  main spec은 백엔드 서비스, 공개 API, 저장소, 스트리밍, 인증, 작업 실행, 데이터 처리 등 실제 제품 기능 계약과 연결되어야 한다.
+  frontend, ui, react, page, component 같은 구현 레이어 이름은 main spec의 서비스 접두어 또는 도메인 구분자로 사용하지 않는다.
+  프론트엔드 코드는 스펙의 서비스 접두어 또는 도메인 구분자가 아니라 사용자 조작과 화면 검증을 위한 evidence로 사용한다.
+  프론트엔드 폴더만 분석하더라도, 해당 UI가 호출하는 백엔드 API나 제품 기능을 추적해 backend-associated service/feature 이름으로 spec을 만든다. 연결되는 백엔드 기능을 식별할 수 없으면 main spec을 생성하지 말고 열린 질문으로 남긴다.
 
   원문 유지가 필요한 항목:
   - 공개 API 경로와 HTTP method
@@ -22,11 +40,32 @@ context: |
 
 rules:
   proposal:
+    - 문서 제목, 섹션 본문, 목록, 표, 체크리스트는 한국어로 작성한다.
     - 기능의 목적, 사용자 가치, 외부 계약 변화만 설명한다.
     - 영향 범위에는 서비스/화면/API 수준만 적고, 내부 함수명·클래스명·라인 번호는 적지 않는다.
     - '"현재 구현은 X 함수에서 Y를 호출한다" 같은 코드 요약 문장을 피한다.'
+    - Capabilities에는 generic kebab-case 이름 대신 <microservice>_<feature> 또는 <microservice>_<domain>-<feature> 형식의 feature-sized spec ID를 사용한다.
+    - code-to-spec으로 마이크로서비스를 분석한 Capability는 입력 마이크로서비스/서비스 폴더명으로 시작해야 한다.
+    - 마이크로서비스 전체를 하나의 Capability로 적지 말고, 공개적으로 관찰 가능한 피쳐별 Capability로 분해한다.
+    - frontend, ui, react, page, component 같은 구현 레이어를 Capability의 서비스 접두어 또는 도메인 구분자로 사용하지 않는다.
+    - 프론트엔드에서 시작된 변경이라도 연결된 백엔드 서비스/API/제품 기능을 기준으로 Capability 이름을 정한다.
 
   specs:
+    - spec 문서의 제목, Purpose, Requirement 제목, Requirement 본문, Scenario 제목, Scenario 단계는 한국어로 작성한다.
+    - `### Requirement:`와 `#### Scenario:` 접두어는 OpenSpec 형식을 위해 유지하되, 접두어 뒤의 이름은 한국어로 작성한다.
+    - 일반 설명 문장을 영어로 쓰지 않는다. 공개 API 경로, HTTP method, 필드명, 이벤트명, enum 값, SQL 키워드 같은 계약 식별자만 원문으로 둔다.
+    - main spec 폴더명은 마이크로서비스/서비스 이름 뒤에 `_`를 붙인 서비스 접두어로 시작하고, 서비스명, 도메인명, 피쳐명은 lowercase kebab-case로 작성한다.
+    - 여러 업무 도메인에 걸친 마이크로서비스는 <microservice>_<domain>-<feature> 형식으로 작성한다. 예를 들어 services/completion에서 agent memory chat, MCP server config, notification push delivery를 발견하면 completion_agent-memory-chat, completion_mcp-server-config, completion_notification-push-delivery로 작성한다.
+    - 하나의 업무 도메인에 집중된 마이크로서비스이거나 마이크로서비스명이 도메인을 충분히 드러내면 도메인 구분자는 생략하되 `_`는 유지하여 <microservice>_<feature> 형식으로 작성한다. 예를 들어 billing 서비스의 invoice search는 billing_invoice-search로 작성한다.
+    - 예시 spec 경로는 openspec/specs/completion_agent-memory-chat/spec.md, openspec/specs/billing_invoice-search/spec.md 이다.
+    - 하나의 spec.md는 하나의 피쳐 또는 응집된 사용자/클라이언트/운영자 workflow만 다룬다.
+    - main spec은 백엔드 또는 제품 기능 계약과 연결되어야 하며, 프론트엔드 단독 UI 구현 설명만으로 작성하지 않는다.
+    - frontend, ui, react, page, component를 서비스 접두어 또는 도메인 구분자로 사용한 spec 폴더를 만들지 않는다. 예를 들어 frontend_app-settings, frontend-text2sql-react 같은 이름은 피한다.
+    - 프론트엔드는 E2E에서 사용자가 기능을 검증하는 표면으로만 다루고, spec 이름은 연결된 백엔드 서비스/API/제품 기능을 기준으로 잡는다.
+    - 마이크로서비스 전체, route inventory, controller/service/repository 계층, 패키지 전체를 하나의 spec.md로 요약하지 않는다.
+    - 같은 마이크로서비스 안에 여러 피쳐가 있으면 위 규칙에 따라 <microservice>_<feature> 또는 <microservice>_<domain>-<feature> 폴더를 여러 개 생성한다.
+    - 각 spec은 기본적으로 하나의 E2E suite로 전환 가능한 범위여야 한다.
+    - spec에서 파생되는 E2E 및 DOCX 산출물은 해당 spec 폴더 하위의 e2e/와 docs/에 모이도록 계획한다.
     - 스펙은 구현 독립적인 행위 계약으로 작성한다.
     - Requirement 제목은 사용자 또는 클라이언트 관점의 능력으로 작성한다.
     - Requirement 본문에는 SHALL/MUST를 사용해 관찰 가능한 입력, 출력, 상태, 오류, 제한을 정의한다.
@@ -37,11 +76,13 @@ rules:
     - 테스트 가능성을 위해 요구사항 ID와 시나리오 ID를 둘 수 있지만, ID가 구현명을 포함하지 않게 한다.
 
   design:
+    - 설계 문서의 제목, 본문, 표, 목록은 한국어로 작성하고, 기술 식별자만 원문으로 유지한다.
     - 설계 문서는 스펙보다 더 기술적일 수 있으나, 먼저 아키텍처 결정과 트레이드오프를 설명한다.
     - 파일 경로와 모듈명은 "검토 대상" 또는 "구현 위치 후보"로만 최소한 사용한다.
     - 함수/클래스 목록을 나열하는 코드 인벤토리 형식은 피한다.
 
   tasks:
+    - 작업 문서의 제목, 체크리스트, 완료 기준은 한국어로 작성하고, 명령어와 경로만 원문으로 유지한다.
     - 기존 제품 코드를 변경하지 않는 테스트/검증 작업과 문서 보강 작업을 우선 작성한다.
     - 각 작업은 어떤 Requirement 또는 Scenario를 검증하는지 연결한다.
     - 작업 설명은 구현 세부 나열보다 검증 목적과 완료 기준을 중심으로 작성한다.

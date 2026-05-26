@@ -48,16 +48,13 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--suite", required=True, help="Suite slug, for example text2sql")
     parser.add_argument(
-        "--scenario-root",
-        help="Root containing suite scenario documentation",
-    )
-    parser.add_argument(
-        "--result-root",
-        help="Root containing suite Playwright reports",
-    )
-    parser.add_argument(
-        "--test-root",
-        help="Root containing suite Playwright tests",
+        "--suite-root",
+        required=True,
+        help=(
+            "Spec-local E2E suite root, for example "
+            "openspec/specs/<spec-name>/e2e. Scenarios, results, and tests "
+            "are resolved below this directory."
+        ),
     )
     parser.add_argument(
         "--require-results",
@@ -88,9 +85,10 @@ def check_headings(path: Path, headings: list[str], errors: list[str]) -> str:
 
 def validate(args: argparse.Namespace) -> int:
     repo = Path.cwd()
-    scenario_dir = repo / args.scenario_root / args.suite
-    result_dir = repo / args.result_root / args.suite
-    test_dir = repo / args.test_root / args.suite
+    suite_root = repo / args.suite_root
+    scenario_dir = suite_root / "scenarios"
+    result_dir = suite_root / "results"
+    test_dir = suite_root / "tests"
     test_file = test_dir / f"{args.suite}.spec.mjs"
 
     errors: list[str] = []
