@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>completion_workitem-polling-execution 스펙 커버리지 보고서</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; margin: 32px; color: #172033; background: #f7f8fb; }
+    main { max-width: 1180px; margin: 0 auto; }
+    section { background: #fff; border: 1px solid #dfe3eb; border-radius: 12px; padding: 20px; margin: 18px 0; box-shadow: 0 1px 2px rgba(16, 24, 40, .04); }
+    h1, h2, h3 { margin-top: 0; }
+    table { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: 14px; }
+    th, td { border: 1px solid #e4e7ee; padding: 9px 10px; text-align: left; vertical-align: top; }
+    th { background: #f1f4f9; }
+    code { background: #eef2f7; padding: 2px 5px; border-radius: 4px; }
+    .badge { display: inline-block; padding: 4px 9px; border-radius: 999px; font-size: 12px; font-weight: 700; }
+    .pass { color: #065f46; background: #d1fae5; }
+    .warn { color: #92400e; background: #fef3c7; }
+    .fail { color: #991b1b; background: #fee2e2; }
+    .muted { color: #667085; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+    .metric { border: 1px solid #e4e7ee; border-radius: 10px; padding: 14px; background: #fbfcff; }
+    .metric strong { display: block; font-size: 24px; margin-top: 6px; }
+  </style>
+</head>
+<body>
+<main>
+  <h1>completion_workitem-polling-execution 스펙 커버리지 보고서</h1>
+  <p class="muted">생성 시각: 2026-05-27T07:10:18Z · 원본 명세: <code>openspec/specs/completion_workitem-polling-execution/spec.md</code></p>
+
+  <section>
+    <h2>AI 종합 판단</h2>
+    <p><span class="badge warn">partial</span></p>
+    <p>
+      본 turn 의 통합 검증은 폴링 워커가 SUBMITTED 상태의 serviceTask 워크아이템을
+      자동 클레임하고 DONE 으로 전이하는 핵심 동선(Req 1, 그리고 Req 2 의
+      serviceTask 완료 판정 분기)을 실제 Docker 스택과 KanbanBoard UI 로 결정적
+      검증했다. OpenSpec 추적성 게이트는 7/7 Requirement · 12/12 Scenario 매핑
+      및 1/1 Playwright 테스트 통과로 PASS 다. 다만 실행된 Playwright 시나리오는
+      한 건이며, Req 2 의 LLM 출력 파싱 실패 / Req 3 의 인스턴스 COMPLETED 전이 /
+      Req 4 의 서브프로세스 부모 재개 / Req 5 의 재시도 한도 초과 / Req 6 의
+      external_customer 이메일 / Req 7 의 stale 클레임 회수 시나리오는 매트릭스
+      상의 "보류 항목" 으로 남아 있다. 백엔드 coverage 는 ATE 스위트와 동일한
+      `completion-polling` 컨테이너를 공유 사용하기 때문에 본 turn 에서는 별도
+      재수집하지 않고 ATE 의 누적 결과를 참조 증거로 사용한다. 프론트엔드
+      coverage 는 본 turn 에서 V8 bundle 수준의 보조 지표만 수집했다.
+    </p>
+  </section>
+
+  <section>
+    <h2>게이트 요약</h2>
+    <div class="grid">
+      <div class="metric">OpenSpec Requirement<strong>7/7</strong></div>
+      <div class="metric">OpenSpec Scenario<strong>12/12</strong></div>
+      <div class="metric">백엔드 커버리지<strong>shared</strong></div>
+      <div class="metric">프론트엔드 커버리지<strong>bundle</strong></div>
+      <div class="metric">전체 커버리지<strong>partial</strong></div>
+    </div>
+    <table>
+      <thead><tr><th>게이트</th><th>상태</th><th>근거</th></tr></thead>
+      <tbody>
+        <tr><td>requirements_covered_100</td><td><span class="badge pass">PASS</span></td><td>7/7 requirements covered</td></tr>
+        <tr><td>spec_scenarios_covered_100</td><td><span class="badge pass">PASS</span></td><td>12/12 spec scenarios covered</td></tr>
+        <tr><td>all_declared_tests_have_results</td><td><span class="badge pass">PASS</span></td><td>1/1 declared tests found in results</td></tr>
+        <tr><td>all_declared_tests_passed</td><td><span class="badge pass">PASS</span></td><td>1/1 declared tests passed</td></tr>
+        <tr><td>all_referenced_screenshots_exist</td><td><span class="badge pass">PASS</span></td><td>0/0 referenced screenshots exist (스크린샷은 시나리오 placeholder 문서에 캡션만 정의)</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section>
+    <h2>OpenSpec 스펙 커버리지</h2>
+    <p class="muted">원본 명세의 Requirement와 Scenario가 어떤 E2E 시나리오, Playwright 테스트, 스크린샷 증거로 검증되었는지 보여줍니다.</p>
+    <table>
+      <thead><tr><th>요구사항</th><th>명세 시나리오</th><th>E2E 시나리오</th><th>Playwright 테스트</th><th>증거</th><th>커버리지</th><th>AI 판단</th></tr></thead>
+      <tbody>
+        <tr><td>제출된 워크아이템 자동 폴링</td><td>제출 워크아이템 클레임</td><td>01-submitted-workitem-claim</td><td>폴링 워커가 SUBMITTED serviceTask 워크아이템을 자동으로 클레임하고 DONE 으로 전이한다</td><td>스크린샷 01–04, results.json PASS, DB status DONE 검증</td><td>100%</td><td><span class="badge pass">충분</span></td></tr>
+        <tr><td>완료 판정과 다음 활동 진행</td><td>워크아이템 완료 후 다음 활동 생성</td><td>02-completion-and-next-activity</td><td>(보류) 활성화 시 mock-llm-ate 의 prompt_completed/prompt_next_activity 응답 확장 필요</td><td>없음</td><td>30%</td><td><span class="badge warn">부분</span> — serviceTask 의 handle_service_workitem 경로는 본 turn 으로 실행되었으나 handle_workitem LangChain 분기는 미실행</td></tr>
+        <tr><td>완료 판정과 다음 활동 진행</td><td>완료 조건 미충족</td><td>02-completion-and-next-activity</td><td>(보류)</td><td>없음</td><td>0%</td><td><span class="badge fail">불충분</span></td></tr>
+        <tr><td>완료 판정과 다음 활동 진행</td><td>LLM 출력 파싱 실패</td><td>02-completion-and-next-activity</td><td>(보류)</td><td>없음</td><td>0%</td><td><span class="badge fail">불충분</span></td></tr>
+        <tr><td>프로세스 인스턴스 상태 전이</td><td>종료 활동 완료 시 인스턴스 완료</td><td>03-instance-state-transition</td><td>(보류) Req 2 의존, BPMN end activity 시드 필요</td><td>없음</td><td>0%</td><td><span class="badge fail">불충분</span></td></tr>
+        <tr><td>프로세스 인스턴스 상태 전이</td><td>진행 중 인스턴스 유지</td><td>03-instance-state-transition</td><td>(보류)</td><td>RUNNING 인스턴스는 본 turn 의 ate_demo_proc.e2e-instance-0001 로 간접 검증</td><td>40%</td><td><span class="badge warn">부분</span></td></tr>
+        <tr><td>서브프로세스 생성과 부모 재개</td><td>서브프로세스 자식 인스턴스 생성</td><td>04-subprocess-create-and-resume</td><td>(보류) subProcesses BPMN 시드 필요</td><td>없음</td><td>0%</td><td><span class="badge fail">불충분</span></td></tr>
+        <tr><td>서브프로세스 생성과 부모 재개</td><td>자식 완료 시 부모 재개</td><td>04-subprocess-create-and-resume</td><td>(보류)</td><td>없음</td><td>0%</td><td><span class="badge fail">불충분</span></td></tr>
+        <tr><td>처리 실패 재시도 제한</td><td>실패 후 재시도</td><td>05-retry-limit-force-done</td><td>(보류) mock-mcp 실패 모드 + retry counter 검증 필요</td><td>없음</td><td>0%</td><td><span class="badge fail">불충분</span></td></tr>
+        <tr><td>처리 실패 재시도 제한</td><td>재시도 한도 초과</td><td>05-retry-limit-force-done</td><td>(보류)</td><td>없음</td><td>0%</td><td><span class="badge fail">불충분</span></td></tr>
+        <tr><td>외부 고객 대상 이메일 안내</td><td>외부 고객 안내 이메일 발송</td><td>06-external-customer-email</td><td>(보류) mock-smtp capture 컨테이너 신설 필요</td><td>없음</td><td>0%</td><td><span class="badge fail">불충분</span></td></tr>
+        <tr><td>정체된 처리 클레임 회수</td><td>정체 워크아이템 회수</td><td>07-stale-claim-recovery</td><td>(보류) cleanup_task 5분 주기 / 30분 stale 임계값 결정적 트리거 필요</td><td>없음</td><td>0%</td><td><span class="badge fail">불충분</span></td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section>
+    <h2>스펙 관련 백엔드 파일/함수</h2>
+    <p class="muted">본 turn 은 ATE 스위트와 동일한 `completion-polling` 컨테이너를 공유 사용하기 때문에 백엔드 coverage 데이터를 별도 재수집하지 않았다. 다음 표의 커버리지 값은 ATE 스위트의 누적 수집 결과를 참조한 추정치이며, 본 스위트가 본 turn 에서 추가로 실행한 코드 경로(SUBMITTED serviceTask 자동 처리)는 ATE 가 이미 동일 경로를 통과하므로 신규 커버리지 증가는 없다.</p>
+    <table>
+      <thead><tr><th>파일</th><th>함수/클래스/라우트</th><th>관련 요구사항</th><th>커버리지</th><th>기준</th><th>AI 판단</th><th>보강 제안</th></tr></thead>
+      <tbody>
+        <tr><td>services/completion/polling_service/polling_service.py</td><td>polling_workitem, safe_handle_workitem</td><td>Req 1, Req 5</td><td>shared (ATE)</td><td>line ≥ 70%</td><td><span class="badge warn">부분</span></td><td>cleanup_task 단독 실행 경로 미커버</td></tr>
+        <tr><td>services/completion/polling_service/polling_service.py</td><td>cleanup_task</td><td>Req 7</td><td>0%</td><td>line ≥ 70%</td><td><span class="badge fail">불충분</span></td><td>cleanup 주기 단축 + 5분 대기 가능한 격리 트리거 신설</td></tr>
+        <tr><td>services/completion/polling_service/database.py</td><td>fetch_workitem_with_submitted_status</td><td>Req 1</td><td>shared (ATE)</td><td>line ≥ 70%</td><td><span class="badge pass">충분</span></td><td>—</td></tr>
+        <tr><td>services/completion/polling_service/database.py</td><td>fetch_workitem_with_pending_status, cleanup_stale_consumers</td><td>Req 4, Req 7</td><td>0%</td><td>line ≥ 70%</td><td><span class="badge fail">불충분</span></td><td>handle_pending_workitem 시나리오 + stale_consumers 단위 테스트 추가</td></tr>
+        <tr><td>services/completion/polling_service/workitem_processor.py</td><td>handle_service_workitem</td><td>Req 1, Req 2</td><td>shared (ATE)</td><td>line ≥ 70%</td><td><span class="badge pass">충분</span></td><td>—</td></tr>
+        <tr><td>services/completion/polling_service/workitem_processor.py</td><td>handle_workitem (LangChain 완료 판정)</td><td>Req 2, Req 3, Req 5</td><td>partial</td><td>line ≥ 60%</td><td><span class="badge warn">부분</span></td><td>mock-llm-ate 에 prompt_completed/prompt_next_activity 응답 추가 후 시나리오 02/03 활성화</td></tr>
+        <tr><td>services/completion/polling_service/workitem_processor.py</td><td>handle_pending_workitem, _check_service_tasks</td><td>Req 4</td><td>0%</td><td>line ≥ 70%</td><td><span class="badge fail">불충분</span></td><td>subProcesses BPMN 시드 + 부모-자식 인스턴스 라이프사이클 검증 추가</td></tr>
+        <tr><td>services/completion/polling_service/workitem_processor.py</td><td>update_instance_status_on_error</td><td>Req 3, Req 5</td><td>partial</td><td>branch ≥ 50%</td><td><span class="badge warn">부분</span></td><td>RUNNING ↔ COMPLETED 전이 모두 검증하려면 종료 활동 시드 필요</td></tr>
+        <tr><td>services/completion/polling_service/smtp_handler.py</td><td>외부 고객 안내 이메일</td><td>Req 6</td><td>0%</td><td>line ≥ 70%</td><td><span class="badge fail">불충분</span></td><td>mock-smtp capture 컨테이너 도입 후 시나리오 06 활성화</td></tr>
+        <tr><td>services/completion/polling_service/process_definition.py</td><td>find_end_activity, 서브프로세스 탐색</td><td>Req 3, Req 4</td><td>partial</td><td>function = 100%</td><td><span class="badge warn">부분</span></td><td>종료 활동 + subProcesses BPMN 시드와 함께 활성화</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section>
+    <h2>스펙 관련 프론트엔드 파일/함수</h2>
+    <p class="muted">본 turn 은 사전 빌드된 frontend 이미지를 그대로 사용해 V8 raw coverage 만 수집했다. 소스맵 기반 원본 파일 매핑은 본 스위트 활성화 시 [[frontend-source-build-oom]] 메모리의 호스트 사전 빌드 패턴으로 별도 시도해야 한다.</p>
+    <table>
+      <thead><tr><th>대상</th><th>컴포넌트/함수/API 호출</th><th>관련 요구사항</th><th>커버리지</th><th>기준</th><th>AI 판단</th><th>제약</th></tr></thead>
+      <tbody>
+        <tr><td>services/frontend/src/components/apps/todolist/TodolistCard.vue</td><td>KanbanBoard 워크아이템 컬럼</td><td>Req 1, Req 2, Req 5, Req 7</td><td>bundle-level (V8 raw)</td><td>line ≥ 50% (V8 보조)</td><td><span class="badge warn">부분</span></td><td>번들/path 수준 — 원본 Vue 파일 매핑은 source-build coverage 이미지 필요</td></tr>
+        <tr><td>services/frontend/src/components/apps/todolist/WorkItem.vue</td><td>워크아이템 상태/로그/결과 카드</td><td>Req 1, Req 2, Req 5</td><td>bundle-level (V8 raw)</td><td>line ≥ 50% (V8 보조)</td><td><span class="badge warn">부분</span></td><td>동일</td></tr>
+        <tr><td>services/frontend/src/components/ProcessInstanceRunning.vue</td><td>인스턴스 상태/종료 시각</td><td>Req 3</td><td>미수집</td><td>line ≥ 30% (V8 보조)</td><td><span class="badge fail">불충분</span></td><td>시나리오 03 활성화 시 인스턴스 상세 진입 + V8 coverage 수집</td></tr>
+        <tr><td>(미식별) SubProcessCard.vue 또는 등가</td><td>자식 인스턴스 카드</td><td>Req 4</td><td>미수집</td><td>line ≥ 30% (V8 보조)</td><td><span class="badge fail">불충분</span></td><td>본 스위트 활성화 시 구체 파일 확정</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section>
+    <h2>미커버/취약 분기</h2>
+    <table>
+      <thead><tr><th>위치</th><th>미커버 동작</th><th>리스크</th><th>권장 보강</th></tr></thead>
+      <tbody>
+        <tr><td>workitem_processor.handle_workitem</td><td>LLM 출력 파싱 실패 → PENDING 전이 및 시스템 메시지 기록 (Req 2 Scenario 3)</td><td>중</td><td>mock-llm-ate 에 invalid-json 응답 모드 추가 + 시나리오 02 활성화</td></tr>
+        <tr><td>workitem_processor.handle_pending_workitem</td><td>자식 인스턴스 모두 완료 시 부모 워크아이템 재개 (Req 4)</td><td>중</td><td>subProcesses 정의 BPMN 시드 + 자식 라이프사이클 시나리오 04 활성화</td></tr>
+        <tr><td>safe_handle_workitem 의 retry ≥ 3 강제 종료 분기</td><td>재시도 한도 초과 시 DONE 강제 전이 + 오류 로그 (Req 5)</td><td>중</td><td>retry=3 직접 시드 + 결정적 1회 실패 주입으로 분기 트리거</td></tr>
+        <tr><td>smtp_handler.send_external_customer_email</td><td>external_customer endpoint 안내 메일 발송 (Req 6)</td><td>중</td><td>mock-smtp capture 도입 + role_bindings 시드 추가</td></tr>
+        <tr><td>polling_service.cleanup_task</td><td>30분 stale claim 회수 (Req 7)</td><td>저-중</td><td>cleanup 주기 환경변수 단축 + updated_at 과거 시각 시드</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section>
+    <h2>원본 리포트 링크</h2>
+    <ul>
+      <li>Playwright HTML: <code>html-report/index.html</code></li>
+      <li>Backend coverage HTML: <code>(ATE 스위트 참조 — 본 스위트 별도 수집 없음)</code></li>
+      <li>Frontend coverage HTML: <code>frontend-coverage/raw/*.json (Monocart 미생성, V8 raw 만)</code></li>
+      <li>Machine summary: <code>coverage-summary.json</code></li>
+    </ul>
+  </section>
+</main>
+</body>
+</html>

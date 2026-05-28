@@ -29,7 +29,13 @@ configmap.yaml
 .env.*.local
 
 # E2E runtime outputs and coverage artifacts
-openspec/specs/**/e2e/results/
+openspec/specs/**/e2e/results/**
+!openspec/specs/**/e2e/results/
+!openspec/specs/completion_workitem-polling-execution/e2e/results/spec-coverage-report.html
+!openspec/specs/completion_workitem-polling-execution/e2e/results/html-report/
+!openspec/specs/completion_workitem-polling-execution/e2e/results/html-report/index.html
+!openspec/specs/completion_workitem-polling-execution/e2e/results/screenshots/
+!openspec/specs/completion_workitem-polling-execution/e2e/results/screenshots/**
 
 # Compose runtime data (do NOT commit DB data, storage, logs)
 infra/volumes/db/data/
