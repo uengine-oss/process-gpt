@@ -2,31 +2,29 @@
 # Process-GPT - Shared E2E orchestration entrypoint
 # ---------------------------------------------------------------------
 # Run from the repository root:
-#   docker compose -f docker-compose.e2e.yml up -d --build
-#   docker compose -f docker-compose.e2e.yml down -v        # full reset
+#   docker compose -f docker-compose.e2e.yml up -d
+#   docker compose -f docker-compose.e2e.yml down -v       # full reset
 #
 # Compose auto-loads the repo-root `.env` for ${VAR} substitution.
 #
-# This file boots the real in-repository request path for OpenSpec E2E
-# suites. The completion_agent-memory-chat suite exercises:
-#   browser -> gateway(nginx) -> completion -> { mem0/pgvector(db), mock-llm }
-#   browser -> kong -> { auth(GoTrue), rest(PostgREST) } -> db
+# Hybrid Runtime Rule:
+#   - This file boots ONLY stable infrastructure dependencies.
+#   - Repository-owned application services (completion, frontend) run
+#     directly from the working tree via the source-run helper scripts
+#     under openspec/specs/<spec-name>/e2e/scripts/.
+#   - The nginx `gateway` container is a thin reverse proxy that routes
+#     browser traffic to the host source-run frontend/backend via
+#     host.docker.internal.
 #
 # Only nondeterministic EXTERNAL boundaries are stubbed:
-#   - mock-llm            : OpenAI-compatible LLM + embedding stub
-#   - mock-external-agent : external A2A agent card stub
-# Every in-repository service (completion, gateway, frontend, Supabase,
-# database) runs for real.
-#
-# Suite-specific files live under:
-#   openspec/specs/completion_agent-memory-chat/e2e/{docker,scripts,seed_files}
+#   - mock-llm : OpenAI-compatible embedding stub (/v1/embeddings).
 # =====================================================================
 
 name: process-gpt-e2e
 
 services:
   # ------------------------------------------------------------------
-  # Supabase - Postgres database (pgvector for mem0 agent memory)
+  # Supabase Postgres + pgvector (mem0/vecs documents)
   # ------------------------------------------------------------------
   db:
     image: supabase/postgres:15.8.1.060
@@ -53,6 +51,8 @@ services:
       timeout: 5s
       retries: 40
       start_period: 60s
+    ports:
+      - "54322:5432"
     volumes:
       - ./infra/volumes/db/realtime.sql:/docker-entrypoint-initdb.d/migrations/99-realtime.sql:ro
       - ./infra/volumes/db/webhooks.sql:/docker-entrypoint-initdb.d/init-scripts/98-webhooks.sql:ro
@@ -65,7 +65,7 @@ services:
       - e2e-db-data:/var/lib/postgresql/data
 
   # ------------------------------------------------------------------
-  # Supabase - Kong API gateway (browser reaches auth/rest through this)
+  # Supabase Kong API gateway (browser reaches auth/rest through this)
   # ------------------------------------------------------------------
   kong:
     image: kong:2.8.1
@@ -84,16 +84,12 @@ services:
       KONG_NGINX_PROXY_PROXY_BUFFERS: 64 160k
       SUPABASE_ANON_KEY: ${ANON_KEY}
       SUPABASE_SERVICE_KEY: ${SERVICE_ROLE_KEY}
-      KONG_TRUSTED_IPS: 0.0.0.0/0,::/0
-      KONG_REAL_IP_FROM: 0.0.0.0/0,::/0
-      KONG_REAL_IP_HEADER: X-Forwarded-For
-      KONG_REAL_IP_RECURSIVE: "on"
     volumes:
       - ./infra/volumes/api/kong.yml:/home/kong/temp.yml:ro
     entrypoint: bash -c 'eval "echo \"$$(cat ~/temp.yml)\"" > ~/kong.yml && /docker-entrypoint.sh kong docker-start'
 
   # ------------------------------------------------------------------
-  # Supabase - GoTrue (browser login / auth)
+  # Supabase GoTrue (browser login / auth)
   # ------------------------------------------------------------------
   auth:
     image: supabase/gotrue:v2.177.0
@@ -123,12 +119,9 @@ services:
       GOTRUE_JWT_SECRET: ${JWT_SECRET}
       GOTRUE_EXTERNAL_EMAIL_ENABLED: "true"
       GOTRUE_MAILER_AUTOCONFIRM: "true"
-      GOTRUE_SMTP_MAX_FREQUENCY: 1s
-      GOTRUE_EXTERNAL_PHONE_ENABLED: "false"
-      GOTRUE_SMS_AUTOCONFIRM: "true"
 
   # ------------------------------------------------------------------
-  # Supabase - PostgREST (frontend reads users/profile through this)
+  # Supabase PostgREST
   # ------------------------------------------------------------------
   rest:
     image: postgrest/postgrest:v12.2.12
@@ -142,19 +135,17 @@ services:
       PGRST_DB_ANON_ROLE: anon
       PGRST_JWT_SECRET: ${JWT_SECRET}
       PGRST_DB_USE_LEGACY_GUCS: "false"
-      PGRST_APP_SETTINGS_JWT_SECRET: ${JWT_SECRET}
-      PGRST_APP_SETTINGS_JWT_EXP: ${JWT_EXPIRY}
     command: "postgrest"
 
   # ------------------------------------------------------------------
-  # Deterministic stubs (the only stubbed external boundaries)
+  # mock-llm: deterministic embedding stub (only external boundary)
   # ------------------------------------------------------------------
   mock-llm:
     image: python:3.12-slim
     container_name: process-gpt-e2e-mock-llm
     working_dir: /app
     volumes:
-      - ./openspec/specs/completion_agent-memory-chat/e2e/scripts:/app:ro
+      - ./openspec/e2e/scripts:/app:ro
     command: ["python", "-u", "mock_llm.py"]
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/health', timeout=3).read()"]
@@ -165,86 +156,26 @@ services:
     ports:
       - "8899:8080"
 
-  mock-external-agent:
-    image: python:3.12-slim
-    container_name: process-gpt-e2e-mock-external-agent
-    working_dir: /app
-    volumes:
-      - ./openspec/specs/completion_agent-memory-chat/e2e/scripts:/app:ro
-    command: ["python", "-u", "mock_external_agent.py"]
-    healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8090/health', timeout=3).read()"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
-      start_period: 5s
-
   # ------------------------------------------------------------------
-  # completion - owning backend (built from current repository source)
-  # ------------------------------------------------------------------
-  completion:
-    build:
-      context: ./services/completion
-    image: process-gpt-e2e-completion:local
-    container_name: process-gpt-e2e-completion
-    depends_on:
-      db:
-        condition: service_healthy
-      mock-llm:
-        condition: service_started
-    environment:
-      ENV: production
-      LLM_MODEL: gpt-4o
-      OPENAI_MODEL: gpt-4o
-      LLM_EMBEDDING_MODEL: text-embedding-3-small
-      LLM_PROXY_URL: http://mock-llm:8080/v1
-      LLM_PROXY_API_KEY: e2e-mock-key
-      OPENAI_API_KEY: e2e-mock-key
-      OPENAI_BASE_URL: http://mock-llm:8080/v1
-      SUPABASE_URL: http://kong:8000
-      SUPABASE_KEY: ${SERVICE_ROLE_KEY}
-      SUPABASE_JWT_SECRET: ${JWT_SECRET}
-      DB_NAME: postgres
-      DB_USER: supabase_admin
-      DB_PASSWORD: ${POSTGRES_PASSWORD}
-      DB_HOST: db
-      DB_PORT: 5432
-    healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/multi-agent/health-check', timeout=3).read()"]
-      interval: 10s
-      timeout: 5s
-      retries: 30
-      start_period: 40s
-    ports:
-      - "8000:8000"
-
-  # ------------------------------------------------------------------
-  # frontend - Vue SPA (prebuilt image)
-  # ------------------------------------------------------------------
-  frontend:
-    image: ghcr.io/uengine-oss/process-gpt:e343845
-    container_name: process-gpt-e2e-frontend
-    environment:
-      VITE_SUPABASE_URL: ${API_EXTERNAL_URL}
-      VITE_SUPABASE_KEY: ${ANON_KEY}
-      VITE_GS_MODE: "false"
-
-  # ------------------------------------------------------------------
-  # gateway - nginx reverse proxy (single browser entry point :8088)
+  # gateway: thin nginx reverse proxy that fronts source-run apps
   # ------------------------------------------------------------------
   gateway:
     image: nginx:1.27-alpine
     container_name: process-gpt-e2e-gateway
-    depends_on:
-      - frontend
-      - completion
     ports:
       - "8088:8088"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     volumes:
-      - ./openspec/specs/completion_agent-memory-chat/e2e/docker/nginx.e2e.conf:/etc/nginx/nginx.conf:ro
+      - ./openspec/specs/completion_process-definition-search/e2e/docker/nginx.e2e.conf:/etc/nginx/nginx.conf:ro
+      # Serve the source-mapped Vite dist bundle directly. The Vite preview
+      # server lacks SPA history fallback, so nginx + try_files is the
+      # smallest infrastructure addition that lets Playwright reach
+      # /auth/login and any other SPA route.
+      - ./services/frontend/dist:/frontend-dist:ro
 
   # ------------------------------------------------------------------
-  # db-seed - one-shot login user / agent profile seeding
+  # db-seed: one-shot seeding for users + vecs.documents
   # ------------------------------------------------------------------
   db-seed:
     image: postgres:16-alpine
@@ -257,51 +188,14 @@ services:
     environment:
       PGPASSWORD: ${POSTGRES_PASSWORD}
     volumes:
-      - ./openspec/specs/completion_agent-memory-chat/e2e/seed_files/e2e_seed.sql:/seed/e2e_seed.sql:ro
-    command: >
-      psql -h db -p 5432 -U supabase_admin -d postgres
-      -v ON_ERROR_STOP=1 -f /seed/e2e_seed.sql
-    restart: "no"
-
-  # ------------------------------------------------------------------
-  # db-seed-process-search - one-shot process-definition search seeding
-  #   (completion_process-definition-search E2E suite)
-  # ------------------------------------------------------------------
-  db-seed-process-search:
-    image: postgres:16-alpine
-    container_name: process-gpt-e2e-db-seed-process-search
-    depends_on:
-      db:
-        condition: service_healthy
-    environment:
-      PGPASSWORD: ${POSTGRES_PASSWORD}
-    volumes:
       - ./openspec/specs/completion_process-definition-search/e2e/seed_files/e2e_seed.sql:/seed/e2e_seed.sql:ro
-    command: >
-      psql -h db -p 5432 -U supabase_admin -d postgres
-      -v ON_ERROR_STOP=1 -f /seed/e2e_seed.sql
-    restart: "no"
-
-  # ------------------------------------------------------------------
-  # db-seed-workitem-submission - one-shot process workitem seeding
-  #   (completion_process-workitem-submission E2E suite)
-  #   Seeds proc_def / proc_def_version / configuration / form_def /
-  #   bpm_proc_inst / todolist for the workitem create+submit suite.
-  # ------------------------------------------------------------------
-  db-seed-workitem-submission:
-    image: postgres:16-alpine
-    container_name: process-gpt-e2e-db-seed-workitem-submission
-    depends_on:
-      db:
-        condition: service_healthy
-    environment:
-      PGPASSWORD: ${POSTGRES_PASSWORD}
-    volumes:
-      - ./openspec/specs/completion_process-workitem-submission/e2e/seed_files/e2e_seed.sql:/seed/e2e_seed.sql:ro
-    command: >
-      psql -h db -p 5432 -U supabase_admin -d postgres
-      -v ON_ERROR_STOP=1 -f /seed/e2e_seed.sql
-    restart: "no"
+    entrypoint:
+      - sh
+      - -c
+      - |
+        until pg_isready -h db -U postgres >/dev/null 2>&1; do sleep 2; done
+        psql "postgres://postgres:$$PGPASSWORD@db:5432/postgres" -v ON_ERROR_STOP=1 -f /seed/e2e_seed.sql
+        echo "[db-seed] done"
 
 volumes:
   e2e-db-data:

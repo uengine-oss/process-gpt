@@ -1,8 +1,8 @@
-"""프로세스 정의 검색 사용자 매뉴얼 DOCX 생성 스크립트.
+"""프로세스 정의 검색 사용자 매뉴얼 생성 스크립트.
 
-스타일 기준: .claude/skills/docx-user-manual/STYLE_REFERENCE.py
-근거 자료: openspec/specs/completion_process-definition-search/ 의 spec.md, e2e 시나리오,
-실행 요약, 스크린샷. 매뉴얼 본문은 최초 사용자를 위한 제품 안내 문서로 작성한다.
+OpenSpec ``completion_process-definition-search`` 사양과 E2E 산출물을 근거로
+최종 사용자가 읽을 수 있는 DOCX 매뉴얼을 생성합니다. 시각 스타일은
+``.claude/skills/docx-user-manual/STYLE_REFERENCE.py`` 를 기준으로 합니다.
 """
 
 from __future__ import annotations
@@ -18,15 +18,14 @@ from docx.oxml.ns import qn
 from docx.shared import Cm, Inches, Pt, RGBColor
 
 
-SCRIPT_DIR = Path(__file__).resolve().parent
-SPEC_DIR = SCRIPT_DIR.parent
+SPEC_DIR = Path(__file__).resolve().parent.parent
+OUTPUT_PATH = SPEC_DIR / "docs" / "completion_process-definition-search-user-manual.docx"
 SCREENSHOT_DIR = SPEC_DIR / "e2e" / "results" / "screenshots"
-OUTPUT_PATH = SCRIPT_DIR / "completion_process-definition-search-user-manual.docx"
 
 DOC_VERSION = "v1.0"
-DOC_DATE = date(2026, 5, 22)
-ORG_NAME = "Process GPT 서비스팀"
-SERVICE_NAME = "Process GPT"
+DOC_DATE = date(2026, 5, 28)
+ORG_NAME = "Process-GPT"
+SERVICE_NAME = "Process-GPT"
 DOC_TITLE = "프로세스 정의 검색 사용자 매뉴얼"
 FONT_NAME = "Malgun Gothic"
 PRIMARY_COLOR = "1F4E79"
@@ -38,9 +37,6 @@ SCREENSHOTS = {
     "initial": "process-gpt-completion_process-definition-search-01-search-initial.png",
     "input": "process-gpt-completion_process-definition-search-01-search-input.png",
     "result": "process-gpt-completion_process-definition-search-01-search-result.png",
-    "empty_input": "process-gpt-completion_process-definition-search-02-search-input.png",
-    "empty": "process-gpt-completion_process-definition-search-02-search-empty.png",
-    "tenant_result": "process-gpt-completion_process-definition-search-03-search-result.png",
 }
 
 
@@ -62,10 +58,10 @@ def set_run_font(run, size: int | None = None, bold: bool | None = None, color: 
         run.font.color.rgb = RGBColor.from_string(color)
 
 
-def set_cell_text(cell, text: str, bold: bool = False, align_left: bool = False) -> None:
+def set_cell_text(cell, text: str, bold: bool = False, align_center: bool = True) -> None:
     cell.text = ""
     paragraph = cell.paragraphs[0]
-    paragraph.alignment = WD_ALIGN_PARAGRAPH.LEFT if align_left else WD_ALIGN_PARAGRAPH.CENTER
+    paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER if align_center else WD_ALIGN_PARAGRAPH.LEFT
     cell.vertical_alignment = WD_ALIGN_VERTICAL.CENTER
     run = paragraph.add_run(text)
     set_run_font(run, size=9, bold=bold)
@@ -123,15 +119,7 @@ def add_heading(doc: Document, text: str, level: int = 1) -> None:
 def add_paragraph(doc: Document, text: str = "", bold: bool = False) -> None:
     paragraph = doc.add_paragraph()
     run = paragraph.add_run(text)
-    set_run_font(run, bold=bold if bold else None)
-
-
-def add_label(doc: Document, text: str) -> None:
-    """워크플로 안의 소제목 한 줄."""
-    paragraph = doc.add_paragraph()
-    paragraph.paragraph_format.space_before = Pt(6)
-    run = paragraph.add_run(text)
-    set_run_font(run, bold=True, color=PRIMARY_COLOR)
+    set_run_font(run, bold=bold)
 
 
 def add_bullets(doc: Document, items: list[str]) -> None:
@@ -142,7 +130,6 @@ def add_bullets(doc: Document, items: list[str]) -> None:
 
 
 def add_numbers(doc: Document, items: list[str]) -> None:
-    """매 호출마다 1번부터 시작하는 절차 목록을 직접 번호로 작성한다."""
     for idx, item in enumerate(items, start=1):
         paragraph = doc.add_paragraph()
         paragraph.paragraph_format.left_indent = Cm(0.75)
@@ -151,8 +138,7 @@ def add_numbers(doc: Document, items: list[str]) -> None:
         set_run_font(run)
 
 
-def add_table(doc: Document, headers: list[str], rows: list[list[str]],
-              widths: list[float] | None = None, body_align_left: bool = True) -> None:
+def add_table(doc: Document, headers: list[str], rows: list[list[str]], widths: list[float] | None = None) -> None:
     table = doc.add_table(rows=1, cols=len(headers))
     table.style = "Table Grid"
     table.alignment = WD_TABLE_ALIGNMENT.CENTER
@@ -163,7 +149,7 @@ def add_table(doc: Document, headers: list[str], rows: list[list[str]],
     for row in rows:
         cells = table.add_row().cells
         for idx, value in enumerate(row):
-            set_cell_text(cells[idx], value, align_left=body_align_left)
+            set_cell_text(cells[idx], value, align_center=False)
     if widths:
         for row in table.rows:
             for idx, width in enumerate(widths):
@@ -171,11 +157,11 @@ def add_table(doc: Document, headers: list[str], rows: list[list[str]],
     doc.add_paragraph()
 
 
-def add_image(doc: Document, key: str, caption: str) -> bool:
+def add_image(doc: Document, key: str, caption: str) -> None:
     path = SCREENSHOT_DIR / SCREENSHOTS[key]
     if not path.exists():
         add_paragraph(doc, f"[화면 예시 누락] {path.name}")
-        return False
+        return
     paragraph = doc.add_paragraph()
     paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
     run = paragraph.add_run()
@@ -184,7 +170,6 @@ def add_image(doc: Document, key: str, caption: str) -> bool:
     caption_paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
     caption_run = caption_paragraph.add_run(caption)
     set_run_font(caption_run, size=9, color=CAPTION_COLOR)
-    return True
 
 
 def add_cover(doc: Document) -> None:
@@ -206,31 +191,12 @@ def add_cover(doc: Document) -> None:
             ["문서 버전", DOC_VERSION],
             ["작성일", DOC_DATE.isoformat()],
             ["작성자/조직", ORG_NAME],
-            ["문서 구분", "사용자 참조 매뉴얼"],
-            ["대상 서비스", SERVICE_NAME],
+            ["문서 구분", "최종 사용자 매뉴얼"],
             ["대상 기능", "프로세스 정의 검색"],
         ],
         [4.0, 12.0],
-        body_align_left=False,
     )
     doc.add_page_break()
-
-
-def add_scenario(doc: Document, title: str, purpose: str, preconditions: list[str],
-                 steps: list[str], expected: list[str],
-                 images: list[tuple[str, str]] | None = None) -> None:
-    add_heading(doc, title, level=2)
-    add_label(doc, "이럴 때 사용합니다")
-    add_paragraph(doc, purpose)
-    add_label(doc, "사용 전 확인")
-    add_bullets(doc, preconditions)
-    add_label(doc, "따라 하기")
-    add_numbers(doc, steps)
-    add_label(doc, "화면에서 확인할 내용")
-    add_bullets(doc, expected)
-    if images:
-        for key, caption in images:
-            add_image(doc, key, caption)
 
 
 def configure_document(doc: Document) -> None:
@@ -256,14 +222,37 @@ def configure_document(doc: Document) -> None:
 
     footer = section.footer.paragraphs[0]
     footer.alignment = WD_ALIGN_PARAGRAPH.RIGHT
-    run = footer.add_run(f"{SERVICE_NAME} 프로세스 정의 검색 사용자 매뉴얼 | ")
+    run = footer.add_run(f"{DOC_TITLE} | ")
     set_run_font(run, size=9, color=CAPTION_COLOR)
     add_page_number(footer)
 
     doc.core_properties.title = DOC_TITLE
-    doc.core_properties.subject = f"{SERVICE_NAME} 프로세스 정의 검색"
+    doc.core_properties.subject = "프로세스 정의 검색"
     doc.core_properties.author = ORG_NAME
     enable_field_update_on_open(doc)
+
+
+def add_scenario(
+    doc: Document,
+    title: str,
+    purpose: str,
+    preconditions: list[str],
+    steps: list[str],
+    expected: list[str],
+    screenshot_key: str | None = None,
+    caption: str | None = None,
+) -> None:
+    add_heading(doc, title, level=2)
+    add_paragraph(doc, "이럴 때 사용합니다", bold=True)
+    add_paragraph(doc, purpose)
+    add_paragraph(doc, "사용 전 확인", bold=True)
+    add_bullets(doc, preconditions)
+    add_paragraph(doc, "따라 하기", bold=True)
+    add_numbers(doc, steps)
+    add_paragraph(doc, "화면에서 확인할 내용", bold=True)
+    add_bullets(doc, expected)
+    if screenshot_key and caption:
+        add_image(doc, screenshot_key, caption)
 
 
 def build_document() -> Document:
@@ -273,283 +262,237 @@ def build_document() -> Document:
 
     # 1. 문서 정보 및 변경 이력
     add_heading(doc, "1. 문서 정보 및 변경 이력")
-    add_paragraph(doc, "이 문서의 버전과 변경 내용을 정리한 표입니다. 매뉴얼이 갱신되면 아래 표에 이력이 추가됩니다.")
     add_table(
         doc,
         ["문서 버전", "변경일", "변경 내용", "작성자", "검토자"],
-        [[DOC_VERSION, DOC_DATE.isoformat(), "프로세스 정의 검색 매뉴얼 초안 작성", ORG_NAME, "서비스 담당자"]],
-        [2.4, 2.8, 8.0, 3.4, 3.4],
-        body_align_left=False,
+        [[DOC_VERSION, DOC_DATE.isoformat(), "초안 작성", ORG_NAME, "서비스 담당자"]],
+        [2.6, 3.0, 8.2, 3.0, 3.0],
     )
 
     # 2. 목차
     add_heading(doc, "2. 목차")
-    add_paragraph(doc, "아래 목차는 Word에서 문서를 열 때 필드를 업데이트하면 페이지 번호가 함께 표시됩니다.")
+    add_paragraph(doc, "아래 목차는 Word에서 문서를 열 때 필드를 업데이트하면 페이지 번호가 반영됩니다.")
     add_toc(doc.add_paragraph())
     doc.add_page_break()
 
     # 3. 개요
     add_heading(doc, "3. 개요")
-    add_paragraph(doc, "서비스 목적", bold=True)
     add_paragraph(
         doc,
-        "Process GPT는 회사의 업무 절차를 프로세스로 정의하고 실행·관리하는 협업 서비스입니다. "
-        "프로세스 정의 검색 기능은 화면 상단의 통합 검색창에 자연어로 입력한 내용과 의미가 비슷한 "
-        "프로세스 정의를 찾아 줍니다. 정확한 프로세스 이름을 모를 때도 \"휴가\", \"보고서 작성\"처럼 "
-        "찾고 싶은 업무를 평소 말로 입력해 시작하거나 참고할 프로세스를 빠르게 확인할 수 있습니다.",
+        "본 매뉴얼은 Process-GPT 화면 상단의 검색바에서 자연어로 프로세스 정의를 찾아보는 방법을 안내합니다.",
     )
-    add_paragraph(doc, "매뉴얼 목적", bold=True)
-    add_paragraph(
-        doc,
-        "이 매뉴얼은 처음 사용하는 사용자가 통합 검색창에 진입해 질의를 입력하고, 검색 결과를 "
-        "이해하고, 결과가 없을 때 대응하는 방법까지 순서대로 따라 할 수 있도록 안내합니다.",
-    )
-    add_paragraph(doc, "기능 범위", bold=True)
     add_bullets(
         doc,
         [
-            "상단 통합 검색창에 자연어 질의를 입력하고 검색을 실행합니다.",
-            "입력한 내용과 의미가 비슷한 프로세스 정의 후보를 목록으로 확인합니다.",
-            "검색 결과가 없을 때 표시되는 안내 화면을 확인합니다.",
-            "검색 결과가 현재 소속 회사의 프로세스 정의로만 한정되는 범위를 이해합니다.",
+            "서비스 목적: 사용자가 자연어 질의로 시작하거나 참고할 프로세스 정의를 의미 기반으로 빠르게 찾도록 돕습니다.",
+            "매뉴얼 목적: 화면 진입, 검색어 입력, 결과 확인, 결과가 없을 때의 대응까지 따라 하기 형식으로 안내합니다.",
+            "기능 범위: 헤더 검색바를 통한 유사 프로세스 정의 검색, 결과 패널 활용, 테넌트별 결과 분리 동작을 다룹니다.",
         ],
     )
 
     # 4. 대상 사용자
     add_heading(doc, "4. 대상 사용자")
-    add_paragraph(doc, "이 매뉴얼은 다음과 같은 사용자를 대상으로 합니다.")
     add_table(
         doc,
         ["사용자 역할", "주요 사용 목적", "권장 사용 범위"],
         [
-            ["일반 사용자", "시작할 업무에 맞는 프로세스 정의를 검색해 찾습니다.", "검색 입력과 결과 확인"],
-            ["프로세스 설계자", "비슷한 기존 프로세스 정의를 참고해 새 프로세스를 설계합니다.", "검색 입력과 결과 비교"],
-            ["검토자", "회사에 어떤 프로세스 정의가 있는지 검색으로 확인합니다.", "검색 결과 검토"],
+            ["일반 사용자", "자신이 시작하려는 업무에 적합한 기존 프로세스 정의를 찾습니다.", "헤더 검색바 자연어 검색"],
+            ["업무 담당자", "참고 가능한 유사 프로세스 정의를 빠르게 확인하고 활용합니다.", "검색 결과 항목 열람"],
+            ["검토자", "테넌트(소속 조직) 안에서만 결과가 표시되는지 확인합니다.", "검색 결과 확인"],
         ],
-        [3.4, 8.6, 4.0],
+        [3.5, 8.0, 5.0],
     )
 
     # 5. 사용 전 확인 사항
     add_heading(doc, "5. 사용 전 확인 사항")
-    add_paragraph(doc, "검색 기능을 사용하기 전에 아래 항목을 확인하세요.")
     add_table(
         doc,
-        ["확인 항목", "확인 내용"],
+        ["확인 항목", "내용"],
         [
-            ["계정", "Process GPT에 로그인할 수 있는 사용자 계정이 있어야 합니다."],
-            ["접속 주소", "소속 회사에 발급된 Process GPT 접속 주소(URL)로 접속합니다."],
-            ["브라우저", "Chrome 등 최신 웹 브라우저를 사용하는 것을 권장합니다."],
-            ["등록된 프로세스 정의",
-             "소속 회사에 프로세스 정의가 등록되어 있어야 검색 결과에 후보가 표시됩니다."],
-            ["검색어 준비", "찾고 싶은 업무를 \"휴가 신청\", \"출장 정산\"처럼 자연어 문장이나 단어로 준비합니다."],
+            ["계정", "본인 소속 조직(테넌트)으로 로그인할 수 있는 계정이 있습니다."],
+            ["접속 URL", "조직에서 안내받은 Process-GPT 접속 주소를 사용합니다."],
+            ["브라우저", "최신 버전의 Chrome 또는 Edge 사용을 권장합니다."],
+            ["검색어 준비", "찾고자 하는 업무를 떠올릴 수 있는 자연어 키워드(예: 휴가, 구매, 출장)를 준비합니다."],
+            ["프로세스 정의 등록", "소속 조직에 검색 대상 프로세스 정의가 한 건 이상 등록되어 있어야 합니다."],
         ],
-        [3.6, 12.4],
+        [4.0, 12.0],
     )
 
     # 6. 시작하기
     add_heading(doc, "6. 시작하기")
-    add_paragraph(doc, "처음 검색을 실행하기까지의 기본 흐름은 다음과 같습니다.")
+    add_paragraph(doc, "처음 사용하는 경우 다음 절차로 화면에 진입한 뒤 검색을 수행합니다.")
     add_numbers(
         doc,
         [
-            "웹 브라우저에서 소속 회사의 Process GPT 접속 주소로 이동합니다.",
-            "로그인 화면에서 본인 계정으로 로그인합니다.",
-            "로그인 후 표시되는 메인 화면(업무 목록 화면)으로 들어갑니다.",
-            "화면 오른쪽 위 헤더 영역에서 돋보기 아이콘이 있는 통합 검색창을 확인합니다.",
-            "검색창을 클릭하고 찾고 싶은 업무를 입력한 뒤 Enter 키를 눌러 검색합니다.",
+            "브라우저에서 조직에서 안내받은 Process-GPT 주소로 이동합니다.",
+            "로그인 화면에서 이메일과 비밀번호를 입력한 뒤 로그인 버튼을 누릅니다.",
+            "로그인이 완료되면 화면 상단의 헤더 영역에 검색바(돋보기 아이콘 옆 입력창)가 표시되는지 확인합니다.",
+            "검색바에 자연어 키워드를 입력하고 Enter 키를 눌러 결과 패널을 엽니다.",
         ],
     )
-    add_paragraph(
-        doc,
-        "검색은 별도의 메뉴 이동 없이 어느 화면에서나 상단 헤더의 통합 검색창으로 바로 실행할 수 있습니다.",
-    )
+    add_image(doc, "initial", "그림 1. 로그인 직후 헤더 검색바 초기 상태")
 
     # 7. 화면 구성
     add_heading(doc, "7. 화면 구성")
-    add_paragraph(doc, "로그인 후 처음 만나는 화면의 주요 영역은 다음과 같습니다.")
+    add_paragraph(doc, "프로세스 정의 검색과 관련된 주요 화면 영역은 다음과 같습니다.")
     add_table(
         doc,
-        ["화면 영역", "설명"],
+        ["영역", "위치", "역할"],
         [
-            ["상단 헤더 통합 검색창", "화면 오른쪽 위에 있는 돋보기 아이콘이 포함된 입력창입니다. 프로세스 정의 검색을 시작하는 곳입니다."],
-            ["검색 결과 패널", "검색창 아래에 열리는 영역으로, 검색 결과와 안내 메시지를 표시합니다."],
-            ["업무 목록 영역", "화면 가운데의 \"진행 중\", \"보류/반송\", \"완료됨\" 업무 카드 영역입니다."],
-            ["왼쪽 사이드바", "인스턴스, 에이전트 동료, 사람 동료, 대화목록 등을 보여 주는 영역입니다."],
-            ["알림 및 설정", "헤더 오른쪽 끝의 알림 아이콘과 설정 아이콘입니다."],
+            ["헤더 검색바", "화면 상단 가운데/우측 영역", "자연어 키워드를 입력해 검색을 시작합니다."],
+            ["돋보기 아이콘", "검색바 왼쪽", "검색 입력 영역임을 나타냅니다."],
+            ["검색 결과 패널", "검색바 아래로 펼쳐지는 영역", "검색어 입력 후 결과 카테고리와 항목을 표시합니다."],
+            ["유사한 프로세스 정의 카테고리", "검색 결과 패널 내", "입력한 키워드와 의미가 유사한 프로세스 정의 목록을 보여줍니다."],
+            ["결과 항목", "유사한 프로세스 정의 카테고리 내", "선택 가능한 링크 형태의 프로세스 정의 제목입니다."],
         ],
-        [4.2, 11.8],
+        [4.5, 5.5, 7.0],
     )
-    add_image(doc, "initial", "그림 1. 로그인 후 메인 화면 — 오른쪽 위 통합 검색창에서 검색을 시작합니다")
 
     # 8. 주요 사용 흐름
     add_heading(doc, "8. 주요 사용 흐름")
-    add_paragraph(
-        doc,
-        "대표적인 세 가지 사용 흐름을 순서대로 안내합니다. 각 흐름은 사용 상황, 사용 전 확인, "
-        "따라 하기, 화면에서 확인할 내용으로 구성됩니다.",
-    )
 
     add_scenario(
         doc,
-        "8.1 비슷한 업무를 자연어로 찾기",
-        "시작하거나 참고할 프로세스의 정확한 이름을 모를 때, 찾고 싶은 업무를 평소 말로 입력해 "
-        "의미가 비슷한 프로세스 정의 후보를 찾습니다.",
+        "8.1 헤더 검색바로 유사 프로세스 정의 찾기",
+        "시작하려는 업무가 떠오르지만 정확한 프로세스 정의 이름을 모를 때, 자연어 키워드만으로 유사 프로세스 정의 후보를 빠르게 확인할 수 있습니다.",
         [
-            "Process GPT에 로그인되어 있고 메인 화면이 표시된 상태입니다.",
-            "소속 회사에 프로세스 정의가 한 건 이상 등록되어 있습니다.",
+            "Process-GPT에 로그인되어 헤더 검색바가 보입니다.",
+            "소속 조직에 검색 대상이 될 만한 프로세스 정의가 등록되어 있습니다.",
+            "찾으려는 업무를 표현할 수 있는 자연어 키워드(예: 휴가)를 떠올린 상태입니다.",
         ],
         [
-            "상단 헤더의 통합 검색창을 클릭합니다.",
-            "찾고 싶은 업무를 자연어로 입력합니다. 예: 휴가",
+            "헤더 영역의 돋보기 아이콘 옆 검색바를 클릭합니다.",
+            "찾고자 하는 업무를 표현하는 자연어 키워드(예: 휴가)를 입력합니다.",
             "Enter 키를 눌러 검색을 실행합니다.",
-            "검색창 아래에 열리는 검색 결과 패널을 확인합니다.",
-            "\"유사한 프로세스 정의\" 항목에서 입력 내용과 비슷한 후보 목록을 확인합니다.",
+            "검색바 아래로 펼쳐지는 결과 패널에서 ‘유사한 프로세스 정의’ 카테고리가 나타날 때까지 잠시 기다립니다.",
+            "결과 항목 중 원하는 프로세스 정의 제목을 확인하고, 필요 시 항목을 클릭해 다음 작업으로 이동합니다.",
         ],
         [
-            "검색 결과 패널이 열리고 \"유사한 프로세스 정의\" 항목이 표시됩니다.",
-            "입력 내용과 의미가 비슷한 프로세스 정의가 후보로 나타나며, 후보는 최대 3건까지 표시됩니다.",
-            "각 후보에는 프로세스 정의 이름과 한 줄 설명이 함께 표시됩니다.",
-            "이름이 정확히 일치하는 프로세스가 있으면 \"프로세스 정의\" 항목에도 함께 표시됩니다.",
+            "검색 결과 패널이 펼쳐지고 ‘유사한 프로세스 정의’ 섹션 헤더가 보입니다.",
+            "섹션 안에 입력한 키워드와 의미가 유사한 프로세스 정의 제목(예: 휴가신청)이 표시됩니다.",
+            "결과 항목은 클릭 가능한 링크 형태로 렌더링됩니다.",
+            "최대 3건까지 유사 후보가 나타날 수 있습니다.",
         ],
-        [
-            ("input", "그림 2. 통합 검색창에 찾고 싶은 업무를 자연어로 입력합니다"),
-            ("result", "그림 3. 입력 내용과 비슷한 프로세스 정의 후보가 목록으로 표시됩니다"),
-        ],
+        "input",
+        "그림 2. 검색바에 자연어 키워드를 입력한 상태",
     )
+
+    add_image(doc, "result", "그림 3. ‘유사한 프로세스 정의’ 카테고리에 결과가 표시된 화면")
 
     add_scenario(
         doc,
-        "8.2 검색 결과가 없을 때 확인하기",
-        "검색어와 맞는 프로세스 정의가 없거나 검색 처리에 일시적인 문제가 있을 때, 화면이 어떻게 "
-        "안내되는지 확인합니다.",
+        "8.2 검색 결과가 없을 때 다시 시도하기",
+        "입력한 키워드와 의미적으로 유사한 프로세스 정의가 조직 내에 등록되어 있지 않을 때, 사용자가 빈 결과를 인지하고 키워드를 바꿔 다시 시도하는 흐름입니다.",
         [
-            "Process GPT에 로그인되어 있고 메인 화면이 표시된 상태입니다.",
+            "헤더 검색바에서 한 번 이상 검색을 시도했습니다.",
+            "현재 조직에 유사 후보로 보일 만한 프로세스 정의가 등록되지 않았을 수 있습니다.",
         ],
         [
-            "상단 헤더의 통합 검색창을 클릭합니다.",
-            "찾고 싶은 업무를 자연어로 입력합니다. 예: 보고서 작성",
-            "Enter 키를 눌러 검색을 실행합니다.",
-            "검색 결과 패널에 표시되는 안내 메시지를 확인합니다.",
+            "헤더 검색바를 다시 클릭합니다.",
+            "기존 키워드를 지우고 더 일반적인 자연어 표현(예: 휴가 → 연차, 휴가신청)으로 바꿔 입력합니다.",
+            "Enter 키를 눌러 다시 검색합니다.",
+            "‘유사한 프로세스 정의’ 카테고리에 결과가 표시되는지 확인합니다.",
+            "여전히 결과가 비어 있다면 ‘효과적인 질문 작성 팁’ 섹션을 참고해 다른 표현으로 시도합니다.",
         ],
         [
-            "결과가 없을 때는 오류 화면이나 깨진 화면 대신 \"검색 결과가 없습니다.\" 안내가 표시됩니다.",
-            "이 경우 \"유사한 프로세스 정의\" 항목은 표시되지 않습니다.",
-            "안내가 표시되어도 검색 작업은 그대로 이어 갈 수 있으며, 다른 검색어로 다시 시도할 수 있습니다.",
-        ],
-        [
-            ("empty_input", "그림 4. 다른 검색어를 입력하고 검색을 실행한 모습"),
-            ("empty", "그림 5. 검색 처리에 문제가 있어도 오류 없이 결과가 없다는 안내가 표시됩니다"),
+            "검색은 정상적으로 종료되며 오류 메시지 없이 빈 결과 상태가 표시됩니다.",
+            "‘유사한 프로세스 정의’ 카테고리에 항목이 없을 수 있으며, 이는 조직 내에 유사 후보가 없는 정상 상태입니다.",
+            "다른 키워드로 다시 검색하면 새로운 결과 목록이 표시될 수 있습니다.",
         ],
     )
 
     add_scenario(
         doc,
-        "8.3 현재 회사의 프로세스 정의만 확인하기",
-        "Process GPT는 여러 회사가 함께 사용하는 서비스입니다. 검색 결과가 본인이 소속된 회사의 "
-        "프로세스 정의로만 한정되는지 확인합니다.",
+        "8.3 소속 조직 안에서만 결과가 표시되는지 확인하기",
+        "프로세스 정의 검색은 사용자가 접속한 조직(테넌트) 안에 등록된 프로세스 정의만 대상으로 합니다. 본 흐름은 다른 조직의 프로세스 정의가 결과에 섞여 나오지 않는지 사용자가 직접 확인하는 절차입니다.",
         [
-            "본인이 소속된 회사 계정으로 Process GPT에 로그인되어 있습니다.",
+            "본인 계정이 소속된 조직으로 로그인되어 있습니다.",
+            "다른 조직에만 존재한다고 알려진 키워드가 있다면 미리 확인합니다.",
         ],
         [
-            "상단 헤더의 통합 검색창을 클릭합니다.",
-            "찾고 싶은 업무를 자연어로 입력합니다. 예: 프로세스",
-            "Enter 키를 눌러 검색을 실행합니다.",
-            "검색 결과 패널의 \"유사한 프로세스 정의\" 목록을 확인합니다.",
+            "헤더 검색바에 본인 조직에서 사용할 법한 키워드(예: 휴가)를 입력하고 검색합니다.",
+            "‘유사한 프로세스 정의’ 카테고리에 본인 조직의 프로세스 정의 제목이 표시되는지 확인합니다.",
+            "다른 조직에만 존재하는 키워드(예: 회의실)를 입력해 다시 검색합니다.",
+            "본인 조직에 해당 프로세스 정의가 없다면 결과가 비어 있는지 확인합니다.",
         ],
         [
-            "검색 결과에는 현재 소속 회사에 등록된 프로세스 정의만 표시됩니다.",
-            "다른 회사에만 등록된 프로세스 정의는 검색 결과에 나타나지 않습니다.",
-            "회사별로 검색 범위가 분리되어 있으므로 다른 회사의 업무 정보가 섞여 보이지 않습니다.",
-        ],
-        [
-            ("tenant_result", "그림 6. 검색 결과에는 현재 소속 회사의 프로세스 정의만 표시됩니다"),
+            "검색 결과는 본인이 로그인한 조직(테넌트)의 프로세스 정의로 한정되어 표시됩니다.",
+            "다른 조직에서만 등록된 프로세스 정의 제목은 결과 목록에 나타나지 않습니다.",
+            "결과가 비어 있는 경우에도 오류 없이 정상 종료됩니다.",
         ],
     )
 
     # 9. 화면 항목 및 옵션 설명
     add_heading(doc, "9. 화면 항목 및 옵션 설명")
-    add_paragraph(doc, "검색에 사용하는 화면 항목과 입력 방법은 다음과 같습니다.")
     add_table(
         doc,
-        ["화면 항목", "사용 여부", "입력 형식 / 예시", "설명"],
+        ["화면 항목", "사용 여부", "형식/예시", "설명"],
         [
-            ["통합 검색창", "필수", "자연어 단어 또는 문장 / \"휴가\", \"출장 정산\"",
-             "찾고 싶은 업무를 입력하는 곳입니다. 정확한 이름이 아니어도 됩니다."],
-            ["검색 실행(Enter)", "필수", "키보드 Enter 키",
-             "검색창에 입력한 뒤 Enter 키를 눌러야 검색이 실행됩니다."],
-            ["\"유사한 프로세스 정의\" 항목", "자동 표시", "최대 3건",
-             "입력 내용과 의미가 비슷한 프로세스 정의 후보를 보여 줍니다."],
-            ["\"프로세스 정의\" 항목", "자동 표시", "이름 일치 결과",
-             "검색어와 이름이 일치하는 프로세스 정의가 있을 때 함께 표시됩니다."],
+            ["헤더 검색바 입력창", "필수", "자연어 텍스트 (예: 휴가, 구매요청, 출장)", "찾고자 하는 업무를 자연어 키워드로 입력합니다."],
+            ["Enter 키", "필수", "키보드 입력", "입력한 키워드로 검색을 실행합니다."],
+            ["검색 결과 패널", "자동 표시", "검색바 아래 영역", "검색 실행 후 결과 카테고리와 항목을 보여줍니다."],
+            ["유사한 프로세스 정의 카테고리", "자동 표시", "결과 패널 내 섹션", "의미가 유사한 프로세스 정의 후보를 묶어 보여줍니다."],
+            ["결과 항목 링크", "선택", "프로세스 정의 제목 텍스트", "클릭하면 해당 프로세스 정의를 활용하는 다음 단계로 이동합니다."],
         ],
-        [3.6, 2.4, 4.6, 5.4],
-    )
-    add_paragraph(
-        doc,
-        "검색창에 입력만 하고 Enter 키를 누르지 않으면 검색 결과 패널에 "
-        "\"검색하고자 하는 키워드 입력 후 엔터를 눌러주세요.\" 안내만 표시됩니다.",
+        [4.5, 2.5, 4.5, 5.5],
     )
 
     # 10. 결과 확인
     add_heading(doc, "10. 결과 확인")
-    add_paragraph(doc, "검색을 실행한 뒤 검색 결과 패널에서 다음 내용을 확인할 수 있습니다.")
+    add_paragraph(doc, "검색을 실행한 뒤 다음 항목을 확인합니다.")
     add_bullets(
         doc,
         [
-            "검색 결과 패널 위쪽에 \"검색 결과\" 제목이 표시됩니다.",
-            "\"유사한 프로세스 정의\" 항목에 입력 내용과 비슷한 후보가 최대 3건까지 나타납니다.",
-            "각 후보는 프로세스 정의 이름과 한 줄 설명으로 구성되어 내용을 빠르게 파악할 수 있습니다.",
-            "검색어와 이름이 일치하는 프로세스가 있으면 \"프로세스 정의\" 항목에 추가로 표시됩니다.",
-            "결과가 없을 때는 \"검색 결과가 없습니다.\" 안내가 표시됩니다.",
-            "검색 결과를 확인한 뒤 검색어를 바꿔 바로 다시 검색할 수 있습니다.",
+            "‘유사한 프로세스 정의’ 카테고리가 결과 패널에 표시되는지 확인합니다.",
+            "카테고리 안에 표시된 프로세스 정의 제목이 입력한 키워드와 의미적으로 가까운지 확인합니다.",
+            "최대 3건의 유사 후보가 나타날 수 있으며, 결과가 1~2건이거나 비어 있을 수도 있습니다.",
+            "원하는 항목을 클릭해 다음 작업으로 이어갈 수 있는지 확인합니다.",
+            "다른 키워드로 다시 검색해 결과 비교가 필요한 경우 검색바를 다시 사용합니다.",
         ],
     )
 
     # 11. 오류 및 예외 상황
     add_heading(doc, "11. 오류 및 예외 상황")
-    add_paragraph(doc, "검색 중 자주 만나는 상황과 대처 방법입니다.")
     add_table(
         doc,
-        ["상황", "원인", "해결 방법"],
+        ["증상", "예상 원인", "사용자 조치"],
         [
-            ["\"검색 결과가 없습니다.\"가 표시됨",
-             "검색어와 맞는 프로세스 정의가 없거나, 검색 처리에 일시적인 문제가 있는 경우입니다.",
-             "검색어를 더 일반적인 단어로 바꾸거나 다른 표현으로 다시 검색합니다."],
-            ["\"키워드 입력 후 엔터를 눌러주세요.\" 안내만 표시됨",
-             "검색어를 입력했지만 Enter 키를 누르지 않은 경우입니다.",
-             "검색창을 클릭해 입력한 뒤 Enter 키를 눌러 검색을 실행합니다."],
-            ["원하는 프로세스가 후보에 없음",
-             "후보는 의미가 비슷한 순서로 최대 3건까지만 표시됩니다.",
-             "업무를 더 구체적으로 표현해 다시 검색하거나 핵심 단어를 바꿔 봅니다."],
-            ["다른 회사의 프로세스가 보이지 않음",
-             "검색은 소속 회사의 프로세스 정의로만 한정되는 정상 동작입니다.",
-             "별도 조치가 필요하지 않습니다. 현재 회사의 프로세스만 검색됩니다."],
+            [
+                "검색바가 헤더에 보이지 않습니다.",
+                "로그인이 풀렸거나 화면 진입 권한이 없습니다.",
+                "로그아웃 후 다시 로그인하고, 계속 보이지 않으면 관리자에게 문의합니다.",
+            ],
+            [
+                "검색 결과 패널이 열리지 않거나 빈 상태로 유지됩니다.",
+                "조직에 유사한 프로세스 정의가 등록되어 있지 않거나, 입력한 키워드가 너무 구체적입니다.",
+                "키워드를 더 일반적인 표현으로 바꾸거나 동의어를 사용해 다시 검색합니다.",
+            ],
+            [
+                "‘유사한 프로세스 정의’ 카테고리가 비어 있습니다.",
+                "조직(테넌트) 안에 유사 후보가 없거나, 임시 검색 오류로 빈 결과가 반환됩니다.",
+                "잠시 후 다른 키워드로 다시 시도하고, 반복되면 관리자에게 문의합니다.",
+            ],
+            [
+                "다른 조직에서 본 적 있는 프로세스 정의가 결과에 보이지 않습니다.",
+                "검색 범위가 현재 로그인한 조직으로 한정되어 있습니다.",
+                "본인 조직 기준의 키워드로 다시 검색하거나, 필요한 경우 해당 조직 담당자에게 문의합니다.",
+            ],
         ],
-        [4.2, 6.0, 5.8],
+        [4.0, 5.5, 6.5],
     )
 
     # 12. 권한 및 역할별 기능 차이
     add_heading(doc, "12. 권한 및 역할별 기능 차이")
-    add_paragraph(
-        doc,
-        "프로세스 정의 검색은 로그인한 사용자가 사용하는 공통 기능입니다. 검색 범위는 사용자가 "
-        "소속된 회사의 프로세스 정의로 한정됩니다.",
-    )
     add_table(
         doc,
-        ["역할", "사용 가능 기능", "제한 사항"],
+        ["사용자 역할", "검색 사용", "결과 열람"],
         [
-            ["로그인 사용자", "통합 검색창에서 소속 회사의 프로세스 정의를 검색하고 결과를 확인합니다.",
-             "다른 회사의 프로세스 정의는 검색되지 않습니다."],
-            ["프로세스 설계자", "검색 결과를 참고해 새 프로세스 설계에 활용합니다.",
-             "프로세스 등록·편집 권한은 별도 권한 정책을 따릅니다."],
+            ["일반 사용자", "가능", "본인이 속한 조직의 프로세스 정의만 표시됩니다."],
+            ["업무 담당자", "가능", "본인이 속한 조직의 프로세스 정의만 표시됩니다."],
+            ["검토자", "가능", "본인이 속한 조직의 프로세스 정의만 표시됩니다."],
+            ["미로그인 사용자", "권한 필요", "헤더 검색바 사용을 위해 먼저 로그인해야 합니다."],
         ],
-        [3.4, 7.6, 5.0],
-    )
-    add_paragraph(
-        doc,
-        "프로세스 정의의 등록·편집 등 검색 외 기능의 권한은 회사의 권한 정책에 따라 다를 수 있으므로, "
-        "필요한 경우 서비스 관리자에게 문의하세요.",
+        [4.5, 3.0, 8.5],
     )
 
     # 13. FAQ
@@ -558,43 +501,42 @@ def build_document() -> Document:
         doc,
         ["질문", "답변"],
         [
-            ["프로세스 정의의 정확한 이름을 몰라도 검색할 수 있나요?",
-             "네. \"휴가\", \"출장 정산\"처럼 찾고 싶은 업무를 자연어로 입력하면 의미가 비슷한 프로세스 정의를 찾아 줍니다."],
-            ["검색 결과는 몇 건까지 표시되나요?",
-             "\"유사한 프로세스 정의\" 후보는 의미가 비슷한 순서로 최대 3건까지 표시됩니다."],
-            ["\"검색 결과가 없습니다.\"가 나오면 어떻게 하나요?",
-             "검색어를 더 일반적인 단어로 바꾸거나 다른 표현으로 다시 검색해 보세요."],
-            ["다른 회사의 프로세스도 검색되나요?",
-             "아니요. 검색 결과는 본인이 소속된 회사의 프로세스 정의로만 한정됩니다."],
-            ["검색이 실행되지 않아요.",
-             "검색어를 입력한 뒤 반드시 Enter 키를 눌러야 검색이 실행됩니다."],
+            [
+                "검색어를 다 입력했는데도 결과가 보이지 않습니다.",
+                "Enter 키를 눌렀는지 확인하고, 키워드를 더 짧고 일반적인 단어로 바꿔 다시 검색해 보세요.",
+            ],
+            [
+                "‘유사한 프로세스 정의’가 정확히 무엇을 보여주는 건가요?",
+                "입력한 자연어 키워드와 의미적으로 가까운 프로세스 정의 제목 후보를 최대 3건까지 보여줍니다.",
+            ],
+            [
+                "다른 회사/조직의 프로세스 정의도 함께 보고 싶습니다.",
+                "검색 결과는 현재 로그인한 조직 안의 프로세스 정의로만 한정됩니다. 다른 조직 정보를 보려면 해당 조직 담당자에게 문의하세요.",
+            ],
+            [
+                "결과가 1건뿐일 때는 어떻게 해야 하나요?",
+                "후보가 1건만 존재하거나 의미가 가까운 후보가 1건만 있는 정상 상태일 수 있습니다. 필요하면 키워드를 바꿔 다른 후보가 있는지 다시 검색해 보세요.",
+            ],
+            [
+                "결과가 전혀 없는데 오류 메시지도 보이지 않습니다.",
+                "조직에 유사 후보가 없는 정상 상태입니다. 다른 키워드로 다시 시도하거나 ‘효과적인 질문 작성 팁’을 참고하세요.",
+            ],
         ],
-        [6.0, 10.0],
+        [6.5, 11.0],
     )
 
     # 14. 효과적인 질문 작성 팁
     add_heading(doc, "14. 효과적인 질문 작성 팁")
-    add_paragraph(doc, "원하는 프로세스 정의를 더 잘 찾기 위한 검색어 작성 팁입니다.")
+    add_paragraph(doc, "검색 결과를 더 잘 받기 위해 다음 방법을 권장합니다.")
     add_bullets(
         doc,
         [
-            "업무의 핵심을 담은 단어를 사용합니다. 예: \"휴가\", \"구매 요청\", \"출장 경비\"",
-            "결과가 너무 많거나 모호하면 \"휴가 신청 승인\"처럼 단어를 더해 범위를 좁힙니다.",
-            "결과가 없으면 \"연차\"를 \"휴가\"로 바꾸듯 더 일반적인 표현으로 다시 검색합니다.",
-            "한 번에 한 가지 업무를 검색합니다. 여러 업무를 한 검색어에 섞지 않습니다.",
-            "후보의 한 줄 설명을 함께 읽어 의도한 프로세스가 맞는지 확인합니다.",
+            "업무명을 그대로 떠올려 짧은 자연어로 입력합니다. 예: 휴가, 구매, 출장, 회의실.",
+            "정확한 프로세스 정의 이름을 몰라도 됩니다. 비슷한 의미의 단어로 시도하세요. 예: 휴가 → 연차, 휴가신청.",
+            "결과가 없으면 더 일반적인 표현으로 바꿔 다시 시도합니다. 예: 출장신청서 → 출장.",
+            "결과가 너무 많거나 모호하면 두 단어를 함께 사용해 의미를 좁힙니다. 예: 휴가 신청.",
+            "검색은 본인 조직 범위에서만 동작하므로, 다른 조직에 있는 프로세스 정의는 결과에 표시되지 않습니다.",
         ],
-    )
-    add_paragraph(doc, "좋은 검색어와 다시 검색하는 예시는 다음과 같습니다.")
-    add_table(
-        doc,
-        ["상황", "처음 검색어", "다시 검색할 검색어"],
-        [
-            ["결과가 너무 광범위함", "프로세스", "휴가 신청 승인"],
-            ["결과가 없음", "연차원천징수", "휴가"],
-            ["업무를 두 가지 섞음", "휴가 그리고 출장 정산", "휴가 신청 (출장 정산은 따로 검색)"],
-        ],
-        [5.0, 5.0, 6.0],
     )
 
     return doc

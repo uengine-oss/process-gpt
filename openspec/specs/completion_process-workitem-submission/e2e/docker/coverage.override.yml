@@ -1,0 +1,28 @@
+# Coverage override for completion when running the
+# completion_process-workitem-submission E2E suite. Apply with:
+#   docker compose -f docker-compose.e2e.yml \
+#     -f openspec/specs/completion_process-workitem-submission/e2e/docker/coverage.override.yml \
+#     up -d --force-recreate --no-deps completion
+# Then run Playwright, signal USR2 to flush, combine, report.
+#
+# Notes:
+#   - completion Dockerfile WORKDIR is /usr/src/app — do not use cd /app
+#     (memory: completion-coverage-override-workdir).
+#   - The /coverage volume path is relative to the project directory
+#     (repo root), not this file's location (memory:
+#     compose-override-relative-paths).
+#   - uvicorn never exits, so --save-signal=USR2 is required to flush
+#     (memory: coverage-py-usr2-flush).
+services:
+  completion:
+    command:
+      - sh
+      - -c
+      - "pip install --quiet coverage && cd /usr/src/app && coverage erase && \
+         exec coverage run --parallel-mode --concurrency=thread \
+           --save-signal=USR2 --source=. \
+           -m uvicorn main:app --host 0.0.0.0 --port 8000"
+    volumes:
+      - ./openspec/specs/completion_process-workitem-submission/e2e/results/backend-coverage:/coverage
+    environment:
+      COVERAGE_FILE: /coverage/.coverage

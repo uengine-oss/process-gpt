@@ -1,0 +1,24 @@
+# Compose override that re-runs the completion service under coverage.py
+# for the completion_mcp-server-config suite. Apply alongside the root
+# compose file:
+#   docker compose -f docker-compose.e2e.yml \
+#       -f openspec/specs/completion_mcp-server-config/e2e/docker/coverage.override.yml \
+#       up -d --build completion gateway
+# Then re-run Playwright, signal the uvicorn process with USR2 to flush
+# coverage, and finally combine + report inside the container.
+services:
+  completion:
+    command:
+      - sh
+      - -c
+      - "pip install --quiet coverage && cd /usr/src/app && coverage erase && \
+         exec coverage run --parallel-mode --concurrency=thread \
+           --save-signal=USR2 \
+           --source=mcp_config_api,main \
+           -m uvicorn main:app --host 0.0.0.0 --port 8000"
+    volumes:
+      # Path is resolved relative to the project directory (the dir where
+      # `docker compose -f ...` is invoked, normally the repo root).
+      - ./openspec/specs/completion_mcp-server-config/e2e/results/backend-coverage:/coverage
+    environment:
+      COVERAGE_FILE: /coverage/.coverage

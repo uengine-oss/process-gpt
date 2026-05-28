@@ -21,6 +21,9 @@ context: |
   E2E 시나리오 문서, seed/stub, Playwright 테스트 스크립트, 실행 결과, 스크린샷은 기본적으로 openspec/specs/<spec-name>/e2e/ 아래에 둔다.
   DOCX 사용자 매뉴얼 생성 스크립트와 실제 .docx 산출물은 기본적으로 openspec/specs/<spec-name>/docs/ 아래에 둔다.
   루트 docker-compose.e2e.yml처럼 여러 suite가 공유하는 실행 환경 파일은 루트에 둘 수 있지만, suite별 산출물과 테스트 스크립트는 spec 폴더 내부 경로를 우선한다.
+  E2E 실행 환경에서 Docker는 데이터베이스, 그래프 저장소, 캐시, 큐, 오브젝트 스토리지, 외부 서비스 mock처럼 내부 코드가 자주 바뀌지 않는 인프라 의존성에 우선 사용한다.
+  저장소가 소유한 백엔드, API gateway, reverse proxy, worker, BFF, 프론트엔드 서비스는 특별한 예외가 없는 한 Docker 이미지로 새로 만들지 않고 실제 작업 트리의 소스코드를 로컬 명령으로 실행한다.
+  따라서 E2E 검증 계획은 "Dockerized infrastructure + source-run application services" 구조를 기본 전제로 삼고, 앱 서비스의 실행 명령과 포트, 환경 변수, 인프라 연결 정보를 suite별 e2e 산출물에 기록한다.
   main spec은 백엔드 서비스, 공개 API, 저장소, 스트리밍, 인증, 작업 실행, 데이터 처리 등 실제 제품 기능 계약과 연결되어야 한다.
   frontend, ui, react, page, component 같은 구현 레이어 이름은 main spec의 서비스 접두어 또는 도메인 구분자로 사용하지 않는다.
   프론트엔드 코드는 스펙의 서비스 접두어 또는 도메인 구분자가 아니라 사용자 조작과 화면 검증을 위한 evidence로 사용한다.

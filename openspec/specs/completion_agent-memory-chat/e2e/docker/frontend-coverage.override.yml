@@ -1,0 +1,46 @@
+# Compose override that rebuilds the Vue SPA frontend from local repository
+# source so that Vite-generated sourcemaps (build.sourcemap: true in
+# services/frontend/vite.config.ts) are served next to the bundle assets.
+# Monocart can then resolve V8 coverage back to original .vue/.ts/.js files
+# under services/frontend/src/* instead of the minified bundle paths.
+#
+# Apply alongside the root compose file:
+#   docker compose \
+#     -f docker-compose.e2e.yml \
+#     -f openspec/specs/completion_agent-memory-chat/e2e/docker/frontend-coverage.override.yml \
+#     up -d --build frontend gateway
+#
+# Notes
+# - The source build's final stage uses sanghoon01/spa-http-server:v1 which
+#   listens on port 8080 (see services/frontend/run.sh). The gateway nginx
+#   config (nginx.e2e.conf) is updated to target frontend:8080 accordingly.
+# - The canonical `services/frontend/Dockerfile` runs `npm run build` which is
+#   `vue-tsc --noEmit && vite build`. Running this inside Docker on a memory-
+#   constrained host (Docker Desktop WSL2 VM) repeatedly OOM-killed the
+#   docker daemon during CSS handling, dropping the buildkit RPC with EOF
+#   even after disabling minification and skipping vue-tsc. The fix is to
+#   produce `services/frontend/dist` on the host (where the V8 heap can be
+#   raised to 8 GiB) and use a thin `services/frontend/Dockerfile.coverage-
+#   prebuilt` whose only job is to COPY the dist into the SPA http-server
+#   image. The host build command is:
+#       cd services/frontend && \
+#         NODE_OPTIONS=--max-old-space-size=8192 \
+#         npx vite build --minify=false
+#   `build.sourcemap: true` from vite.config.ts emits .js.map files next to
+#   each .js bundle so Monocart can resolve V8 coverage back to original
+#   .vue / .ts / .js files under services/frontend/src/*.
+# - Compose v2 resolves additional-file relative paths against the project
+#   directory (the location of the first -f file = repository root), which is
+#   why the build context is written as `./services/frontend` and not relative
+#   to this override file.
+services:
+  frontend:
+    image: process-gpt-e2e-frontend:local
+    build:
+      context: ./services/frontend
+      dockerfile: Dockerfile.coverage-prebuilt
+    container_name: process-gpt-e2e-frontend
+    environment:
+      VITE_SUPABASE_URL: ${API_EXTERNAL_URL}
+      VITE_SUPABASE_KEY: ${ANON_KEY}
+      VITE_GS_MODE: "false"

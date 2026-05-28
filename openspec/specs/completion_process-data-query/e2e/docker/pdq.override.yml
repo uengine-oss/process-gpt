@@ -1,0 +1,13 @@
+# Lightweight (no-coverage) override for completion_process-data-query.
+# Reroutes the completion service to mock-llm-pdq so the canned
+# ```html``` / ```sql``` responses reach the /process-data-query and
+# /process-var-sql chains. Use this when you want to run the suite
+# without coverage instrumentation:
+#   docker compose -f docker-compose.e2e.yml \
+#       -f openspec/specs/completion_process-data-query/e2e/docker/pdq.override.yml \
+#       up -d --force-recreate --no-deps completion
+services:
+  completion:
+    environment:
+      LLM_PROXY_URL: http://mock-llm-pdq:8080/v1
+      OPENAI_BASE_URL: http://mock-llm-pdq:8080/v1

@@ -2,16 +2,15 @@
 
 ## 범위
 - 스위트 슬러그: `completion_agent-memory-chat`
-- 원본 명세 ID: `completion_agent-memory-chat` <!-- `<microservice>_<domain>-<feature>` 형식이므로 스위트 슬러그와 동일하게 유지합니다. -->
+- 원본 명세 ID: `completion_agent-memory-chat`
 - 원본 명세:
   - `openspec/specs/completion_agent-memory-chat/spec.md`
 - 백엔드/제품 계약:
-  - 소유 백엔드 서비스: `services/completion` (FastAPI, 포트 8000)
-  - 사용자 대면 API: `POST /multi-agent/chat` — 학습 모드(`options.is_learning_mode:true`)와 질의 모드(`options.is_learning_mode:false`)
-  - 비 UI 프로토콜 API: `GET /multi-agent/health-check`, `GET /multi-agent/fetch-data`
-  - 메모리 저장소: Supabase Postgres + pgvector(mem0 `memories` 컬렉션)
-  - 브라우저 진입 경로: 브라우저 → nginx 게이트웨이(`:8088`) → completion 서비스 / Supabase(Kong → auth·rest)
-  - 프론트엔드 화면: Vue SPA 라우트 `/agent-chat/:id`의 `학습` 탭(`AgentChatLearning.vue`)과 `질문` 탭(`AgentChatQuestion.vue`)
+  - `services/completion` FastAPI 라우터: `POST /multi-agent/chat`, `GET /multi-agent/health-check`, `GET /multi-agent/fetch-data`
+  - 메모리 저장소: Postgres + pgvector (`vecs.memories`)
+  - 인증/세션: Supabase GoTrue 로그인, `users`/`tenants` 행 기반
+  - LLM 외부 경계: OpenAI 호환 프록시 (E2E에서는 `mock-llm` 으로 결정성 확보)
+  - 외부 에이전트 디스크립터 boundary: `mock-external-agent` `/.well-known/agent.json`
 - E2E 루트: `openspec/specs/completion_agent-memory-chat/e2e/`
 - Playwright 명세: `openspec/specs/completion_agent-memory-chat/e2e/tests/completion_agent-memory-chat.spec.mjs`
 - 결과 디렉터리: `openspec/specs/completion_agent-memory-chat/e2e/results/`
@@ -19,35 +18,61 @@
 ## 시나리오 목록
 | ID | 시나리오 문서 | Playwright 테스트 제목 | 주요 동작 |
 | --- | --- | --- | --- |
-| 01 | `01-learning-mode-store.md` | `학습 모드로 정보를 저장하면 학습 완료 안내가 표시된다` | 학습 탭에서 정보를 입력·전송하고 학습 완료 답변을 확인 |
-| 02 | `02-learning-mode-duplicate.md` | `이미 학습한 내용과 유사하면 중복으로 저장하지 않는다` | 같은 정보를 다시 학습 모드로 보내 중복 미저장 안내를 확인 |
-| 03 | `03-query-mode-answer.md` | `질의 모드에서 저장된 메모리를 활용한 답변을 받는다` | 질문 탭에서 질문을 보내 메모리 검색 기반 답변을 확인 |
-| 04 | `04-service-protocol-check.md` | `상태 점검·원격 에이전트 조회·필수값 누락 응답을 확인한다` | 비 UI 프로토콜 응답(상태 점검, 원격 디스크립터, `agent_id` 누락 오류)을 확인 |
+| 01 | `01-learning-mode-store.md` | `학습 모드에서 정보를 입력하면 메모리에 저장된다` | UI: agent-chat → learning 탭 → 메시지 입력 → 저장 응답 확인 |
+| 02 | `02-learning-duplicate-skip.md` | `유사한 학습 정보를 다시 입력하면 중복으로 인식되어 저장되지 않는다` | UI: learning 탭에서 동일 주제 재입력 → 중복 응답 확인 |
+| 03 | `03-query-mode-answer.md` | `질의 모드에서 학습한 정보를 검색해 답변을 받는다` | UI: question 탭 → 질문 → 검색 결과 + HTML 답변 |
+| 04 | `04-agent-id-missing.md` | `agent_id 누락 요청에 400 오류를 반환한다` | 보조 프로토콜: Playwright `request` 로 검증 |
+| 05 | `05-health-check.md` | `GET /multi-agent/health-check 가 healthy 상태를 반환한다` | 보조 프로토콜: 헬스체크 |
+| 06 | `06-fetch-data.md` | `GET /multi-agent/fetch-data 가 외부 에이전트 디스크립터를 반환한다` | 보조 프로토콜: 외부 디스크립터 프록시 |
+
+> 시나리오 04/05/06 은 UI 표면이 없는 백엔드 프로토콜 계약(보조 프로토콜 검증)으로, 스크린샷 매뉴얼 증거가 요구되지 않습니다. 사용자-facing 시나리오는 01/02/03 입니다.
 
 ## 요구사항 커버리지
 | 명세 | 요구사항 | 필수 수준 | 커버 시나리오 | 비고 |
 | --- | --- | --- | --- | --- |
-| `completion_agent-memory-chat` | 학습 모드 메모리 저장 | SHALL | 01, 02 | 저장 성공과 중복 미저장 분기 |
-| `completion_agent-memory-chat` | 질의 모드 메모리 검색 답변 | SHALL | 03, 04 | UI 답변(03) + `agent_id` 누락 오류(04) |
-| `completion_agent-memory-chat` | 에이전트 서비스 상태 점검 | SHALL | 04 | 비 UI 프로토콜 점검 |
-| `completion_agent-memory-chat` | 원격 에이전트 디스크립터 조회 | SHALL | 04 | 비 UI 프로토콜 점검 |
+| `completion_agent-memory-chat` | 학습 모드 메모리 저장 | SHALL | 01, 02 | 저장 성공/중복 회피 모두 검증 |
+| `completion_agent-memory-chat` | 질의 모드 메모리 검색 답변 | SHALL | 03, 04 | UI 답변 + agent_id 누락 400 |
+| `completion_agent-memory-chat` | 에이전트 서비스 상태 점검 | SHALL | 05 | 보조 프로토콜 |
+| `completion_agent-memory-chat` | 원격 에이전트 디스크립터 조회 | SHALL | 06 | 보조 프로토콜 |
 
 ## 명세 시나리오 커버리지
 | 명세 | 요구사항 | 명세 시나리오 | 커버 시나리오 | 사용자 검증 표면 |
 | --- | --- | --- | --- | --- |
-| `completion_agent-memory-chat` | 학습 모드 메모리 저장 | 학습 정보 저장 성공 | 01 | UI 입력/전송 버튼/학습 완료 답변 화면 |
-| `completion_agent-memory-chat` | 학습 모드 메모리 저장 | 유사 정보 중복 저장 방지 | 02 | UI 입력/전송 버튼/중복 미저장 답변 화면 |
-| `completion_agent-memory-chat` | 질의 모드 메모리 검색 답변 | 메모리 기반 답변 성공 | 03 | UI 입력/전송 버튼/검색 기반 답변 화면 |
-| `completion_agent-memory-chat` | 질의 모드 메모리 검색 답변 | agent_id 누락 | 04 | 프로토콜 응답(비 UI): `400` 상태와 오류 메시지 |
-| `completion_agent-memory-chat` | 에이전트 서비스 상태 점검 | 상태 점검 응답 | 04 | 프로토콜 응답(비 UI): `{status:"healthy"}` |
-| `completion_agent-memory-chat` | 원격 에이전트 디스크립터 조회 | 원격 에이전트 정보 조회 | 04 | 프로토콜 응답(비 UI): `/.well-known/agent.json` 디스크립터 |
+| `completion_agent-memory-chat` | 학습 모드 메모리 저장 | 학습 정보 저장 성공 | 01 | learning 탭 입력 → 저장 응답 메시지 |
+| `completion_agent-memory-chat` | 학습 모드 메모리 저장 | 유사 정보 중복 저장 방지 | 02 | learning 탭 재입력 → 중복 응답 메시지 |
+| `completion_agent-memory-chat` | 질의 모드 메모리 검색 답변 | 메모리 기반 답변 성공 | 03 | question 탭 질문 → htmlContent + searchResults |
+| `completion_agent-memory-chat` | 질의 모드 메모리 검색 답변 | agent_id 누락 | 04 | 보조 프로토콜 검증 (UI 표면 없음) |
+| `completion_agent-memory-chat` | 에이전트 서비스 상태 점검 | 상태 점검 응답 | 05 | 보조 프로토콜 검증 (UI 표면 없음) |
+| `completion_agent-memory-chat` | 원격 에이전트 디스크립터 조회 | 원격 에이전트 정보 조회 | 06 | 보조 프로토콜 검증 (UI 표면 없음) |
+
+## 스펙 관련 코드 표면
+### 백엔드
+| 파일 | 함수/클래스/라우트 | 관련 요구사항 | 커버리지 기준 | 선정 근거 |
+| --- | --- | --- | --- | --- |
+| `services/completion/agent_chat.py` | `chat_message` (`POST /multi-agent/chat`) | 학습/질의 모드, agent_id 누락 | line/function >= 80% | 진입 라우트 및 검증 |
+| `services/completion/agent_chat.py` | `health_check` (`GET /multi-agent/health-check`) | 상태 점검 | function = 100% | 단일 진입 라우트 |
+| `services/completion/agent_chat.py` | `fetch_data` (`GET /multi-agent/fetch-data`) | 원격 디스크립터 조회 | function = 100% | 단일 진입 라우트 |
+| `services/completion/mem0_agent_client.py` | `process_mem0_message` | 학습/질의 모드 분기 | line >= 80% | 모드별 분기 핵심 |
+| `services/completion/mem0_agent_client.py` | `generate_learning_response` | 학습 저장/중복 응답 | line >= 70% | 학습 응답 생성 체인 |
+| `services/completion/mem0_agent_client.py` | `generate_response` | 질의 모드 답변 | line >= 70% | 질의 응답 생성 체인 |
+| `services/completion/mem0_agent_client.py` | `search_memories` | 학습/질의 모두 | function 호출 검증 | 메모리 검색 |
+| `services/completion/mem0_agent_client.py` | `store_in_memory` | 학습 저장 | function 호출 검증 | 메모리 적재 |
+| `services/completion/mem0_agent_client.py` | `_is_duplicate_memory` | 학습 중복 회피 | branch >= 80% | 임계값 분기 |
+
+### 프론트엔드
+| 파일 | 컴포넌트/함수/API 호출 | 관련 요구사항 | 커버리지 기준 | 선정 근거 |
+| --- | --- | --- | --- | --- |
+| `services/frontend/src/components/ai/AgentChatGenerator.js` | `generate`, `createModelJson` | 학습 및 질의 모드 응답 처리 | line >= 60% | `/completion/multi-agent/chat` 직접 호출 클라이언트 |
+| `services/frontend/src/components/AgentChatLearning.vue` | `beforeSendMessage`, `afterGenerationFinished` | 학습 모드 UI | line >= 60% | learning 탭 입력/응답 |
+| `services/frontend/src/components/AgentChatQuestion.vue` | `beforeSendMessage`, `afterGenerationFinished` | 질의 모드 UI | line >= 60% | question 탭 입력/응답 |
+| `services/frontend/src/components/ui/Chat.vue` | `sendMessage`, `receiveMessage` | 채팅 입력/표시 공통 UI | line >= 30% | AgentChat* 가 공유하는 채팅 컴포넌트 |
+
+> 프론트엔드는 `services/frontend/Dockerfile.coverage-prebuilt` 와 호스트 사전 빌드(`npx vite build --minify=false`) 조합으로 Vite 소스맵을 포함한 정적 산출물을 서빙합니다. Monocart 가 V8 coverage 를 원본 `.vue/.ts/.js` 라인으로 매핑하여 line 평균 74.33% 의 source-mapped 커버리지를 1차 증거로 사용합니다.
 
 ## 미검증 및 보류 항목
 | 항목 | 사유 | 후속 조치 |
 | --- | --- | --- |
-| `agent_id` 누락 오류의 브라우저 재현 | 프론트엔드 학습/질문 탭은 항상 `agent_id`를 자동 포함하므로 사용자 조작으로 누락 상태를 만들 수 없음 | 시나리오 04에서 비 UI 프로토콜 점검으로 검증 |
-| 중복 저장 방지 판정의 정확성(유사 → 미저장) | completion 서비스 `_is_duplicate_memory`가 mem0 `memory.search`의 cosine **distance** 값을 **similarity**로 잘못 비교하여 유사도 판정이 반전됨(직접 점검으로 score≈1.0 확인). 신규 정보가 중복으로 오판되고 동일 정보가 미중복으로 오판됨 | 백엔드 결함으로 보고. 시나리오 02는 반복 학습 시 `response.type:"information"` 안내가 일관되게 반환되는지까지만 검증 |
-| `agent_id` 누락 응답의 상태 코드 | 명세는 `400`을 요구하지만 백엔드가 `HTTPException`을 광범위 `except`로 감싸 `500`으로 반환. 오류 메시지 `agent_id is required for Mem0 agent`는 일치 | 백엔드 결함으로 보고. 시나리오 04는 오류 상태(>=400)와 메시지 일치로 검증 |
+| `services/frontend/src/components/ui/Chat.vue` 미커버 분기 | 첨부/모바일/특수 메시지 처리 분기는 본 스펙 시나리오에서 미실행 (source-mapped line 38.07%) | 첨부/모바일 시나리오 추가 또는 임계값을 30% 로 명시 |
 
 ## 체크리스트
 - [x] 모든 Requirement가 하나 이상의 E2E 시나리오에 매핑되어 있습니다.
@@ -61,4 +86,6 @@
 - [x] E2E 시나리오, 테스트 스크립트, seed/stub, 실행 결과, 스크린샷은 `openspec/specs/completion_agent-memory-chat/e2e/` 아래에 응집되어 있습니다.
 - [x] 사용자-facing 시나리오는 직접 API 요청이 아니라 브라우저 UI 상호작용으로 검증합니다.
 - [x] 시나리오별 스크린샷 체크포인트가 매뉴얼에 재사용할 수 있는 UI 상태를 설명합니다.
+- [x] 스펙 관련 백엔드/프론트엔드 파일과 함수가 코드 표면 표에 기록되어 있습니다.
+- [x] 커버리지 기준이 전체 저장소가 아니라 스펙 관련 파일/함수 중심으로 정의되어 있습니다.
 - [x] 결과 경로가 `OUTPUT_CONTRACT.md`와 일치합니다.

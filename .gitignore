@@ -28,6 +28,9 @@ configmap.yaml
 .env.local
 .env.*.local
 
+# E2E runtime outputs and coverage artifacts
+openspec/specs/**/e2e/results/
+
 # Compose runtime data (do NOT commit DB data, storage, logs)
 infra/volumes/db/data/
 infra/volumes/storage/

@@ -1,0 +1,18 @@
+[run]
+branch = True
+source = fcm_service,database
+data_file = /coverage/.coverage
+parallel = True
+sigterm = True
+# `coverage run --save-signal=USR2` is preferred but we also keep sigterm True
+# so docker compose stop produces partial data.
+
+[report]
+show_missing = True
+skip_empty = True
+
+[html]
+directory = /coverage/html
+
+[xml]
+output = /coverage/coverage.xml

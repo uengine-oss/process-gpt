@@ -1,0 +1,52 @@
+# Build the FCM service with coverage.py instrumentation for E2E.
+#
+# Build context: ./services/completion/fcm_service
+# Usage: docker compose -f docker-compose.e2e.yml up -d --build fcm-service
+#
+# The container:
+#   - Installs coverage.py for the running interpreter.
+#   - Drops a firebase_patch.py (mounted at /mocks) that monkey-patches
+#     firebase_admin.messaging.send before importing the real main.py.
+#   - Runs `coverage run --parallel-mode --save-signal=USR2
+#       --source=fcm_service,database firebase_patch.py`
+#   - Captures FCM messages to /captures/fcm-messages.jsonl (mounted to
+#     the spec-local results/artifacts/fcm-captures folder).
+#   - On `docker compose stop` (SIGTERM), coverage.py with --save-signal
+#     flushes; we additionally provide a wrapper that calls
+#     `coverage combine` + `coverage xml` + `coverage html` when the
+#     process exits, via an entrypoint trap.
+
+FROM python:3.12.3-slim
+
+ENV TZ=Asia/Seoul \
+    PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends gcc g++ libffi-dev libssl-dev build-essential \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /usr/src/app
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt \
+    && pip install --no-cache-dir coverage==7.6.10
+
+COPY . .
+
+# Coverage data + reports land here (mounted to host).
+RUN mkdir -p /coverage /captures && chmod 777 /coverage /captures
+
+# Inline .coveragerc — scoped to fcm_service + database modules.
+# parallel = False so a single .coverage file is produced on SIGTERM.
+RUN printf '[run]\nbranch = True\nsource = fcm_service,database\ndata_file = /coverage/.coverage\nparallel = False\nsigterm = True\n\n[report]\nshow_missing = True\nskip_empty = True\n\n[html]\ndirectory = /coverage/html\n\n[xml]\noutput = /coverage/coverage.xml\n' > /usr/src/app/.coveragerc
+
+EXPOSE 8666
+
+# Entrypoint wrapper:
+# 1. Run app under coverage.py.
+# 2. On SIGTERM, coverage --save-signal flushes data, then combine + xml + html.
+ENV COVERAGE_FILE=/coverage/.coverage \
+    FCM_CAPTURE_PATH=/captures/fcm-messages.jsonl
+
+# scripts/firebase_patch.py is mounted at /mocks/firebase_patch.py by compose.
+CMD ["bash", "-lc", "trap 'echo flushing coverage...; kill -TERM $PID 2>/dev/null; wait $PID 2>/dev/null; coverage xml -o /coverage/coverage.xml || true; coverage html -d /coverage/html || true; exit 0' SIGTERM SIGINT; coverage run --rcfile=/usr/src/app/.coveragerc /mocks/firebase_patch.py & PID=$!; wait $PID"]

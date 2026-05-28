@@ -1,0 +1,38 @@
+# Build the completion polling service with coverage.py instrumentation,
+# scoped to file_cleanup_service.py for the PIFC E2E suite.
+#
+# Build context: ./services/completion/polling_service
+# Mocks/entrypoint mounted at /mocks (see compose).
+#
+# The container:
+#   - Installs coverage.py.
+#   - Runs `coverage run --source=file_cleanup_service /mocks/polling_entrypoint.py`
+#   - On SIGTERM, traps and runs `coverage xml` + `coverage html` so the
+#     spec-local results/backend-coverage folder has the reports.
+
+FROM python:3.12.3-slim
+
+ENV TZ=Asia/Seoul \
+    PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends gcc g++ libffi-dev libssl-dev build-essential \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /usr/src/app
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt \
+    && pip install --no-cache-dir coverage==7.6.10
+
+COPY . .
+
+RUN mkdir -p /coverage && chmod 777 /coverage
+
+# .coveragerc scoped to file_cleanup_service module
+RUN printf '[run]\nbranch = True\nsource = file_cleanup_service\ndata_file = /coverage/.coverage\nparallel = False\nsigterm = True\n\n[report]\nshow_missing = True\nskip_empty = True\n\n[html]\ndirectory = /coverage/html\n\n[xml]\noutput = /coverage/coverage.xml\n' > /usr/src/app/.coveragerc
+
+ENV COVERAGE_FILE=/coverage/.coverage
+
+# Trap SIGTERM so coverage.py's sigterm flush runs, then build xml + html.
+CMD ["bash", "-lc", "trap 'echo flushing coverage...; kill -TERM $PID 2>/dev/null; wait $PID 2>/dev/null; coverage xml -o /coverage/coverage.xml || true; coverage html -d /coverage/html || true; exit 0' SIGTERM SIGINT; coverage run --rcfile=/usr/src/app/.coveragerc /mocks/polling_entrypoint.py & PID=$!; wait $PID"]

@@ -1,0 +1,30 @@
+# Compose override that re-runs the completion service under coverage.py
+# for the completion_process-definition-feedback E2E suite.
+#
+# Apply alongside the root compose file from the repo root:
+#   docker compose -f docker-compose.e2e.yml \
+#       -f openspec/specs/completion_process-definition-feedback/e2e/docker/coverage.override.yml \
+#       up -d --force-recreate --no-deps completion
+# Then re-run Playwright, signal the uvicorn process with USR2 to flush
+# coverage, and finally combine + report inside the container.
+#
+# Notes:
+# - Relative bind-mount paths are resolved from the project directory
+#   (repo root), not from this override file. See
+#   openspec/e2e/memories/compose-override-relative-paths.md.
+# - The completion Dockerfile uses WORKDIR /usr/src/app, not /app. See
+#   openspec/e2e/memories/completion-coverage-override-workdir.md.
+services:
+  completion:
+    command:
+      - sh
+      - -c
+      - "pip install --quiet coverage && cd /usr/src/app && coverage erase && \
+         exec coverage run --parallel-mode --concurrency=thread \
+           --save-signal=USR2 \
+           --source=. \
+           -m uvicorn main:app --host 0.0.0.0 --port 8000"
+    volumes:
+      - ./openspec/specs/completion_process-definition-feedback/e2e/results/backend-coverage:/coverage
+    environment:
+      COVERAGE_FILE: /coverage/.coverage

@@ -3,6 +3,11 @@
 // through the nginx gateway on :8088. All generated output lands under
 // openspec/specs/completion_agent-memory-chat/e2e/results/.
 import { defineConfig, devices } from '@playwright/test';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const RESULTS = path.resolve(__dirname, '../results');
 
 const baseURL = process.env.BASE_URL || 'http://localhost:8088';
 
@@ -16,12 +21,12 @@ export default defineConfig({
     retries: 0,
 
     reporter: [
-        ['json', { outputFile: '../results/results.json' }],
-        ['html', { outputFolder: '../results/html-report', open: 'never' }],
+        ['json', { outputFile: path.join(RESULTS, 'results.json') }],
+        ['html', { outputFolder: path.join(RESULTS, 'html-report'), open: 'never' }],
         ['list'],
     ],
 
-    outputDir: '../results/artifacts',
+    outputDir: path.join(RESULTS, 'artifacts'),
 
     use: {
         baseURL,

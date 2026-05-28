@@ -1,0 +1,19 @@
+[run]
+source = /usr/src/app
+branch = True
+parallel = True
+sigterm = True
+data_file = /coverage/.coverage
+# coverage.py 7.x exposes SIGUSR2-based flushing via the
+# `--save-signal` CLI flag (see openspec/e2e/memories/coverage-py-usr2-flush.md).
+# We additionally enable sigterm so an orderly stop also writes data.
+
+[paths]
+source =
+    /usr/src/app
+    services/completion/polling_service
+
+[report]
+omit =
+    */tests/*
+    */__pycache__/*

@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{{suiteSlug}} 스펙 커버리지 보고서</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; margin: 32px; color: #172033; background: #f7f8fb; }
+    main { max-width: 1180px; margin: 0 auto; }
+    section { background: #fff; border: 1px solid #dfe3eb; border-radius: 12px; padding: 20px; margin: 18px 0; box-shadow: 0 1px 2px rgba(16, 24, 40, .04); }
+    h1, h2, h3 { margin-top: 0; }
+    table { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: 14px; }
+    th, td { border: 1px solid #e4e7ee; padding: 9px 10px; text-align: left; vertical-align: top; }
+    th { background: #f1f4f9; }
+    code { background: #eef2f7; padding: 2px 5px; border-radius: 4px; }
+    .badge { display: inline-block; padding: 4px 9px; border-radius: 999px; font-size: 12px; font-weight: 700; }
+    .pass { color: #065f46; background: #d1fae5; }
+    .warn { color: #92400e; background: #fef3c7; }
+    .fail { color: #991b1b; background: #fee2e2; }
+    .muted { color: #667085; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+    .metric { border: 1px solid #e4e7ee; border-radius: 10px; padding: 14px; background: #fbfcff; }
+    .metric strong { display: block; font-size: 24px; margin-top: 6px; }
+  </style>
+</head>
+<body>
+<main>
+  <h1>{{suiteSlug}} 스펙 커버리지 보고서</h1>
+  <p class="muted">생성 시각: {{generatedAt}} · 원본 명세: <code>{{specPath}}</code></p>
+
+  <section>
+    <h2>AI 종합 판단</h2>
+    <p><span class="badge {{overallClass}}">{{overallStatus}}</span></p>
+    <p>{{overallJudgment}}</p>
+  </section>
+
+  <section>
+    <h2>게이트 요약</h2>
+    <div class="grid">
+      <div class="metric">OpenSpec Requirement<strong>{{requirementsCovered}}/{{requirementsTotal}}</strong></div>
+      <div class="metric">OpenSpec Scenario<strong>{{scenariosCovered}}/{{scenariosTotal}}</strong></div>
+      <div class="metric">백엔드 커버리지<strong>{{backendCoveragePercent}}%</strong></div>
+      <div class="metric">프론트엔드 커버리지<strong>{{frontendCoveragePercent}}%</strong></div>
+      <div class="metric">전체 커버리지<strong>{{overallCoveragePercent}}%</strong></div>
+    </div>
+    <table>
+      <thead><tr><th>게이트</th><th>상태</th><th>근거</th></tr></thead>
+      <tbody>
+        {{gateRows}}
+      </tbody>
+    </table>
+  </section>
+
+  <section>
+    <h2>OpenSpec 스펙 커버리지</h2>
+    <p class="muted">원본 명세의 Requirement와 Scenario가 어떤 E2E 시나리오, Playwright 테스트, 스크린샷 증거로 검증되었는지 보여줍니다.</p>
+    <table>
+      <thead><tr><th>요구사항</th><th>명세 시나리오</th><th>E2E 시나리오</th><th>Playwright 테스트</th><th>증거</th><th>커버리지</th><th>AI 판단</th></tr></thead>
+      <tbody>
+        {{specCoverageRows}}
+      </tbody>
+    </table>
+  </section>
+
+  <section>
+    <h2>스펙 관련 백엔드 파일/함수</h2>
+    <p class="muted">스펙과 직접 관련된 서버 파일/함수만 대상으로 coverage 산출물을 읽어 퍼센트를 계산합니다. 관련 없는 공용/전체 저장소 코드는 분모에서 제외합니다.</p>
+    <table>
+      <thead><tr><th>파일</th><th>함수/클래스/라우트</th><th>관련 요구사항</th><th>커버리지</th><th>기준</th><th>AI 판단</th><th>보강 제안</th></tr></thead>
+      <tbody>
+        {{backendRows}}
+      </tbody>
+    </table>
+  </section>
+
+  <section>
+    <h2>스펙 관련 프론트엔드 파일/함수</h2>
+    <p class="muted">소스맵 기반 원본 파일 커버리지를 우선 사용합니다. 기존 이미지에 소스맵이 없으면 소스맵 포함 coverage용 프론트엔드 이미지를 재빌드한 뒤 다시 수집하고, 그래도 불가능할 때만 번들/V8 coverage를 보조 지표로 사용합니다.</p>
+    <table>
+      <thead><tr><th>대상</th><th>컴포넌트/함수/API 호출</th><th>관련 요구사항</th><th>커버리지</th><th>기준</th><th>AI 판단</th><th>제약</th></tr></thead>
+      <tbody>
+        {{frontendRows}}
+      </tbody>
+    </table>
+  </section>
+
+  <section>
+    <h2>미커버/취약 분기</h2>
+    <table>
+      <thead><tr><th>위치</th><th>미커버 동작</th><th>리스크</th><th>권장 보강</th></tr></thead>
+      <tbody>
+        {{gapRows}}
+      </tbody>
+    </table>
+  </section>
+
+  <section>
+    <h2>원본 리포트 링크</h2>
+    <ul>
+      <li>Playwright HTML: <code>html-report/index.html</code></li>
+      <li>Backend coverage HTML: <code>backend-coverage/html/index.html</code></li>
+      <li>Frontend coverage HTML: <code>frontend-coverage/monocart-report/index.html</code></li>
+      <li>Machine summary: <code>coverage-summary.json</code></li>
+    </ul>
+  </section>
+</main>
+</body>
+</html>

@@ -1,0 +1,32 @@
+# E2E polling-service image with coverage.py instrumentation.
+#
+# Built from services/completion/polling_service. coverage.py runs the
+# polling worker under coverage instrumentation and flushes on USR2 so
+# results can be combined while the worker is still alive (see
+# openspec/e2e/memories/coverage-py-usr2-flush.md).
+FROM python:3.12.3-slim AS base
+
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends gcc g++ libffi-dev libssl-dev build-essential \
+ && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /usr/src/app
+
+COPY requirements.txt ./
+RUN pip install --no-cache-dir --upgrade pip \
+ && pip install --no-cache-dir -r requirements.txt \
+ && pip install --no-cache-dir 'coverage[toml]>=7.10,<8'
+
+COPY . .
+
+# Coverage data dir mounted in compose (./openspec/specs/.../e2e/results/backend-coverage)
+ENV COVERAGE_FILE=/coverage/.coverage
+ENV PYTHONUNBUFFERED=1
+
+# coverage run --parallel-mode + --save-signal=SIGUSR2 lets the E2E
+# pipeline send USR2 after Playwright finishes to flush a .coverage.*
+# data file, then run `coverage combine && coverage xml && coverage html`
+# without killing the long-running worker.
+CMD ["coverage", "run", "--parallel-mode", "--save-signal=USR2", \
+     "--source=/usr/src/app", \
+     "main.py"]
