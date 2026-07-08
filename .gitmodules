@@ -67,3 +67,12 @@
 [submodule "services/docs"]
 	path = services/docs
 	url = https://github.com/uengine-oss/process-gpt-docs.github.io.git
+[submodule "services/analytic"]
+	path = services/analytic
+	url = https://github.com/uengine-oss/process-gpt-analytic.git
+[submodule "services/instance-classifier"]
+	path = services/instance-classifier
+	url = https://github.com/uengine-oss/process-gpt-instance-classifier.git
+[submodule "services/strategy"]
+	path = services/strategy
+	url = https://github.com/uengine-oss/process-gpt-strategy.git

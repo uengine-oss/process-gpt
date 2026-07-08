@@ -75,6 +75,8 @@ ALL_SERVICES=(
     "Completion (LangChain chat / form gen)|completion"
     "Polling Service|polling-service"
     "Memento (RAG / vector store)|memento"
+    "Instance Classifier (요청 자동분류 · Top List)|instance-classifier"
+    "Strategy Board (BSC 전략맵 · KPI 성과수집)|strategy"
     "Glossary Backend|robo-data-glossary-backend"
     "CrewAI Action (multi-agent tasks)|crewai-action"
     "CrewAI Deep Research|crewai-deep-research"

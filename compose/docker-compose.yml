@@ -23,7 +23,9 @@ services:
   # Frontend (Vue 3)
   # ------------------------------------------------------------------
   frontend:
-    image: ghcr.io/uengine-oss/process-gpt:e343845
+    # Built locally from the services/frontend submodule (latest main).
+    # Original pinned image was ghcr.io/uengine-oss/process-gpt:e343845 (2026-04-23).
+    image: process-gpt-frontend:local
     container_name: process-gpt-frontend
     environment:
       VITE_SUPABASE_URL: ${API_EXTERNAL_URL}
@@ -114,6 +116,89 @@ services:
     depends_on:
       - db
       - rest
+
+  # ------------------------------------------------------------------
+  # Instance Classifier (민원/요청 자동분류 · Top List)
+  # ------------------------------------------------------------------
+  # Built locally from the services/instance-classifier folder.
+  # Polls bpm_proc_inst for new process instances, ingests the first
+  # workitem's form input, classifies against similar past instances
+  # (pgvector kNN), and serves a Top List + similar-instance API.
+  instance-classifier:
+    build:
+      context: ../services/instance-classifier
+      dockerfile: Dockerfile
+    image: process-gpt-instance-classifier:local
+    container_name: process-gpt-instance-classifier
+    ports:
+      - "8013:8000"
+    environment:
+      ENV: ${ENV}
+      # ---- Supabase Postgres (pgvector) : direct psycopg ----
+      DB_NAME: ${DB_NAME:-${POSTGRES_DB}}
+      DB_USER: supabase_admin
+      DB_PASSWORD: ${DB_PASSWORD:-${POSTGRES_PASSWORD}}
+      DB_HOST: ${DB_HOST:-${POSTGRES_HOST}}
+      DB_PORT: ${DB_PORT:-${POSTGRES_PORT}}
+      # ---- Supabase (for parity with other services) ----
+      SUPABASE_URL: ${SUPABASE_INTERNAL_URL}
+      SUPABASE_KEY: ${SERVICE_ROLE_KEY}
+      # ---- Embedding / naming via OpenAI-compatible LLM proxy ----
+      EMBEDDING_PROVIDER: ${INSTANCE_CLASSIFIER_EMBEDDING_PROVIDER:-openai}
+      OPENAI_API_KEY: ${LLM_PROXY_API_KEY:-${OPENAI_API_KEY}}
+      OPENAI_BASE_URL: ${LLM_PROXY_URL:-${OPENAI_BASE_URL}}
+      OPENAI_EMBEDDING_MODEL: ${INSTANCE_CLASSIFIER_EMBEDDING_MODEL:-text-embedding-3-small}
+      EMBEDDING_DIM: ${INSTANCE_CLASSIFIER_EMBEDDING_DIM:-1536}
+      NAMING_ENABLED: ${INSTANCE_CLASSIFIER_NAMING_ENABLED:-true}
+      NAMING_MODEL: ${LLM_MODEL:-gpt-4.1-mini}
+      # ---- Polling / clustering ----
+      POLLING_INTERVAL: ${INSTANCE_CLASSIFIER_POLLING_INTERVAL:-10}
+      RECLUSTER_MIN_INSTANCES: ${INSTANCE_CLASSIFIER_RECLUSTER_MIN:-30}
+      POLL_TENANT_ID: ${INSTANCE_CLASSIFIER_TENANT_ID:-}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    depends_on:
+      db:
+        condition: service_healthy
+      rest:
+        condition: service_started
+
+  # ------------------------------------------------------------------
+  # Strategy Board (BSC 전략맵 · KPI · 이니셔티브 · 설문 성과수집)
+  # ------------------------------------------------------------------
+  strategy:
+    build:
+      context: ../services/strategy
+      dockerfile: Dockerfile
+    image: process-gpt-strategy:local
+    container_name: process-gpt-strategy
+    ports:
+      - "8014:8000"
+    environment:
+      # ---- Supabase Postgres : direct psycopg ----
+      DB_NAME: ${DB_NAME:-${POSTGRES_DB}}
+      DB_USER: supabase_admin
+      DB_PASSWORD: ${DB_PASSWORD:-${POSTGRES_PASSWORD}}
+      DB_HOST: ${DB_HOST:-${POSTGRES_HOST}}
+      DB_PORT: ${DB_PORT:-${POSTGRES_PORT}}
+      # ---- KPI 측정 / 완료 감시 주기 ----
+      MEASURE_AUTO_START: "true"
+      MEASURE_INTERVAL_SECONDS: "60"
+      SURVEY_WATCH_INTERVAL_SECONDS: "30"
+      # ---- AI 매핑(프로세스 추천 · 설문 문항 생성) ----
+      OPENAI_API_KEY: ${LLM_PROXY_API_KEY:-${OPENAI_API_KEY}}
+      OPENAI_BASE_URL: ${LLM_PROXY_URL:-${OPENAI_BASE_URL}}
+      MODEL: ${LLM_MODEL:-gpt-4.1}
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3).read()"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    depends_on:
+      db:
+        condition: service_healthy
+      rest:
+        condition: service_started
 
   # ------------------------------------------------------------------
   # Glossary / catalog

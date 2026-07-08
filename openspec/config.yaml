@@ -55,7 +55,7 @@ rules:
 
   specs:
     - spec 문서의 제목, Purpose, Requirement 제목, Requirement 본문, Scenario 제목, Scenario 단계는 한국어로 작성한다.
-    - `### Requirement:`와 `#### Scenario:` 접두어는 OpenSpec 형식을 위해 유지하되, 접두어 뒤의 이름은 한국어로 작성한다.
+    - "`### Requirement:`와 `#### Scenario:` 접두어는 OpenSpec 형식을 위해 유지하되, 접두어 뒤의 이름은 한국어로 작성한다."
     - 일반 설명 문장을 영어로 쓰지 않는다. 공개 API 경로, HTTP method, 필드명, 이벤트명, enum 값, SQL 키워드 같은 계약 식별자만 원문으로 둔다.
     - main spec 폴더명은 마이크로서비스/서비스 이름 뒤에 `_`를 붙인 서비스 접두어로 시작하고, 서비스명, 도메인명, 피쳐명은 lowercase kebab-case로 작성한다.
     - 여러 업무 도메인에 걸친 마이크로서비스는 <microservice>_<domain>-<feature> 형식으로 작성한다. 예를 들어 services/completion에서 agent memory chat, MCP server config, notification push delivery를 발견하면 completion_agent-memory-chat, completion_mcp-server-config, completion_notification-push-delivery로 작성한다.
