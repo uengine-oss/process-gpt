@@ -1,0 +1,13 @@
+-- strategy_graph-store E2E seed
+--
+-- 이 스위트는 그래프 저장소 기동/초기화/저장소 선택/테넌트 격리를 검증한다.
+-- 전략목표(Strategy)는 그래프 저장소에 저장되므로 별도 플랫폼 원천 테이블 seed 가
+-- 필요 없다. strategy 서비스가 기동 시 자동 생성하는 관계형 스키마
+-- (strategy_objectives/strategy_kpis/... , strategy_sync_state 등)만 사용한다.
+--
+-- 인프라: Apache AGE 포함 Postgres 컨테이너 process-gpt-age-postgres
+--         (127.0.0.1:55433, postgres/postgres/postgres), services/strategy/docker-compose.age.yml
+--
+-- 참고: AGE 확장은 컨테이너 이미지가 제공한다. 서비스 기동 시 age_adapter.ensure_ready()
+--       가 확장 로드 + 그래프 생성 + 라벨/인덱스 준비를 멱등 수행한다.
+select 'no relational seed required for graph-store suite' as note;
