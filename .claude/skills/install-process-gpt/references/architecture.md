@@ -1,12 +1,12 @@
 # Process GPT 아키텍처 요약 (설치 관점)
 
-> **compose 파일 위치**: 아래 "Compose 4계층" 절이 설명하는
-> `docker-compose.yml`/`infra/`/`compose/`/`gateway/` 조합은 `process-gpt` 안에서
-> `compose/docker-compose.yml`과 루트 `docker-compose.yml`이 제거되어 더 이상
-> 그대로 재현되지 않는다. 로컬 설치용 compose 파일은 이제
+> **compose 파일 위치**: 로컬/단일서버 설치용 compose는
 > [process-gpt-infra-docker](https://github.com/uengine-oss/process-gpt-infra-docker)
-> 레포의 단일 `docker-compose.yml`에 있다(서비스 카탈로그·포트 표는 여전히 유효).
-> `process-gpt`에 남은 `infra/`/`gateway/`는 후속 변경에서 정리 예정.
+> 레포 루트의 **단일** `docker-compose.yml` 하나다. `process-gpt`(본체
+> 모노레포)는 서비스 소스(서브모듈)와 앱 코드를 담당한다.
+> `process-gpt-infra-docker`도 동일한 서비스 소스 서브모듈 세트를 자체
+> `.gitmodules`로 갖고 있어(`build:` 서비스 빌드용), 도커 설치만 목적이면 이
+> 레포 하나만 클론하면 된다.
 
 ## 전체 그림
 
@@ -16,6 +16,7 @@
                                         ├──► base-agent-langchain-react (/agent/chat/stream)
                                         ├──► memento (/memento/), deepagents (/deepagents/)
                                         ├──► robo-glossary (/robo/), instance-classifier (/instance-classifier/)
+                                        ├──► strategy (/strategy-service/)
                                         └──► agent-router (/agent-router/route)
 브라우저 ──► Supabase Kong (:54321) ──► auth(GoTrue)/rest(PostgREST)/realtime/storage
                                               │
@@ -30,26 +31,20 @@
   (`localhost:8088` 접속 → tenant `localhost`). RLS는 JWT의
   `app_metadata.tenant_id` 클레임을 검사한다.
 
-## Compose 4계층 (순서 고정)
+## Compose 구조
 
-```bash
-CF=(-f docker-compose.yml            # 빈 앵커 — 상대경로 기준을 레포 루트로 고정
-    -f infra/docker-compose.yml      # Supabase 스택 + Neo4j + LiteLLM
-    -f compose/docker-compose.yml    # 마이크로서비스 24개
-    -f gateway/docker-compose.yml)   # nginx :8088
-docker compose --env-file .env "${CF[@]}" up -d ...
-```
+`process-gpt-infra-docker` 레포 루트의 `docker-compose.yml` 하나에 infra
+(Supabase/Neo4j/LiteLLM), 마이크로서비스, nginx 게이트웨이가 전부 정의되어
+있다. 헬퍼 스크립트 `./start-all-services.sh`(Windows는 `.ps1`)가 interactive
+/ `all` / 서비스명 나열 / `--preset` / `--last` 모드를 지원하고, infra
+`--wait` → 선택 서비스 → nginx 순서로 기동해준다.
 
-첫 `-f`가 반드시 루트 `docker-compose.yml`이어야 `./infra/volumes/...` 바인드
-마운트가 레포 루트 기준으로 풀린다. 헬퍼: `./start-all-services.sh`
-(interactive / `all` / 서비스명 나열 / `--preset`).
-
-## Infra 스택 (infra/docker-compose.yml)
+## Infra 스택
 
 | 서비스 | 역할 | 포트 | 비고 |
 |---|---|---|---|
 | db | Postgres 15 + pgvector | 5432(내부) | `init.sql` 스키마 시드. 첫 부팅 30–60초 |
-| analytics | Logflare | 4000 | **kong·studio가 healthy 의존 → 제외 불가**. 메모리 ~1.3GB |
+| analytics | Logflare | 4000 | kong·studio가 로그 조회에 참조 — **어떤 프로파일에서도 제외 불가** (compose `depends_on`으로 강제되진 않음). 메모리 ~1.3GB |
 | kong | Supabase API 게이트웨이 | **54321**(HTTP), 8443 | 메모리 ~1.3GB |
 | auth | GoTrue (가입/로그인) | — | `ENABLE_EMAIL_AUTOCONFIRM` 중요 |
 | rest | PostgREST | — | `notify pgrst, 'reload schema'`로 캐시 갱신 |
@@ -59,12 +54,18 @@ docker compose --env-file .env "${CF[@]}" up -d ...
 | functions | Edge Functions | — | 선택적 |
 | studio | Supabase Studio | **3001** | 관리 UI |
 | neo4j | 그래프 DB | 7474/7687 | **bpmn-extractor 전용** — 그 외 프로파일에선 생략 가능 |
-| litellm-db / litellm-proxy | LLM 프록시 | 4010 | OpenAI 직결 시 우회됨 — unhealthy여도 무해 (troubleshooting #8) |
+| litellm-db / litellm-proxy | LLM 프록시 | `.env.example` 기본값 4010 | OpenAI 직결 시 우회됨 — unhealthy여도 무해 (troubleshooting #8) |
 
 `start-all-services.sh`의 `INFRA_STACK` 전체 = litellm-db litellm-proxy db kong
 auth rest realtime storage imgproxy meta functions analytics studio neo4j.
 
-## 마이크로서비스 카탈로그 (compose/docker-compose.yml)
+**nginx의 `depends_on` 주의**: `nginx` 서비스는 agent-router·
+robo-data-glossary-backend·deepagents를 `depends_on`으로 직접 물고 있다.
+`docker compose up -d`로 nginx를 포함해 기동하면 이 세 서비스(및
+deepagents가 의존하는 process-gpt-office-mcp)가 명시적으로 고르지 않아도
+자동으로 같이 뜬다 — 아래 Core 프로파일도 이 cascade만큼 컨테이너가 늘어난다.
+
+## 마이크로서비스 카탈로그
 
 ### Core — 핵심 경험(채팅→프로세스 생성/실행)에 필요
 
@@ -81,8 +82,7 @@ auth rest realtime storage imgproxy meta functions analytics studio neo4j.
 | 서비스 | 역할 | 포트 |
 |---|---|---|
 | agent-router | 동적 에이전트 라우팅 (K8s에선 pod 스핀업) | (내부 8001) |
-| langchain-react | ReAct 에이전트 | 8011 |
-| deepagents (+ claude-skills) | 딥에이전트 + 스킬 스토리지 | 8021, 8765 |
+| deepagents | 딥에이전트 (스킬은 `skills-storage` 볼륨으로 컨테이너 내부에 마운트, 별도 컨테이너 아님) | 8021 |
 | instance-classifier | 요청 자동분류·Top List (pgvector kNN) | 8013 |
 | process-gpt-analytic | 실행 분석 ETL/대시보드 | 8009 |
 | robo-data-glossary-backend | 용어집/카탈로그 | 5504 |
@@ -91,31 +91,35 @@ auth rest realtime storage imgproxy meta functions analytics studio neo4j.
 
 | 서비스 | 역할 | 포트 | 비고 |
 |---|---|---|---|
-| crewai-action / crewai-deep-research | CrewAI 멀티에이전트 | 8001, 8002 | |
-| openai-deep-research / deep-research | 딥리서치 | 8003, 8020 | TAVILY_API_KEY 선택 |
-| browser-use | 브라우저 자동화 | 5001, 5900, 6080 | 무거움 |
+| openai-deep-research / process-gpt-deep-research | 딥리서치 | 8003, 8020 | TAVILY_API_KEY 선택 |
 | a2a-orch | A2A 오케스트레이터 | 8006 | |
 | react-voice-agent | 음성 에이전트 | 3000 | |
 | computer-use | 컴퓨터 유즈 | 8007 | |
 | agent-feedback | 에이전트 피드백 | 6789 | DB env 이슈 있음 (troubleshooting #10) |
 | bpmn-extractor | PDF→BPMN | 8012 | **neo4j 필요** |
-| office-mcp | 오피스 문서 MCP | 1192 | `LLM_PROVIDER: openai` env 필요 (#10) |
-| deepagents | (Standard에도 있음) | 8021 | 포트 8021 충돌 이력 (#7) |
-| mcp-proxy | MCP 프록시 | 8081 | **K8s 전용** (kubeconfig 요구) — 로컬 제외 |
+| process-gpt-office-mcp | 오피스 문서 MCP | 1192 | `LLM_PROVIDER: openai` env 필요 (#10) |
+| mcp-validator | MCP 밸리데이터 | 8081 | 로컬에서 정상 빌드·기동되는 일반 서비스 |
+| strategy | 전략 측정/설문(measure·survey) | 8014 | `/strategy-service/`로 nginx 라우팅됨 |
+
+`start-all-services.sh`의 대화형 메뉴엔 `browser-use`도 있지만 현재
+`docker-compose.yml`에는 서비스 정의가 없다 — 선택하면 "no such service"로
+실패한다.
 
 ## 프로파일 → 기동 대상 매핑
 
 ```bash
-# Core (Docker 메모리 8GB 권장, ~15 컨테이너; neo4j·litellm 생략 가능하나
-# start 스크립트는 INFRA_STACK 전체를 올림 — 직접 compose로 서브셋 기동 가능)
+# Core (Docker 메모리 8GB 권장; nginx를 포함하면 agent-router·
+# robo-data-glossary-backend·deepagents·process-gpt-office-mcp가
+# depends_on으로 자동 추가되므로 실제로는 더 늘어난다)
 INFRA_CORE=(db analytics kong auth rest realtime storage imgproxy meta studio)
 CORE=(frontend completion base-agent-langchain-react memento polling-service)
 
-# Standard (12GB, ~22 컨테이너)
-STANDARD=("${CORE[@]}" agent-router langchain-react deepagents claude-skills \
+# Standard (12GB)
+STANDARD=("${CORE[@]}" agent-router deepagents \
           instance-classifier process-gpt-analytic robo-data-glossary-backend)
 
-# Full (16GB+): ./start-all-services.sh all  (mcp-proxy는 로컬에서 무시 가능)
+# Full (16GB+): ./start-all-services.sh all
+# (mcp-validator·strategy 포함, browser-use는 compose 미정의로 실패)
 ```
 
 ## 이미지 / 레지스트리
@@ -124,7 +128,8 @@ STANDARD=("${CORE[@]}" agent-router langchain-react deepagents claude-skills \
   `echo $GITHUB_PAT | docker login ghcr.io -u <user> --password-stdin`
   (PAT scope `read:packages`). 이미 로컬에 이미지가 있으면 `--pull never`.
 - frontend는 소스 빌드 가능: `docker build -t process-gpt-frontend:local services/frontend`
-  (서브모듈 체크아웃 필요). instance-classifier는 `build:` 지정되어 로컬 빌드됨.
+  (서브모듈 체크아웃 필요, `process-gpt-infra-docker` 기준 상대경로).
+  instance-classifier·strategy·deepagents 등도 `build:` 지정되어 로컬 빌드됨.
 - 서브모듈 초기화는 `--recursive` 금지 (중첩 worktree 오인 — troubleshooting #1):
   `git submodule update --init` 후 각자 브랜치 pull (`deep-research`만 master).
 

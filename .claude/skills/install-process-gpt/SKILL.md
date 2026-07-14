@@ -23,7 +23,7 @@ description: >
 ### 0. 아키텍처 숙지
 
 시작 전에 [references/architecture.md](references/architecture.md)를 읽고
-서비스 카탈로그·포트·의존관계·compose 4계층 구조를 파악한다.
+서비스 카탈로그·포트·의존관계·compose 구조를 파악한다.
 
 ### 1. 사전 점검 (preflight)
 
@@ -49,7 +49,7 @@ AskUserQuestion으로 3가지 모드 중 하나를 선택받는다:
 
 | 모드 | 대상 | 방식 | 상세 가이드 |
 |---|---|---|---|
-| **로컬 개발용** | 개인 PC에서 개발/체험 | Docker Compose (계층형) | [references/local-dev.md](references/local-dev.md) |
+| **로컬 개발용** | 개인 PC에서 개발/체험 | Docker Compose (단일 파일) | [references/local-dev.md](references/local-dev.md) |
 | **사내 간단 설치형** | 단일 서버, 소규모 팀 | docker-compose 또는 K3S 중 택1 | [references/single-server.md](references/single-server.md) |
 | **프로덕션** | 확장 필요한 운영 환경 | Kubernetes (AWS EKS / GCP GKE / Azure AKS) | [references/production-k8s.md](references/production-k8s.md) |
 
@@ -57,20 +57,24 @@ AskUserQuestion으로 3가지 모드 중 하나를 선택받는다:
 
 ### 3. 컴포넌트 프로파일 선택 (로컬/단일서버 공통)
 
-`services/` 이하 24개 서비스가 전부 필요한 것은 아니다. 사용자 PC 사양과
-목적에 맞춰 프로파일을 선택받는다 (상세 구성표는 architecture.md):
+`services/` 이하 20개 마이크로서비스가 전부 필요한 것은 아니다. 사용자 PC
+사양과 목적에 맞춰 프로파일을 선택받는다 (상세 구성표는 architecture.md):
 
-- **Core (최소, ~15 컨테이너, Docker 메모리 8GB)** — 채팅으로 프로세스
-  생성·실행하는 핵심 경험. Supabase 코어 + gateway + frontend + completion +
-  base-agent-langchain-react + memento + polling-service.
-- **Standard (~22 컨테이너, 12GB)** — Core + agent-router, langchain-react,
-  deepagents + claude-skills, instance-classifier, analytic(대시보드).
-- **Full (전체 34+, 16GB+)** — 모든 서비스. browser-use, bpmn-extractor(+neo4j),
-  voice, deep-research 계열, office-mcp 등 포함.
+- **Core (최소, Docker 메모리 8GB)** — 채팅으로 프로세스 생성·실행하는 핵심
+  경험. Supabase 코어 + gateway + frontend + completion +
+  base-agent-langchain-react + memento + polling-service. (nginx가
+  agent-router·robo-data-glossary-backend·deepagents·process-gpt-office-mcp를
+  `depends_on`으로 자동 딸려오게 하므로 실제 컨테이너 수는 이보다 많다.)
+- **Standard (12GB)** — Core + agent-router, deepagents,
+  instance-classifier, process-gpt-analytic, robo-data-glossary-backend.
+- **Full (모든 서비스, 16GB+)** — bpmn-extractor(+neo4j), react-voice-agent,
+  deep-research 계열, process-gpt-office-mcp, mcp-validator, strategy 등 포함.
 
-주의: kong과 studio가 `analytics`(logflare)에 healthy 의존하므로 **어떤
-프로파일에서도 analytics는 제외 불가**. neo4j는 bpmn-extractor를 쓸 때만 필요.
-mcp-proxy는 K8s 전용이라 로컬/단일서버에서는 제외.
+주의: kong과 studio는 로그 조회에 `analytics`(logflare)를 참조하므로 **어떤
+프로파일에서도 analytics는 제외 불가** (compose의 `depends_on`으로 강제되어
+있진 않지만 기능상 필요). neo4j는 bpmn-extractor를 쓸 때만 필요.
+MCP 프록시 역할은 `mcp-validator`(8081)가 맡고 있으며, 로컬에서도 정상
+빌드·기동되는 일반 서비스다(K8s 전용 아님).
 
 ### 4. 시크릿·설정 수집
 
@@ -98,16 +102,23 @@ mcp-proxy는 K8s 전용이라 로컬/단일서버에서는 제외.
 
 선택된 모드의 reference 절차를 따른다. 공통 원칙:
 
-- 로컬/단일서버 compose 파일은 `process-gpt-infra-docker`(별도 레포)에 있다. 먼저
-  clone한 뒤 그 안에서 기동한다:
+- 로컬/단일서버 compose 파일은 `process-gpt-infra-docker`(별도 레포)에 있다.
+  **도커 설치만 목적이면 이 레포 하나만 있으면 된다** — `process-gpt` 본체를
+  따로 클론할 필요 없음. `process-gpt-infra-docker`가 자체 `.gitmodules`로
+  `build:` 지정된 서비스 소스(frontend, completion, memento, deepagents 등)를
+  전부 서브모듈로 갖고 있다.
   ```bash
   git clone https://github.com/uengine-oss/process-gpt-infra-docker.git
   cd process-gpt-infra-docker
+  git submodule update --init   # build: 서비스(이미지 아닌 소스 빌드)를 쓸 때만 필요
   docker compose up -d --wait <infra...> && \
   docker compose up -d <선택 서비스...> nginx
   ```
-  (`process-gpt` 안의 `infra/`, `gateway/`, `start-all-services.*`는 예전 4계층
-  구조의 잔재로 후속 변경에서 정리 예정이며, 지금은 사용하지 않는다.)
+  이 2단계(infra `--wait` → 서비스 → gateway) 로직과 `.env` 자동 생성,
+  `--preset` 저장까지 구현된 `./start-all-services.sh`(Windows는 `.ps1`)가
+  레포에 있으니 raw compose 커맨드 대신 이걸 활용하는 편이 안전하다.
+  compose 설치 관련 파일(`docker-compose.yml`, `start-all-services.*`)은
+  `process-gpt-infra-docker`에만 있다 — `process-gpt` 본체엔 없다.
 - GHCR 로그인이 없고 로컬 이미지가 있으면 `--pull never`로 pull 회피 (troubleshooting #3).
 - 각 단계 후 `docker compose ... ps`로 상태를 확인하고, 크래시한 컨테이너는
   로그를 읽어 troubleshooting.md와 대조한다.

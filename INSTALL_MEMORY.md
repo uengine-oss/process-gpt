@@ -402,6 +402,57 @@
 
 ---
 
+## 17. Docker VM 디스크 부족 → containerd content store 손상 (kong unhealthy, 이미지 레이어 유실)
+
+- 증상: `docker system df`에서 여유 공간 거의 없음 → `supabase-kong`이
+  `Cannot mkdir /tmp/resty_...: No space left on device`로 unhealthy. 이후
+  다른 이미지(`deepagents`, `nginx` 등)를 pull/기동하면 `content digest
+  sha256:... not found` 또는 `apply layer error ...: NotFound: failed to
+  get reader from content store`로 컨테이너 생성 자체가 실패.
+- 원인: 디스크가 빠듯한 상태에서 pull이 진행되며 일부 레이어만 기록된 채
+  이미지 메타데이터가 로컬에 남음(`docker inspect <image>`의
+  `RootFS.Layers`가 비어 있거나 존재하지 않는 blob을 가리킴).
+- 해결:
+  1. `docker image prune -f` — 미사용 dangling 이미지 정리(실행/중지 컨테이너
+     안전, 승인 불필요). 우리 세션에서 ~3.7GB 회복.
+  2. `docker restart supabase-kong` — 디스크 여유가 생기면 재시작만으로
+     healthy 복귀(재설치 불필요했음).
+  3. 그래도 특정 이미지가 "content digest not found"로 실패하면 해당 이미지만
+     `docker rmi -f <image>:<tag>` 후 `docker pull --platform linux/amd64
+     <image>@sha256:<digest>`(digest 지정 pull이 태그 pull보다 캐시 재사용
+     문제를 덜 일으킴) → `docker tag`로 원래 태그 복원.
+- 확인용: `docker run --rm busybox df -h /` — 호스트 `df -h`가 아니라 Docker
+  Desktop VM 내부 디스크를 봐야 한다(호스트는 여유 충분해도 VM 디스크는
+  꽉 찰 수 있음).
+
+## 18. amd64 전용 이미지 — Apple Silicon에서 pull 실패 → build 폴백까지 실패
+
+- 증상: `docker compose up`이 특정 서비스에서 `no matching manifest for
+  linux/arm64/v8 in the manifest list entries`로 pull 실패 → 이미지가 없다고
+  판단해 `build:`로 전환 → `unable to prepare context: unable to evaluate
+  symlinks in Dockerfile path: ... no such file or directory`로 재실패
+  (서브모듈 미체크아웃 상태라 `services/<name>/Dockerfile`이 없음).
+- 확인된 대상: `process-gpt-base-agent-langchain-react`,
+  `process-gpt-glossary-backend`, `process-gpt-deepagents`,
+  `process-gpt-office-mcp`. (`image:`+`build:`를 동시에 갖는 서비스가
+  대부분이라 태그 이미지가 로컬에 있으면 build는 건드리지 않는데, 애초에
+  arm64용 매니페스트가 없어 pull 자체가 안 되는 게 문제.)
+- 해결: 기동 전에 각 이미지를 명시적으로 amd64로 선pull.
+  ```bash
+  docker pull --platform linux/amd64 ghcr.io/uengine-oss/<image>:<tag>
+  ```
+  이렇게 로컬에 채워두면 `docker compose up`이 build를 시도하지 않고
+  로컬 이미지를 그대로 사용한다.
+- 참고: `start-all-services.sh`가 macOS 기본 bash(3.2, `/bin/bash`)에서
+  `mapfile: command not found`로 죽는 문제도 같은 세션에서 발견 → 스크립트
+  자체를 bash 3.2 호환(`mapfile` 대신 `while read` 루프)으로 수정해 해결.
+  (`install-process-gpt` 스킬의 `preflight.sh`도 프로젝트명을 "process-gpt"로
+  하드코딩해 정상 기동된 자기 컨테이너를 "이름 충돌"로 오탐하던 버그를
+  함께 수정 — 실제 컴포즈 프로젝트명은 레포 디렉터리명인
+  `process-gpt-infra-docker`.)
+
+---
+
 ## 현재 상태 요약 (기록 시점)
 
 - **34개 컨테이너 running**, 게이트웨이 nginx `:8088` → HTTP 200.

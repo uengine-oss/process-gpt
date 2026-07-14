@@ -23,6 +23,8 @@
 | 14 | postgres 반복 크래시 "recovery mode", auth 500 | Docker VM 메모리 고갈(OOM) → 무관 컨테이너 정리, Docker 메모리 상향(24GB+), 무거운 옵션 서비스 중지 |
 | 15 | 프론트가 "옛날 버전" | compose frontend는 pull 이미지 사용 → 소스 빌드 `docker build -t process-gpt-frontend:local services/frontend` 후 image 교체 |
 | 16 | dev 서버 충돌 (5173, :8000) | 다른 vite/python 프로젝트 선점 → `--port 5199 --strictPort`, vite 프록시 타깃을 :8088(nginx)로 |
+| 17 | Docker VM 디스크 부족 중 pull → 이후 `content digest ... not found` / `apply layer error` (nginx, deepagents 등), kong이 `Cannot mkdir /tmp/resty_...: No space left on device`로 unhealthy | Docker Desktop VM 디스크 풀 상태에서 pull이 진행되며 containerd content store가 손상 → 아래 상세 |
+| 18 | `no matching manifest for linux/arm64/v8` 또는 compose가 pull 대신 "Building"으로 전환 후 `unable to prepare context: ... no such file or directory` | 일부 이미지(`process-gpt-base-agent-langchain-react`, `process-gpt-glossary-backend`, `process-gpt-deepagents`, `process-gpt-office-mcp` 등)가 amd64 전용이라 Apple Silicon에서 자동 pull 실패 → compose가 `build:`로 폴백하는데 서브모듈 미체크아웃이라 재실패 → 아래 상세 |
 
 ## 상세 레시피
 
@@ -79,6 +81,65 @@ macOS에서 nginx.conf 수정 후에는 `nginx -s reload`가 아니라
 
 현재 레포 gateway/nginx/nginx.conf에는 이 라우트가 반영되어 있다 — 새 설치에서
 증상이 재발하면 이미지/설정 버전 불일치를 의심하고 라우트 존재부터 grep.
+
+### #17 Docker VM 디스크 부족 → containerd content store 손상
+
+증상 진행 순서: `docker system df`로 여유 없음 확인 → kong이 `/tmp` mkdir 실패로
+unhealthy(일시적, 재시작하면 회복되기도 함) → 이후 다른 이미지를 pull/기동할 때
+`content digest sha256:... not found` 또는 `apply layer error ...: NotFound:
+failed to get reader from content store`로 컨테이너 생성 자체가 실패. 디스크가
+부족한 동안 받아지던 레이어가 일부만 기록되어 이미지 메타데이터가 로컬에는
+남아있지만(예: `docker inspect <image>`의 `RootFS.Layers`가 비어있거나 실제
+blob이 없음) 실체가 없는 상태가 된 것.
+
+```bash
+# 1) Docker VM 실디스크 여유공간 확인 (호스트 df -h가 아니라 VM 내부 기준)
+docker run --rm busybox df -h /
+
+# 2) 안전한 정리부터: 미사용 dangling 이미지 (실행/중지 컨테이너에는 영향 없음)
+docker image prune -f
+docker system df   # 회복량 확인, 그래도 여유공간 <10GB면 더 정리하거나
+                    # Docker Desktop 설정에서 디스크 이미지 크기를 늘린다
+
+# 3) kong 등 헬스체크 실패 컨테이너는 재시작만으로 회복되기도 함
+docker restart supabase-kong
+
+# 4) 특정 이미지가 "content digest not found"/"apply layer error"로 계속
+#    실패하면 해당 이미지만 완전 삭제 후 재pull (재태그 없이 digest 기준으로
+#    받으면 content store 캐시 재사용으로 인한 재발을 피할 수 있다)
+docker rmi -f <image>:<tag>
+docker pull --platform linux/amd64 <image>@<sha256-digest>   # docker manifest inspect로 digest 확인
+docker tag <image>@<sha256-digest> <image>:<tag>
+```
+
+무관한 프로젝트(다른 앱의 exited 컨테이너 등)를 정리하는 것은 파괴적 조치이므로
+사용자 승인 없이 임의 삭제하지 않는다 — dangling 이미지 prune만 승인 없이도 안전.
+
+### #18 amd64 전용 이미지 — Apple Silicon에서 pull 실패 → build 폴백까지 실패
+
+`docker-compose.yml`의 서비스 대부분은 `image:`와 `build:`를 동시에 갖고
+있어서, 태그된 이미지가 있으면 pull만 하고 build는 건드리지 않는다. 문제는
+일부 이미지가 amd64 매니페스트만 갖고 있어(`docker manifest inspect
+<image>`로 `platform.architecture` 확인) arm64 호스트에서 plain
+`docker pull`/`docker compose up`이 "no matching manifest" 로 즉시 실패하고,
+Docker Compose가 이를 "이미지가 없다"고 판단해 `build:`로 자동 전환하는데,
+`process-gpt-infra-docker`는 서브모듈을 초기화하지 않은 상태가 기본이라
+`services/<name>/Dockerfile`이 없어 build도 즉시 실패한다.
+
+```bash
+# 실패한 서비스명은 compose 로그의 "Building"/"no matching manifest" 줄에서 확인.
+# 확인된 사례: base-agent-langchain-react, glossary-backend, deepagents, office-mcp
+# (버전이 바뀌면 다른 서비스도 해당될 수 있음 — 증상이 같으면 동일하게 처리)
+
+docker pull --platform linux/amd64 ghcr.io/uengine-oss/<image>:<tag>
+# 위가 매니페스트 자체 문제로 실패하면 amd64용 하위 digest를 직접 지정:
+docker manifest inspect ghcr.io/uengine-oss/<image>:<tag>   # architecture:amd64 항목의 digest 확인
+docker pull --platform linux/amd64 ghcr.io/uengine-oss/<image>@sha256:<amd64-digest>
+docker tag ghcr.io/uengine-oss/<image>@sha256:<amd64-digest> ghcr.io/uengine-oss/<image>:<tag>
+
+# 필요한 이미지를 모두 로컬에 채운 뒤 start-all-services.sh를 재실행하면
+# compose가 로컬 이미지를 그대로 쓰고 build를 시도하지 않는다.
+```
 
 ### DB 접속 원라이너
 
