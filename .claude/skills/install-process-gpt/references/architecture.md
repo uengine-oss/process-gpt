@@ -1,5 +1,13 @@
 # Process GPT 아키텍처 요약 (설치 관점)
 
+> **compose 파일 위치**: 아래 "Compose 4계층" 절이 설명하는
+> `docker-compose.yml`/`infra/`/`compose/`/`gateway/` 조합은 `process-gpt` 안에서
+> `compose/docker-compose.yml`과 루트 `docker-compose.yml`이 제거되어 더 이상
+> 그대로 재현되지 않는다. 로컬 설치용 compose 파일은 이제
+> [process-gpt-infra-docker](https://github.com/uengine-oss/process-gpt-infra-docker)
+> 레포의 단일 `docker-compose.yml`에 있다(서비스 카탈로그·포트 표는 여전히 유효).
+> `process-gpt`에 남은 `infra/`/`gateway/`는 후속 변경에서 정리 예정.
+
 ## 전체 그림
 
 ```

@@ -3,6 +3,12 @@
 > 로컬(macOS, Apple Silicon) 개발기에 Process-GPT 전체 스택을 Docker Compose로
 > 기동하면서 겪은 문제와 해결책을 시간 순으로 기록. 이후 작업도 계속 여기에 추가.
 
+> **참고**: compose 설치 파일은 이후
+> [process-gpt-infra-docker](https://github.com/uengine-oss/process-gpt-infra-docker)
+> 레포로 이전되었다. 아래 기록은 이전 `docker-compose.yml` + `infra/` + `compose/`
+> + `gateway/` 4계층 구조 기준이며, 컨테이너명/증상 진단 등은 여전히 참고 가치가
+> 있지만 파일 경로는 새 레포 기준으로 다시 확인해야 한다.
+
 - 환경: macOS (darwin 25.0), Apple Silicon(arm64), Docker Desktop
 - 레포: `/Users/uengine/process-gpt` (main 브랜치, 서브모듈 다수)
 - 기동 스크립트: `./start-all-services.sh`

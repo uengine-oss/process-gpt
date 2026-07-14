@@ -98,13 +98,16 @@ mcp-proxy는 K8s 전용이라 로컬/단일서버에서는 제외.
 
 선택된 모드의 reference 절차를 따른다. 공통 원칙:
 
-- compose 기동은 항상 4계층을 함께 지정한다 (순서 중요 — 첫 -f가 상대경로 앵커):
+- 로컬/단일서버 compose 파일은 `process-gpt-infra-docker`(별도 레포)에 있다. 먼저
+  clone한 뒤 그 안에서 기동한다:
   ```bash
-  CF=(-f docker-compose.yml -f infra/docker-compose.yml -f compose/docker-compose.yml -f gateway/docker-compose.yml)
-  docker compose --env-file .env "${CF[@]}" up -d --wait <infra...> && \
-  docker compose --env-file .env "${CF[@]}" up -d <선택 서비스...> nginx
+  git clone https://github.com/uengine-oss/process-gpt-infra-docker.git
+  cd process-gpt-infra-docker
+  docker compose up -d --wait <infra...> && \
+  docker compose up -d <선택 서비스...> nginx
   ```
-  또는 `./start-all-services.sh` (실행권한 `chmod +x` 먼저 — troubleshooting #2).
+  (`process-gpt` 안의 `infra/`, `gateway/`, `start-all-services.*`는 예전 4계층
+  구조의 잔재로 후속 변경에서 정리 예정이며, 지금은 사용하지 않는다.)
 - GHCR 로그인이 없고 로컬 이미지가 있으면 `--pull never`로 pull 회피 (troubleshooting #3).
 - 각 단계 후 `docker compose ... ps`로 상태를 확인하고, 크래시한 컨테이너는
   로그를 읽어 troubleshooting.md와 대조한다.

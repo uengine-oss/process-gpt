@@ -99,7 +99,7 @@ Process GPT is the only player in the **"BPMN + AI Hybrid"** category — purpos
 *   **Website:** [process-gpt.io](https://www.process-gpt.io)
 *   **Documentation:** [docs.process-gpt.io](https://docs.process-gpt.io)
 *   **SaaS:** try it instantly at [process-gpt.io](https://process-gpt.io)
-*   **Self-host:** `docker compose up` deploys the full stack; Kubernetes manifests included for production
+*   **Self-host:** clone [process-gpt-infra-docker](https://github.com/uengine-oss/process-gpt-infra-docker) and run `docker compose up` to deploy the full local-dev stack; Kubernetes manifests included for production
 
 > *Process GPT creates a new category — "the BPMN of AI agents" — and sets the standard for enterprise multi-agent orchestration.*
 
@@ -177,6 +177,13 @@ All such changes must be **logged for tracking and recovery**, while users shoul
 This repo is a **meta-project**: every microservice listed above lives as a Git
 submodule under `services/`, while infrastructure, gateway and orchestration
 glue stay locally in the root project.
+
+> **Local install files live in a separate repo.** Docker Compose files and
+> configs for local-dev installation have moved to
+> [process-gpt-infra-docker](https://github.com/uengine-oss/process-gpt-infra-docker).
+> The `infra/`, `gateway/`, and `start-all-services.*` shown below are leftovers
+> of the previous layered compose setup and are pending cleanup in a follow-up
+> change — don't use them for installation.
 
 ```
 process-gpt/
