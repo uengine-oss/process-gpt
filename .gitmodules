@@ -43,3 +43,9 @@
 [submodule "services/strategy"]
 	path = services/strategy
 	url = https://github.com/uengine-oss/process-gpt-strategy.git
+[submodule "services/base-agent-langchain-react"]
+	path = services/base-agent-langchain-react
+	url = https://github.com/uengine-oss/process-gpt-base-agent-langchain-react.git
+[submodule "services/deepagents"]
+	path = services/deepagents
+	url = https://github.com/uengine-oss/process-gpt-deepagents.git
