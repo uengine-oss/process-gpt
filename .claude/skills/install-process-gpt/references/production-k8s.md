@@ -1,8 +1,9 @@
 # 프로덕션 설치 (Kubernetes — AWS EKS / GCP GKE / Azure AKS)
 
-확장 가능한 운영 환경. 레포의 `deployments/` 매니페스트는 **Supabase를
-매니지드(cloud.supabase.com) 프로젝트로 가정**한다 — 프로덕션에서도 이 조합
-(K8s에는 앱 서비스만, 데이터 플레인은 매니지드 Supabase)이 가장 단순하고 안전하다.
+확장 가능한 운영 환경. [process-gpt-k8s](https://github.com/uengine-oss/process-gpt-k8s)
+레포의 `deployments/` 매니페스트는 **Supabase를 매니지드(cloud.supabase.com)
+프로젝트로 가정**한다 — 프로덕션에서도 이 조합(K8s에는 앱 서비스만, 데이터
+플레인은 매니지드 Supabase)이 가장 단순하고 안전하다.
 
 ## 0. 사용자에게 먼저 물을 것
 
@@ -87,13 +88,15 @@ kubectl -n dev apply -f completion-service.yaml -f frontend-deployment-service.y
 kubectl -n dev get pods -w
 ```
 
-`deployments/`는 core 서브셋(frontend, completion, memento, polling-service,
-crewai-action, crewai-deep-research, react-voice-agent, gateway)만 제공한다.
-추가 서비스(base-agent-langchain-react, deepagents, instance-classifier 등)가
-필요하면 **compose/docker-compose.yml의 image·environment를 원본 삼아**
-Deployment+Service 매니페스트를 생성해준다. 이미지 태그는 compose에 고정된
-태그를 그대로 쓰는 것이 검증된 조합이다 (버전 불일치가 최다 장애 원인 —
-troubleshooting #13-b, #15).
+이 매니페스트들(`deployments/` 등)은
+[process-gpt-k8s](https://github.com/uengine-oss/process-gpt-k8s) 레포에 있고,
+core 서브셋(frontend, completion, memento, polling-service, crewai-action,
+crewai-deep-research, react-voice-agent, gateway)만 제공한다. 추가 서비스
+(base-agent-langchain-react, deepagents, instance-classifier 등)가 필요하면
+**`process-gpt-infra-docker`의 `docker-compose.yml`에 정의된 image·environment를
+원본 삼아** Deployment+Service 매니페스트를 생성해준다. 이미지 태그는 그
+compose에 고정된 태그를 그대로 쓰는 것이 검증된 조합이다 (버전 불일치가 최다
+장애 원인 — troubleshooting #13-b, #15).
 
 ## 6. 인그레스 / TLS / 도메인
 

@@ -5,9 +5,10 @@
 
 ## 1. 컨테이너 상태
 
+`process-gpt-infra-docker` 레포 루트에서(단일 `docker-compose.yml`):
+
 ```bash
-CF=(-f docker-compose.yml -f infra/docker-compose.yml -f compose/docker-compose.yml -f gateway/docker-compose.yml)
-docker compose --env-file .env "${CF[@]}" ps -a --format '{{.Service}}\t{{.State}}\t{{.Status}}'
+docker compose --env-file .env ps -a --format '{{.Service}}\t{{.State}}\t{{.Status}}'
 ```
 
 - 선택한 프로파일의 서비스가 모두 `running`인지. `restarting`/`exited`는 로그
@@ -51,9 +52,11 @@ PSQL "select count(*) from information_schema.columns where table_name='proc_def
 
 ## 5. nginx 라우트 존재 확인
 
+`process-gpt-infra-docker` 레포 루트에서:
+
 ```bash
-grep -c 'location /completion/' gateway/nginx/nginx.conf   # 1 이상
-grep -c 'agent/chat/stream' gateway/nginx/nginx.conf       # 1 이상
+grep -c 'location /completion/' nginx/nginx.conf   # 1 이상
+grep -c 'agent/chat/stream' nginx/nginx.conf       # 1 이상
 ```
 
 ## 통과 기준

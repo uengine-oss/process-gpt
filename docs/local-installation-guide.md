@@ -1,147 +1,162 @@
-## Process-GPT Local Installation Guide (Kind)
+## Process-GPT Local Installation Guide (Docker Compose)
 
-This is a quick guide to running Process-GPT on a local Kubernetes/Kind cluster.
+This is the quickest way to run the full Process-GPT stack (Supabase, Neo4j,
+LiteLLM, nginx gateway, and the application microservices) on your own
+machine. All install assets — the compose file, nginx config, `.env`
+template, and DB init SQL — live in the
+[process-gpt-infra-docker](https://github.com/uengine-oss/process-gpt-infra-docker)
+repo, vendored into this repo as the `process-gpt-infra-docker/` submodule.
+
+> Looking for a single-server or production Kubernetes install instead? See
+> `.claude/skills/install-process-gpt/references/single-server.md` and
+> `production-k8s.md` (Kubernetes manifests for a real cluster live in the
+> separate [process-gpt-k8s](https://github.com/uengine-oss/process-gpt-k8s) repo).
 
 ### 📋 Prerequisites
 
-* Docker
-* kubectl
-* kind
+* Docker / Docker Compose (Docker Desktop is fine)
+* Git
+* (optional, only if you want to build services from source instead of
+  pulling images) `git submodule` support for nested submodules
 
 ### 🚀 Installation & Execution
 
-#### 1. Install Required Tools
+#### 1. Get the compose files
+
+If you've already cloned `process-gpt` with `--recurse-submodules`, the
+compose files are already at `process-gpt-infra-docker/` — just `cd` in:
 
 ```bash
-# Install and run Docker Desktop
-docker --version
-
-# Install kubectl
-# https://kubernetes.io/docs/tasks/tools/install-kubectl/
-
-# Install kind (Mac)
-brew install kind
-
-# Install kind (Windows)
-curl.exe -Lo kind.exe https://kind.sigs.k8s.io/dl/v0.20.0/kind-windows-amd64
+cd process-gpt
+git submodule update --init process-gpt-infra-docker
+cd process-gpt-infra-docker
 ```
 
-#### 2. Create the Cluster
+If you only want to run the app and don't need the `process-gpt` source at
+all, you can clone `process-gpt-infra-docker` on its own instead:
 
 ```bash
-# Mac
-kind create cluster --name process-gpt
-
-# Windows
-.\kind.exe create cluster --name process-gpt
+git clone https://github.com/uengine-oss/process-gpt-infra-docker.git
+cd process-gpt-infra-docker
 ```
 
-#### 3. Clone the repo and see Configuration Files
-
-Clone this repo:
-```
-git clone https://github.com/uengine-oss/process-gpt
-```
-
-See `secrets.yaml`:
-
-```yaml
-OPENAI_API_KEY: "sk-your-actual-openai-key"
-SUPABASE_KEY: "your-actual-supabase-anon-key"
-SERVICE_ROLE_KEY: "your-actual-supabase-service-role-key"
-JWT_SECRET: "your-actual-jwt-secret"
-DB_NAME: "your-db-name"
-DB_USER: "your-db-user"
-DB_PASSWORD: "your-db-password"
-DB_HOST: "your-db-host"
-DB_PORT: "your-db-port"
-SMTP_PASSWORD: "your-smtp-password"
-LANGSMITH_API_KEY: "your-langsmith-api-key"
-LANGSMITH_PROJECT: "your-langsmith-project"
-MEM_ZERO_API_KEY: "your-mem-zero-api-key"
-PERPLEXITY_API_KEY: "your-perplexity-api-key"
-# Google Cloud settings: contents of credentials.json for the google-credentials secret
-```
-
-See `configmap.yaml`:
-
-```yaml
-SUPABASE_URL: "https://your-project.supabase.co"
-SMTP_PORT: "587"
-SMTP_SERVER: "smtp.gmail.com"
-SMTP_USERNAME: "your-smtp-username"
-```
-
-#### 4. Create Database and Obtain the configuration values
-- Go to https://supabase.com/ and Click "Start Project" to create a new Project named "process-gpt"
-- Go to "Integration" Menu and install "cron" extension (If not, you may encounter "cron schema doesn't exist ERROR")
-- Obtain values for SUPABASE_URL, SUPABASE_KEY, SERVICE_ROLE_KEY, JWT_SECRET, DB_HOST, DB_NAME, DB_USER for next configuration
-- SUPABASE_URL, SUPABASE_KEY, SERVICE_ROLE_KEY, JWT_SECRET could be obtained from Settings > API Keys / JWT Keys
-- DB_HOST, DB_NAME, DB_USER could be obtained from the screen that can be shown by clicking "Connect" menu and select type as "Python" and method should be "Transaction pooler"
-
-  > Youtube video required to understand how to getting this information
-
-#### 5. Create Tables
-- Go to "SQL Editor", paste the DDL Script from 'init.sql'
-
-#### 6. Deployment
+Nested service submodules (`services/*`) are only needed if you want to
+build a service from source (`build:` targets, e.g. iterating on the
+frontend) rather than pulling its published image:
 
 ```bash
-# Step 1: Deploy core configuration files (required)
-kubectl apply -f secrets.yaml
-kubectl apply -f configmap.yaml
-kubectl apply -f rbac.yaml
-kubectl apply -f pvc.yaml
-
-# Step 2: Deploy all deployments and services
-kubectl apply -f deployments/
-kubectl apply -f services/
+# --recursive is intentionally avoided (can misidentify nested worktrees as submodules)
+git submodule update --init
 ```
 
-#### 7. Check Status
+#### 2. Configure environment
 
 ```bash
-kubectl get pods -w
-```
-then, wait until the logs look like this:
-```
-NAME                                               READY   STATUS    RESTARTS   AGE
-airbnb-agent-859f5b84f-jdtx2                       1/1     Running   0          84m
-autonomous-deployment-65cc4bd5d4-842m8             1/1     Running   0          84m
-crewai-action-deployment-778d9858dd-r9dwg          1/1     Running   0          84m
-crewai-deep-research-deployment-8645d9568d-tzxlt   1/1     Running   0          84m
-execution-deployment-cb7d8c4dc-smkm8               1/1     Running   0          5m44s
-frontend-deployment-84f95b8986-kk249               1/1     Running   0          84m
-gateway-6bc9494c54-wc8qm                           1/1     Running   0          84m
-memento-deployment-55879b968b-t9fbj                1/1     Running   0          84m
-polling-service-deployment-7dddbfb949-wdd8b        1/1     Running   0          84m
-react-voice-agent-75bdf46c58-vl4qv                 1/1     Running   0          84m
+cp .env.example .env
 ```
 
-#### 8. Access the Application
+Open `.env` and fill in at minimum an LLM key (OpenAI direct is simplest):
+
+```dotenv
+OPENAI_API_KEY=sk-...
+LLM_MODEL=gpt-4.1
+LLM_PROXY_URL=https://api.openai.com/v1
+LLM_PROXY_API_KEY=sk-...        # same as OPENAI_API_KEY
+OPENAI_BASE_URL=https://api.openai.com/v1
+
+# local dev: skip email confirmation on signup
+ENABLE_EMAIL_AUTOCONFIRM=true
+```
+
+Supabase JWT values (`JWT_SECRET`/`ANON_KEY`/`SERVICE_ROLE_KEY`) can stay at
+their dev defaults for local use.
+
+#### 3. Start the stack
 
 ```bash
-kubectl port-forward service/gateway 8088:80
+# Linux / macOS / Git Bash
+./start-all-services.sh
+
+# Windows PowerShell
+.\start-all-services.ps1
 ```
 
-Open your browser and go to **[http://localhost:8088](http://localhost:8088)**
+The launcher lets you start **all services**, **infra only**, or **pick
+individual microservices** (interactive checkbox menu, multi-select). Infra
+(Supabase, Postgres, Neo4j, LiteLLM) always comes up first with `--wait`,
+then your selected services, then the nginx gateway.
+
+```text
+Choose a start mode:
+  1) ALL services
+  2) Individual services (select multiple)
+  3) Just the infra stack (db / supabase / neo4j / litellm)
+  q) Quit
+Selection [1/2/3/q]: 2
+```
+
+Non-interactive shortcuts:
+
+```bash
+./start-all-services.sh all                          # everything
+./start-all-services.sh frontend memento completion   # specific services
+./start-all-services.sh --last                        # repeat your last selection
+```
+
+GHCR images are private — if you haven't logged in and don't already have
+the images locally, either log in first:
+
+```bash
+echo $GITHUB_PAT | docker login ghcr.io -u <user> --password-stdin
+```
+
+or start with `docker compose up -d --pull never <services...>` to force use
+of local images.
+
+#### 4. Check status
+
+```bash
+docker compose ps -a --format '{{.Service}}\t{{.State}}\t{{.Status}}'
+```
+
+Wait for `db`/`kong`/`auth` etc. to report healthy/running before opening the
+app — Postgres takes 30–60s on first boot to apply the init SQL.
+
+#### 5. Access the Application
+
+* Gateway (app entry point): **http://localhost:8088**
+* Supabase Studio: http://localhost:3001
+* Supabase Kong (API): http://localhost:54321
+* Neo4j Browser: http://localhost:7474 (only if you started `neo4j`/`bpmn-extractor`)
+
+#### 6. Stop / clean up
+
+```bash
+./stop-all-services.sh                 # stop everything
+./stop-all-services.sh frontend        # stop just a few services
+./stop-all-services.sh --volumes       # stop AND wipe volumes (destructive!)
+./stop-all-services.sh --wipe          # also wipe bind-mount dirs (db data/storage/logs)
+```
 
 ---
 
-### 📚 File Descriptions
+### 📚 File Reference (in `process-gpt-infra-docker/`)
 
-**Core Config Files:**
+* `docker-compose.yml` — full stack: infra (Supabase/Neo4j/LiteLLM), all
+  microservices, and the nginx gateway, in one file.
+* `nginx/nginx.conf` — gateway routing.
+* `litellm_config.yaml` — LiteLLM proxy config.
+* `.env.example` — environment variable template.
+* `volumes/` — `api/kong.yml`, `db/*.sql` + `db/init/` (schema seed),
+  `email-templates/`, `functions/`, `pooler/`.
+* `start-all-services.sh` / `.ps1`, `stop-all-services.sh` / `.ps1` —
+  interactive launcher/teardown with presets (state in `.process-gpt-state/`,
+  git-ignored).
 
-* `secrets.yaml`: Sensitive values (API keys, DB credentials, JWT secrets) — must be updated with real values.
-* `configmap.yaml`: Public configuration values (e.g., Supabase URL) — must be updated with real values.
-* `rbac.yaml`: Service account permissions for the MCP Proxy (Role-Based Access Control).
-* `pvc.yaml`: Persistent Volume Claim for LangChain caching.
+### Troubleshooting
 
-**Deployment Files:**
-
-* `deployments/`: Deployment configurations for all applications.
-* `services/`: Networking configurations for all services.
-
-**Database Scheme:**
-
-* `init.sql`: Supabase database table definition script.
+If something doesn't come up cleanly (port conflicts, container name
+conflicts, private image pulls, Apple Silicon platform warnings, login/tenant
+issues, etc.), check `.claude/skills/install-process-gpt/references/troubleshooting.md`
+and `INSTALL_MEMORY.md` at the root of this repo — both catalog issues hit
+during real installs with symptom → cause → fix.

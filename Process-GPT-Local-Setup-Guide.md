@@ -2,27 +2,35 @@
 # Process-GPT 로컬 개발 환경 구축 공식 온보딩 가이드
 
 > 이 문서는 Process-GPT를 처음 접하는 개발자가 **다시 위로 올라가서 확인할 필요 없이**
-> 처음부터 끝까지 순차적으로 따라가며
-> **단 하나의 명령어도 누락 없이**
-> 로컬 개발 환경을 완성할 수 있도록 작성된 공식 온보딩 가이드입니다.
+> 처음부터 끝까지 순차적으로 따라가며 로컬 개발 환경을 완성할 수 있도록 작성된
+> 공식 온보딩 가이드입니다.
+>
+> **설치 자산(compose 파일, nginx 설정, env 템플릿, DB 초기화 SQL)은 모두
+> [process-gpt-infra-docker](https://github.com/uengine-oss/process-gpt-infra-docker)
+> 레포에 있으며, 이 레포(`process-gpt`)에는 `process-gpt-infra-docker/` 서브모듈로
+> 포함되어 있습니다.** 게이트웨이는 nginx이고, 기본 경로는 개별 서비스를 각각
+> 수동으로 띄우는 것이 아니라 Docker Compose로 전체 스택을 한 번에 기동하는
+> 것입니다. 특정 서비스만 로컬 소스로 개발/반복하고 싶을 때는 그 서비스만
+> Compose에서 빼고 dev 서버로 실행하면 됩니다.
 
 ---
 
 ## 0. 반드시 이 문서를 처음부터 끝까지 읽어야 하는 이유
 
-Process-GPT는 단일 애플리케이션이 아닙니다.  
+Process-GPT는 단일 애플리케이션이 아닙니다.
 다음과 같은 **다중 서비스 + 다중 기술 스택**이 정확한 순서와 설정으로 연결되어야 정상 동작합니다.
 
-- Frontend (Vue3 + Vite)
-- Gateway (Spring Boot, JWT 인증)
+- Frontend (Vue 3 + Vite)
+- Gateway (nginx, JWT 검증은 Supabase Auth 기준)
 - Completion Service (Python + OpenAI)
-- Polling Service (비동기 이벤트 처리)
-- Memento Service (메모리/컨텍스트 저장)
-- Supabase (Auth + PostgreSQL + Storage)
-- Docker 기반 로컬 인프라
+- Polling Service (비동기 워크아이템 처리)
+- Memento Service (RAG / 벡터스토어)
+- Supabase (Auth + PostgreSQL + Realtime + Storage)
+- 그 외 다수의 마이크로서비스 (`services/` 참조)
 
-👉 **하나라도 누락되면**  
-로그인 실패, 401 오류, Completion 무응답, 메모리 저장 실패가 발생합니다.
+👉 **하나라도 누락되면** 로그인 실패, 401 오류, 채팅 무응답, 메모리 저장 실패가 발생할 수 있습니다.
+정확한 서비스 카탈로그와 포트, 의존관계는
+`.claude/skills/install-process-gpt/references/architecture.md`를 참조하세요.
 
 ---
 
@@ -31,360 +39,152 @@ Process-GPT는 단일 애플리케이션이 아닙니다.
 ```
 [Browser]
    ↓
-[Vue3 Frontend]
-   ↓
-[Spring Boot Gateway]  ← JWT 검증 기준점
-   ↓
-[Completion Service] ←→ [Polling Service]
-   ↓
-[Memento Service]
-   ↓
-[Supabase (Auth + DB)]
+[nginx 게이트웨이 :8088]  ← 모든 요청의 단일 진입점
+   ├──► [Vue3 Frontend]
+   ├──► [Completion Service] ←→ [Polling Service]
+   ├──► [base-agent-langchain-react]
+   └──► [Memento Service] 등
+   ↓ (프론트는 Supabase에 직접 연결)
+[Supabase (Auth + PostgreSQL + Realtime + Storage)]
 ```
 
-- Gateway는 모든 요청의 **단일 진입점**
-- JWT Secret이 Gateway와 Supabase 간 불일치 시 전체 시스템 실패
+- 게이트웨이(nginx)는 AI/에이전트 호출의 단일 진입점이고, 프론트는 Supabase(REST/
+  Realtime/Auth)에 **직접** 접속합니다(멀티테넌트, RLS 기반).
+- 멀티테넌시: `tenant_id`가 **접속 호스트명에서 파생**됩니다
+  (`localhost:8088` 접속 → tenant `localhost`). RLS는 JWT의
+  `app_metadata.tenant_id` 클레임을 검사합니다.
 
 ---
 
 ## 2. Repository 준비 (절대 생략 불가)
 
-### 2-1. 작업 디렉토리 생성
+### 2-1. `process-gpt-infra-docker` 준비
+
+이미 `process-gpt`를 클론했다면 서브모듈만 초기화하면 됩니다:
 
 ```bash
-mkdir process-gpt
 cd process-gpt
+git submodule update --init process-gpt-infra-docker
+cd process-gpt-infra-docker
 ```
 
-### 2-2. Repository Clone
+`process-gpt` 소스가 필요 없고 Docker로 앱만 띄우면 된다면
+`process-gpt-infra-docker`만 단독으로 클론해도 됩니다:
 
 ```bash
-git clone https://github.com/uengine-oss/process-gpt-vue3
-git clone https://github.com/uengine-oss/process-gpt-completion
-git clone https://github.com/uengine-oss/process-gpt-memento
+git clone https://github.com/uengine-oss/process-gpt-infra-docker.git
+cd process-gpt-infra-docker
 ```
 
-⚠️ 반드시 **같은 상위 디렉토리**에 존재해야 합니다.
+### 2-2. 서비스 소스 서브모듈 (소스 수정/dev 서버 실행 시에만 필요)
+
+이미지 그대로 쓰지 않고 특정 서비스를 로컬 소스로 빌드/실행하려면 그 서비스의
+서브모듈을 초기화합니다 (`--recursive`는 사용하지 않습니다 — 중첩 worktree를
+서브모듈로 오인하는 문제가 있습니다):
+
+```bash
+git submodule update --init services/frontend services/completion services/memento
+```
 
 ---
 
-## 3. Frontend (process-gpt-vue3) 설정
+## 3. Docker Compose로 인프라 + 나머지 서비스 기동
 
-### 3-1. Node.js 버전 확인
+로컬 소스로 반복 작업할 서비스를 제외한 나머지(인프라 + 다른 마이크로서비스 +
+게이트웨이)는 Docker Compose로 띄워두는 것이 가장 간단합니다.
+전체 절차는 [Local Installation Guide](docs/local-installation-guide.md)를 따르세요:
+
+```bash
+cp .env.example .env
+# LLM API 키 등 채우기
+
+./start-all-services.sh            # 대화형으로 서비스 선택
+# 또는: ./start-all-services.sh completion memento base-agent-langchain-react
+```
+
+이 문서의 나머지는 **frontend를 로컬 dev 서버로 돌리는 경우**를 예로 듭니다.
+같은 패턴(해당 서비스만 Compose에서 제외하고 로컬 실행)을 completion, memento
+등 다른 서비스에도 적용할 수 있습니다 — 각 서비스의 정확한 실행 방법(가상환경,
+의존성 설치, 실행 커맨드)은 해당 서비스 레포(`services/<name>/README.md`)를
+따르세요.
+
+---
+
+## 4. Frontend를 dev 서버로 실행 (코드 수정 이터레이션용)
+
+도커 이미지 재빌드는 매번 ~3분이 걸려 프론트 코드를 자주 수정할 때는 비효율적입니다.
+Vite dev 서버(HMR)를 대신 사용하세요.
+
+### 4-1. Node.js 버전 확인
 
 ```bash
 node -v
 ```
 
-- **권장 버전:** `v18.17.0`
-- 다른 버전 사용 시:
-  - Vite 실행 오류
-  - dependency 충돌
-  - build 실패 가능성
+버전 불일치 시 `nvm`으로 프로젝트가 요구하는 버전을 설치하세요
+(`services/frontend/package.json`의 `engines` 참조).
 
----
-
-### 3-2. 기존 Node 삭제가 필요한 이유 (Windows)
-
-- `nvm`은 Node를 관리하는 도구
-- OS에 직접 설치된 Node가 있으면 **PATH 충돌 발생**
-- 반드시 기존 Node 제거 필요
-
-**경로**
-- 제어판 → 프로그램 제거 → Node.js 삭제
-
----
-
-### 3-3. nvm 설치
-
-#### Windows
-https://github.com/coreybutler/nvm-windows/releases  
-→ `nvm-setup.exe` 실행
-
-#### macOS
-```bash
-curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
-```
-
----
-
-### 3-4. Node 18.17.0 설치
+### 4-2. 의존성 설치 및 실행
 
 ```bash
-nvm install 18.17.0
-nvm use 18.17.0
-node -v
+cd process-gpt-infra-docker/services/frontend
+npm install --legacy-peer-deps
 ```
 
----
-
-### 3-5. Frontend 의존성 설치
-
-```bash
-cd process-gpt-vue3
-npm install
-```
-
----
-
-## 4. Supabase 로컬 환경 구축 (Docker 기반)
-
-### 4-1. Docker Desktop 설치
-
-https://www.docker.com/get-started/
-
-Docker Desktop은 **반드시 실행 중**이어야 합니다.
-
----
-
-### 4-2. Supabase 초기화
-
-```bash
-cd process-gpt-vue3
-npx supabase init
-```
-
----
-
-### 4-3. Supabase 실행
-
-```bash
-cd supabase
-npx supabase start
-```
-
-정상 실행 시 다음 정보 출력:
-- Studio URL
-- API URL
-- anon key / service key
-- JWT Secret
-
----
-
-### 4-4. DB 초기 스키마 로딩 (필수)
-
-**파일 위치**
-```
-process-gpt-vue3/docker-compose/volumes/db/init.sql
-```
-
-**절차**
-1. Supabase Studio 접속
-2. SQL Editor 열기
-3. `init.sql` 전체 복사 → 실행
-
-⚠️ 이 단계 누락 시 **DB 오류 100% 발생**
-
----
-
-## 5. Frontend 실행
-
-```bash
-cd process-gpt-vue3
-npm run dev
-```
-
-브라우저에서 출력된 `localhost` 포트 접속
-
----
-
-## 6. Gateway (Spring Boot) 설정
-
-### 6-1. JDK 설치
-
-```bash
-choco install openjdk11 -y
-```
-
-### 6-2. Maven 설치
-
-```bash
-choco install maven -y
-```
-
-확인:
-
-```bash
-java -version
-mvn -v
-```
-
----
-
-### 6-3. JAVA_HOME 설정 (중요)
-
-```bash
-where java
-```
-
-예:
-```
-C:\Program Files\Eclipse Adoptium\jdk-11.0.x\bin\java.exe
-```
-
-**환경변수 설정**
-- JAVA_HOME = `C:\Program Files\Eclipse Adoptium\jdk-11.0.x`
-- Path에 `%JAVA_HOME%\bin` 추가
-
----
-
-### 6-4. Visual C++ Build Tools 설치
-
-https://visualstudio.microsoft.com/ko/visual-cpp-build-tools/
-
-✔ **“C++를 사용한 데스크톱 개발”** 선택
-
----
-
-### 6-5. JWT Secret 설정 (가장 중요)
-
-Supabase 실행 시 출력된 JWT Secret 확인 후 수정
-
-**파일**
-```
-gateway/src/main/java/.../ForwardHostHeaderFilter.java
-```
-
-```java
-private static final String SECRET_KEY =
-    Optional.ofNullable(System.getenv("SECRET_KEY"))
-    .orElse("SUPABASE_JWT_SECRET");
-```
-
-❌ 다를 경우:
-- 로그인 실패
-- 모든 API 401
-
----
-
-### 6-6. Gateway 실행
-
-```bash
-cd process-gpt-vue3/gateway
-mvn spring-boot:run
-```
-
----
-
-## 7. Completion Service 설정
-
-### 7-1. Python 설치
-
-- 권장 버전: **Python 3.12.0**
-- https://www.python.org/downloads/
-
----
-
-### 7-2. 가상환경 생성
-
-```bash
-cd process-gpt-completion
-uv venv --python 3.12.0
-uv pip install -r requirements.txt
-source .venv/Scripts/activate
-```
-
----
-
-### 7-3. `.env` (main.py)
+`.env`에 다음을 설정합니다 (Docker Compose로 띄운 Supabase 기준):
 
 ```env
-ENV=local
-OPENAI_API_KEY=YOUR_KEY
+VITE_SUPABASE_URL=http://localhost:54321
+VITE_SUPABASE_KEY=<ANON_KEY>       # .env.example의 dev ANON_KEY
+VITE_MODE=ProcessGPT
+```
 
-SUPABASE_URL=
-SUPABASE_KEY=
+```bash
+npm run dev -- --port 5199 --strictPort
+```
 
-DB_HOST=127.0.0.1
-DB_PORT=54322
-DB_NAME=postgres
-DB_USER=postgres
-DB_PASSWORD=postgres
+- 5173 포트는 다른 Vite 프로젝트와 충돌한 이력이 있어 전용 포트(5199 등)로
+  고정하는 것을 권장합니다.
+- `vite.config.ts`의 `/langchain-chat` 프록시 타깃은 nginx 게이트웨이
+  (`http://127.0.0.1:8088`)로 두는 것이 안전합니다 — 호스트 `:8000`이 다른
+  프로세스에 선점될 수 있습니다.
+- 접속: **http://localhost:5199**
+
+프론트 이미지를 다시 빌드해 Compose에 고정하려면:
+
+```bash
+docker build -t process-gpt-frontend:local process-gpt-infra-docker/services/frontend
+# docker-compose.yml의 frontend.image를 위 태그로 교체 후 재기동
 ```
 
 ---
 
-### 7-4. polling_service `.env`
-
-⚠️ 루트 + polling_service 내부 **2개 생성 필수**
-
-```env
-ENV=localhost
-OPENAI_API_KEY=
-
-SUPABASE_URL=
-SUPABASE_KEY=
-
-MEMENTO_SERVICE_URL=http://localhost:8005
-COMPLETION_SERVICE_URL=http://localhost:8000
-```
-
----
-
-### 7-5. Completion 실행
-
-```bash
-python main.py
-```
-
-새 터미널:
-
-```bash
-cd polling_service
-python polling_service.py
-```
-
----
-
-## 8. Memento Service 설정
-
-```bash
-cd process-gpt-memento
-uv venv
-uv pip install -r requirements.txt
-source .venv/Scripts/activate
-```
-
-### `.env`
-
-```env
-SUPABASE_URL=
-SUPABASE_KEY=
-OPENAI_API_KEY=
-```
-
-### 실행
-
-```bash
-python main.py
-```
-
----
-
-## 9. 전체 실행 순서 (절대 변경 금지)
+## 5. 실행 순서 요약
 
 1. Docker Desktop
-2. Supabase
-3. Frontend
-4. Gateway
-5. Completion (main)
-6. Completion (polling)
-7. Memento
+2. `process-gpt-infra-docker`에서 인프라 + (로컬로 안 돌릴) 나머지 서비스 기동
+3. (선택) 특정 서비스를 dev 서버로 별도 실행 — frontend 예시는 위 4번 참조
 
 ---
 
-## 10. 최종 체크리스트
+## 6. 최종 체크리스트
 
-- [ ] 로그인 성공
-- [ ] JWT 정상 검증
-- [ ] Completion 응답
-- [ ] Polling 이벤트 수신
-- [ ] Memory 저장/조회
-- [ ] Supabase DB CRUD 정상
+- [ ] `docker compose ps`로 인프라/서비스 컨테이너 상태 확인
+- [ ] 게이트웨이(http://localhost:8088) 200 응답
+- [ ] 로그인 성공, JWT `app_metadata.tenant_id` 정상 (접속 호스트명과 일치)
+- [ ] Completion 응답, Memory 저장/조회 정상
+- [ ] Supabase Studio에서 DB CRUD 정상
+
+문제가 발생하면 `.claude/skills/install-process-gpt/references/troubleshooting.md`와
+`INSTALL_MEMORY.md`를 먼저 확인하세요 — 실전에서 겪은 이슈의 증상→원인→해결이
+정리되어 있습니다.
 
 ---
 
 ## 마무리
 
-이 문서는 **Process-GPT 로컬 개발 환경 구축의 공식 기준 문서**입니다.  
-신규 개발자 온보딩, 사내 위키, PDF 변환, 자동화 스크립트 작성의 기준으로 활용하십시오.
+이 문서는 **Process-GPT 로컬 개발 환경 구축의 공식 기준 문서**입니다.
+신규 개발자 온보딩, 사내 위키, 자동화 스크립트 작성의 기준으로 활용하십시오.
+설치 파일 자체(compose/nginx/env/DB 스키마)의 최신 원본은 항상
+[process-gpt-infra-docker](https://github.com/uengine-oss/process-gpt-infra-docker)
+레포를 기준으로 삼습니다.

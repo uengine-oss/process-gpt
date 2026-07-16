@@ -79,8 +79,8 @@ location /completion/ {
 macOS에서 nginx.conf 수정 후에는 `nginx -s reload`가 아니라
 `docker restart process-gpt-nginx` (바인드마운트 동기화 이슈).
 
-현재 레포 gateway/nginx/nginx.conf에는 이 라우트가 반영되어 있다 — 새 설치에서
-증상이 재발하면 이미지/설정 버전 불일치를 의심하고 라우트 존재부터 grep.
+`process-gpt-infra-docker`의 `nginx/nginx.conf`에는 이 라우트가 반영되어 있다 —
+새 설치에서 증상이 재발하면 이미지/설정 버전 불일치를 의심하고 라우트 존재부터 grep.
 
 ### #17 Docker VM 디스크 부족 → containerd content store 손상
 

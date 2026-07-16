@@ -49,3 +49,6 @@
 [submodule "services/deepagents"]
 	path = services/deepagents
 	url = https://github.com/uengine-oss/process-gpt-deepagents.git
+[submodule "process-gpt-infra-docker"]
+	path = process-gpt-infra-docker
+	url = https://github.com/uengine-oss/process-gpt-infra-docker

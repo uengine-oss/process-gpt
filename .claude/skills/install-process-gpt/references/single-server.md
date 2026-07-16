@@ -92,9 +92,12 @@ sudo k3s kubectl get nodes
    kubectl -n dev apply -f completion-service.yaml -f frontend-deployment-service.yaml \
      -f memento-service-service.yaml -f gateway-service.yaml -f react-voice-agent-service.yaml
    ```
-   `deployments/`에는 core 서비스(frontend, completion, memento, polling,
-   crewai×2, voice, gateway)만 있다 — 나머지 서비스가 필요하면 compose 정의를
-   참고해 매니페스트를 생성해준다 (이미지·env 매핑은 compose/docker-compose.yml이 원본).
+   `deployments/`(및 `ingress/`, `keda/`, `rbac/`)는
+   [process-gpt-k8s](https://github.com/uengine-oss/process-gpt-k8s) 레포에
+   있으며, core 서비스(frontend, completion, memento, polling, crewai×2,
+   voice, gateway)만 포함한다 — 나머지 서비스가 필요하면 compose 정의를 참고해
+   매니페스트를 생성해준다 (이미지·env 매핑은 `process-gpt-infra-docker`의
+   `docker-compose.yml`이 원본).
 4. 인그레스: K3S 내장 traefik으로 gateway-service를 80/443에 노출하거나
    NodePort 사용.
 
