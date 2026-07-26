@@ -1,3 +1,24 @@
+# Tutorial video series (Lv.1–Lv.5, narrated) — 2026-07-26
+
+Modernized walkthrough of the docs.process-gpt.io tutorials Lv.1–Lv.5 (deepagents by
+default, crewai-action not used). Source recordings live in `demo-recordings/`; copies for
+the docs site are served from `docs/doc-site/static/videos/tutorial/` and embedded (HTML5
+`<video>`) at the top of each `content/{ko,en}/tutorial/tutorial-lv*.md`. All five are
+1080p, ~280–310 kbps, 7–15 MB each (52 MB total).
+
+| Level | Video (`demo-recordings/`) | Length | Core message |
+|---|---|---|---|
+| Lv.1 Process creation & execution | `tutorial-lv1-process-basics-narrated.mp4` | 2.6 min | Create a process via chat → save → run → COMPLETED basic cycle |
+| Lv.2 AI-agent proposal writing | `tutorial-lv2-ai-agent-proposal-narrated.mp4` | 3.5 min | Org-chart agent creation/training (mem0) + DMN decision-table dual-encoding; unattended deepagents draft |
+| Lv.3 Conditional branching & feedback | `tutorial-lv3-conditional-feedback-narrated.mp4` | 3.2 min | Edit gateway/conditions/checkpoints in the BPMN editor; reject → loop-back → rewrite → approve |
+| Lv.4 ERP inventory management | `tutorial-lv4-erp-inventory-narrated.mp4` | 3.8 min | Register ERP (Supabase) via Data Sources tab, MRP agent, stock sufficient/insufficient branch with real stock changes |
+| Lv.5 Multi-instance newsletter | `tutorial-lv5-multi-instance-newsletter-narrated.mp4` | 4.8 min | Expanded sub-process + backend auto-inference (determinationCode) spawns parallel child instances, per-customer personalization |
+
+Ground-truth scenario notes (basis for the doc edits) are in
+`.claude/skills/process-gpt-demo/references/scenario-tutorial-lv1.md … lv5.md`.
+
+---
+
 # Strategy/Ontology feature demo — 2026-07-20
 
 `strategy-features-demo.mp4` (~25s, screen-recorded with Playwright) drives the **real**

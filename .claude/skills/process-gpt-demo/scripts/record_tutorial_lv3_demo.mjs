@@ -74,24 +74,27 @@ async function openEdgePanel(id) {
   for (const fy of [0.3,0.7,0.4,0.6]) pts.push([r.x+Math.max(r.w,1)/2, r.y+r.h*fy]);
   for (const fx of [0.3,0.7]) pts.push([r.x+r.w*fx, r.y+r.h/2]);
   pts.push([r.x+2, r.y+r.h-2], [r.x+r.w-2, r.y+2]);
-  for (const [x,y] of pts) { await page.mouse.dblclick(x,y); await wait(900); if (await condOpen()) return true; }
+  for (const [x,y] of pts) { await page.mouse.dblclick(x,y); await wait(500); if (await condOpen()) return true; }
   return false;
 }
 async function setCondition(id, nl, fn) {
   if (!(await openEdgePanel(id))) { console.log('open FAIL', id); return; }
   await wait(700);
+  // 자연어 조건 입력(안정 경로)
   const condInput = page.locator('.v-text-field:has(.mdi-comment-text-outline) input').first();
   await condInput.click().catch(()=>{});
-  await condInput.fill('');
+  await condInput.fill('').catch(()=>{});
   await condInput.type(nl, { delay: 40 }).catch(()=>{});
-  await wait(900);
-  // 함수 모드로 전환 → conditionFunction 직접 입력(결정론적 분기)
-  await page.locator('.mdi-comment-text-outline').first().click().catch(()=>{});
-  await wait(800);
-  const fnInput = page.locator('.v-text-field:has(.mdi-function) input').first();
-  await fnInput.click().catch(()=>{});
-  await fnInput.type(fn, { delay: 35 }).catch(()=>{});
   await wait(1200);
+  // 함수 모드 전환 → conditionFunction 입력(결정론적 분기). 실패해도 녹화 진행(비필수).
+  try {
+    await page.locator('.mdi-comment-text-outline').first().click({ timeout: 3000 });
+    await wait(800);
+    const fnInput = page.locator('.v-text-field:has(.mdi-function) input').first();
+    await fnInput.click({ timeout: 3000 });
+    await fnInput.type(fn, { delay: 35 });
+    await wait(1200);
+  } catch (e) { console.log('fn-mode skip', id, e.message.split('\n')[0]); }
   await page.mouse.click(600, 300); // 패널 닫아 값 flush
   await wait(1000);
 }
@@ -147,21 +150,16 @@ await wait(6500); // 편집 모드 모델러 렌더 대기
 await shot('05b');
 await wait(1500);
 
-// ── Scene 6 — 팔레트에서 배타 게이트웨이 배치 제스처 (배치 후 undo) ─
+// ── Scene 6 — 편집 도구/팔레트 + 배치된 게이트웨이 (캔버스 무손상: 표시만) ─
+//   ※ 헤드리스 Playwright에서 bpmn-js 팔레트 drag/click 은 actionability 타임아웃으로
+//     불안정하고 캔버스를 교란하므로, 편집 도구가 살아있는 화면과 이미 배치된
+//     게이트웨이를 보여주는 것으로 대체(조건 입력·체크포인트 추가는 이어서 실제 조작).
 mark(6);
-const gwEntry = page.locator('.djs-palette .entry[data-action="create.exclusive-gateway"]').first();
-if (await gwEntry.isVisible().catch(()=>false)) {
-  await gwEntry.hover().catch(()=>{});
-  await wait(700);
-  await gwEntry.click().catch(()=>{}); // create 모드 활성
-  await wait(600);
-  await page.mouse.move(560, 620); await wait(400);
-  await page.mouse.click(560, 620).catch(()=>{}); // 빈 캔버스에 배치(데모 제스처)
-  await wait(1500); await shot(6);
-  await page.keyboard.press('Control+z').catch(()=>{}); // 배치 취소(구조 오염 방지)
-  await wait(1200);
-} else { await shot(6); }
-await wait(1500);
+// 게이트웨이로 부드럽게 이동(있으면 하이라이트)
+const gwEl = page.locator('[data-element-id="gw_revision"]').first();
+if (await gwEl.count()) { await gwEl.hover({ force: true }).catch(()=>{}); }
+await wait(2500); await shot(6);
+await wait(4500);
 
 // ── Scene 7 — 분기 조건 입력 (SequenceFlowPanel: 자연어 + 함수 모드) ─
 mark(7);
@@ -187,22 +185,20 @@ if (after > before) {
   await inp.click().catch(()=>{});
   await inp.type('고객 요청 반영', { delay: 40 }).catch(()=>{});
 }
-await wait(1500); await shot('08b');
+await wait(2500); await shot('08b');
 await page.mouse.click(600, 300); // 패널 닫기
-await wait(1200);
+await wait(2000);
 
-// ── Scene 9 — 저장 (편집기 1차 저장 경로) ────────────────────────
+// ── Scene 9 — 저장 (편집기 1차 저장 경로 + 버전 업 다이얼로그) ────
 mark(9);
 const sb = await toggleBtn();
 if (sb) { await sb.click().catch(()=>{}); }
-await wait(2500);
-// 저장/버전 확인 다이얼로그가 있으면 확인
-for (const label of ['저장', '확인', '예']) {
-  const btn = page.locator(`.v-dialog button:has-text("${label}"), .v-overlay button:has-text("${label}")`).first();
-  if (await btn.isVisible().catch(()=>false)) { await btn.click().catch(()=>{}); await wait(2500); break; }
-}
 await wait(2500); await shot(9);
-await wait(1500);
+// "버전 업" 다이얼로그의 저장 버튼
+const dlgSave = page.locator('.v-dialog button:has-text("저장"), .v-overlay button:has-text("저장")').first();
+if (await dlgSave.isVisible().catch(()=>false)) { await dlgSave.click().catch(()=>{}); await wait(3000); }
+await wait(2000); await shot('09b');
+await wait(1000);
 
 // ══════════════ 런타임 — 반려 → 루프백 → 승인 → COMPLETED (실화면) ══════════════
 
@@ -216,7 +212,7 @@ await wait(8500);
 mark(11);
 await page.goto(`${BASE}/instance-viewer/${LOOP_INST}`, { waitUntil: 'load', timeout: 30000 });
 await wait(6000); await shot(11);
-await wait(9000);
+await wait(11000);
 
 // ── Scene 12 — 완주(COMPLETED) 확인 ──────────────────────────────
 mark(12);

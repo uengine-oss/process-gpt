@@ -991,3 +991,78 @@ file. No configuration found.`가 찍혔다. `agent-router`의 `/warmup`은
 role/goal/persona/tools/skills만으로 구성됨), 학습 지식이 **실행 결과에도**
 반영되게 하려면 그 지식을 에이전트 **persona/goal**에도 넣어둬야 한다(학습
 채팅은 사용자용 교육 UI, 실행 반영은 프로필 경유 — 두 경로를 함께 채울 것).
+
+## 35. 게이트웨이→endEvent 종료 인스턴스가 COMPLETED 안 됨 — 배포 이미지 stale (troubleshooting #52)
+
+튜토리얼 Lv3(조건 분기 + 피드백 루프) 데모 작업 중 발견. 마지막 사람 태스크
+뒤에 배타 게이트웨이를 두고 한 분기가 endEvent로 가는 구조
+(`task3 → gw_revision → end_event`)에서, 승인 분기를 제출하면 전 활동이 DONE이고
+`current_activity_ids`가 비었는데도 `bpm_proc_inst.status`가 영원히 RUNNING에
+남는다(게이트웨이 라우팅·조건 평가·반려 루프백은 정상). 원인은 배포된
+`polling-service` 이미지의 `process_definition.find_end_activity()`(단수)가
+**게이트웨이를 거슬러 올라가지 못해서** — endEvent 직전이 게이트웨이면 종료 활동을
+`None`으로 판정, `upsert_process_instance`가 COMPLETED를 못 세운다. **현재 로컬
+소스는 이미 수정됨**(`find_end_activities()` 복수형이 게이트웨이 재귀 traversal,
+`database.py`가 이를 사용). **배포 이미지만 그 커밋 이전**이므로 polling-service
+이미지를 현재 소스로 재빌드/재배포하면 해소된다. 빠른 진단:
+`docker exec <polling-svc> grep -c 'def find_end_activities' /usr/src/app/process_definition.py`
+→ 0이면 stale.
+
+## 36. BPMN 편집기 저장이 conditionFunction을 저장하지 않음 — 결정론 분기는 DB 후보정 전제
+
+Lv3 빌드타임(편집기 직접 조작)에서 확인. `/definitions/<id>` 편집기에서 분기
+플로우에 자연어 조건만 입력하고 저장하면, `sequences[].properties`에 `condition`
+(+`conditionMode:"text"`)만 남고 **`conditionFunction`이 없다**. 저장 시
+`bpmnXmlToDefinition.buildSequence`가 패널이 쓴 uengine json을 그대로 복사할 뿐,
+conditionFunction을 합성하지 않기 때문. conditionFunction을 편집기에서 넣으려면
+조건 필드의 프리펜드 아이콘으로 **함수 모드** 전환 후 직접 입력하거나 **"결정론적
+규칙화"** AI 버튼을 눌러야 한다. 자연어 조건만으로는 런타임이 불안정한 LLM 경로로
+가므로(#45), 결정론 분기가 필요하면 **편집기 저장 후 `properties.conditionFunction`을
+DB로 후보정**하는 것을 전제로 설계하라. 또한 편집기 저장은 캔버스에서 정의 전체를
+재생성하므로 시퀀스 id가 bpmn 파생 id로 바뀐다(녹화 후 원본 정의 재적용으로 복구).
+
+## 37. Lv4 ERP 데이터소스 연동 — 로컬 Supabase/Kong REST, 컨테이너 DB 도달, conditionFunction 제약
+
+튜토리얼 4편(ERP 재고 관리) 제작 중 확정한 4가지.
+
+1. **로컬 Supabase를 ERP로**: `public.product_table`을 만들고 Kong
+   `/rest/v1/product_table`(anon 키, `apikey`+`Authorization: Bearer`)로 노출.
+   새 테이블은 grant + (RLS면 정책) + **`NOTIFY pgrst,'reload schema'`** 필요
+   (troubleshooting #53). `todolist` 등 테넌트 RLS 테이블은 anon 은 빈 배열 →
+   **사용자 JWT(authenticated)** 로 조회해야 행이 보인다.
+2. **데이터소스 = key/value 저장소**: `data_source.key`=이름 문자열,
+   `value` jsonb=`{method,endpoint,headers:[{key,value}],parameters,auth}`. 폼 select
+   연동은 **서버 리졸버 없이 프론트가 client-side fetch**(`SelectField.vue` dataBinding:
+   `dynamic_data_source`=key, `dynamic_load_key_column`/`value_column`=옵션 value/label).
+3. **컨테이너 에이전트 DB 도달**: deepagents 컨테이너는 `supabase-db`와 네트워크가
+   분리돼 `localhost:54322`/`db:5432` 불가, **`host.docker.internal:54322`만** 도달
+   (troubleshooting #54). tenant MCP DB URI를 이에 맞춰야 하고, host용(시나리오 7)과
+   공존하면 서버명을 달리해 추가. **단, 이번 배포에선 에이전트 자율 MCP DB 쓰기가
+   재현되지 않아**(agent-router 러너가 tenant MCP 도구 미바인딩 추정) 실데이터 변경은
+   데이터소스 REST(anon) PATCH로 실증했다(PRODUCT_CHANGES #4).
+4. **conditionFunction eval 제약**: `_evaluate_sequence_conditions`의 eval은
+   `{"__builtins__":{}}`(→ `int()/float()` 불가) + **단일 dict 컨텍스트**(두 피연산자가
+   같은 dict에 있어야 함). 그래서 "재고>=주문량" 수치 비교를 게이트웨이에서 직접 하지
+   말고, **재고 확인 단계에서 판정한 boolean 필드(`stock_sufficient`='true'/'false')**를
+   문자열 등가 비교(`== 'true'`)로 분기하라(Lv3 라디오 패턴과 동일, 검증됨).
+
+## 튜토리얼 Lv5 — 확장된 서브프로세스 멀티 인스턴스 (병렬 자식 인스턴스)
+
+1. **자식 수 자동 추론(결정론)**: subProcess `properties.determinationCode` 또는
+   `forEachVariable`에 `"<수집폼id>:<section>"` 경로를 넣으면, 폴링 서비스
+   (`check_subprocess_expression`)가 `all_workitem_input_data`에서 그 리스트를 찾아
+   **길이만큼 자식 인스턴스를 병렬 생성**한다. 명시 `multiInstanceCount`도 LLM도 불필요
+   (실측: 수집된 VIP 3명 → 자식 3개, 각 `execution_scope`=0/1/2, `proc_inst_name`에
+   항목 요약 인코딩). 정본 shape는 `polling_service/tests/testSubprocess.json`.
+2. **정의 shape 필수 조건**: subProcess는 `definition.subProcesses`에 + `children`에 중첩
+   def(activities/sequences), **자식 start/end 이벤트·게이트웨이는 상위 `events`/`gateways`
+   에 `process=<subId>`로 태깅**, **subProcess와 endEvent 사이에 실제 activity 1개 필수**
+   (없으면 `find_end_activities`가 종료 활동 못 잡아 부모 미완료).
+3. **자식 activity `agent` 유실(제품 갭)**: `build_subprocess_definition::act_to_dict`가
+   `agent`를 미보존 → 자식 에이전트 태스크가 특정 persona 없이 deepagents 폴백 실행
+   (`서브에이전트 미설정`). 개인화 완전 자동화엔 `act_to_dict`에 `agent` 보존 1줄 추가 +
+   폴링 서비스 이미지 재빌드 필요(troubleshooting #55). Lv5는 소스 무수정, 뉴스레터는
+   에이전트 persona+CRM LLM 생성으로 실증.
+4. **자식 완료 판정 엣지**: 자식 마지막 사람 태스크 제출이 한 번에 안 될 수 있어 재제출
+   필요, 전 워크아이템 DONE·`current_activity_ids={}`여도 status가 RUNNING 잔류(#52 동종)
+   → status만 COMPLETED 데이터 보정.

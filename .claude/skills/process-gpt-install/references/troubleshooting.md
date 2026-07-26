@@ -1348,3 +1348,84 @@ docker exec -e PGPASSWORD="$PGPW" supabase-db psql -U supabase_admin -d postgres
 # 배포 이미지가 stale인지: 복수형 함수가 없으면 stale
 docker exec <polling-svc> sh -lc "grep -c 'def find_end_activities' /usr/src/app/process_definition.py"  # 0이면 stale
 ```
+
+---
+
+# #53 — 로컬 Supabase에 새로 만든 테이블이 REST(`/rest/v1/<table>`)로 안 보임 (Lv4 데이터소스)
+
+**증상**: 데이터소스/폼 연동용으로 `public.<table>`을 만들었는데 Kong REST
+`GET /rest/v1/<table>` 이 빈 배열(`[]`)이거나 404.
+
+**원인/해결(순서대로)**:
+1. **grant 누락**: PostgREST는 `anon`/`authenticated` 롤로 전환해 접근한다.
+   `GRANT SELECT[,INSERT,UPDATE,DELETE] ON public.<table> TO anon, authenticated;`
+2. **RLS 함정**: RLS를 켜면(또는 기본 켜져 있으면) 정책이 없을 때 **행이 0개**로
+   나온다(에러 아님 — `data_source` 테이블이 실제로 이 상태다). 데모는 RLS OFF +
+   grant 로 충분하거나, RLS ON 이면 `CREATE POLICY … FOR SELECT TO anon USING(true);`.
+3. **스키마 캐시 stale**: 새 테이블은 PostgREST가 모른다 → **`NOTIFY pgrst, 'reload
+   schema';`** (또는 `supabase-rest` 재시작) 필수.
+4. **인증 헤더**: anon 키로 조회 시 `apikey: <anon>` **와** `Authorization: Bearer
+   <anon>` 둘 다. `todolist` 등 테넌트 RLS 테이블은 **anon 은 빈 배열**, **사용자
+   JWT(authenticated)** 로 조회해야 행이 보인다(Lv4 런타임 task_id 조회에서 실측).
+
+```bash
+ANON=$(grep -E '^ANON_KEY=' docker-infra/.env | cut -d= -f2- | tr -d '\n')
+curl -s "http://localhost:54321/rest/v1/<table>?select=*" -H "apikey: $ANON" -H "Authorization: Bearer $ANON"
+```
+
+---
+
+# #54 — 컨테이너 에이전트(deepagents)의 tenant MCP DB URI가 `localhost:54322`면 실패 (Lv4)
+
+**증상**: `tenants.mcp` 의 `postgres-mcp` DATABASE_URI가
+`…@localhost:54322/postgres` 인데, 프로세스 실행 중 에이전트가 DB에 접속 못 함
+("ERP 접속 실패" 등).
+
+**원인**: `deepagents` 컨테이너는 `process-gpt-infra-docker_default` 네트워크,
+`supabase-db`는 `docker-infra_default` 네트워크로 **분리**돼 있다. 컨테이너 안에서
+`localhost:54322`는 자기 자신, `db:5432`는 해석 불가. **오직
+`host.docker.internal:54322`만 도달**한다(호스트 published 포트로 우회). 반대로
+**host 에서 직접 실행되는 venv**(예: 시나리오 7 deterministic-replay)는
+`localhost:54322`가 맞다(host 에선 `host.docker.internal` 미해석).
+
+**해결**: 컨테이너 러너용 MCP는 `host.docker.internal:54322`로. 두 용도가 공존하면
+`tenants.mcp`에 **서버명을 달리해 별도 항목 추가**(예: `erp-supabase`)하고 에이전트
+`users.tools`에 그 서버명을 지정. 기존 host용 항목은 보존.
+
+```bash
+docker exec deepagents sh -c 'python -c "import socket;s=socket.socket();s.settimeout(3);s.connect((\"host.docker.internal\",54322));print(\"OK\")"'
+```
+
+**주의(실측, Lv4)**: 위 URI를 고쳐도 이번 배포에선 deepagents 러너(`agent-router`
+경유)가 tenant MCP 도구를 서브에이전트에 실제 바인딩하지 못해 **자율 SQL 쓰기가
+재현되지 않았다**. 재고 등 실데이터 변경은 데이터소스와 동일한 **Kong REST(anon)
+PATCH** 경로로 실증하는 것이 안전하다(PRODUCT_CHANGES_REPORT #4 참조).
+
+### #55 확장된 서브프로세스 멀티 인스턴스 — 자식 수 자동 추론은 동작하나, 자식 활동이 `agent` 바인딩을 유실하고 완료 판정 엣지가 있음 (Lv5 실측)
+
+**증상/맥락**: 확장된 하위 프로세스(bpmn:subProcess)에 멀티 인스턴스를 걸어
+"수집된 항목 수만큼 병렬 자식 인스턴스"를 만드는 기능(튜토리얼 Lv5).
+
+**동작 확인(정상)**: `services/completion/polling_service/workitem_processor.py`의
+`check_subprocess_expression`(L2785~)가 subProcess `properties`의
+`determinationCode`/`forEachVariable`(`"<formId>:<section>"` 경로)를 읽어
+`all_workitem_input_data`에서 리스트를 찾아 **길이만큼 자식 인스턴스를 결정론적으로
+생성**한다(`resolve_multi_instance_count` → `insert_process_instance` 스폰 루프).
+명시 `multiInstanceCount`도 LLM도 필요 없다. 정본 shape는
+`polling_service/tests/testSubprocess.json`(자식 start/end 이벤트를 상위 `events`에
+`process=<subId>`로 태깅, subProcess와 endEvent 사이에 실제 activity 1개 필수).
+
+**함정 1 — 자식 activity의 `agent` 유실**: `process_definition.py::build_subprocess_definition`
+의 `act_to_dict`(baked 이미지 L601~660)가 자식 활동 재구성 시 `role/agentMode/
+orchestration`만 보존하고 **`agent` 필드를 누락**한다. 그 결과 자식의 에이전트
+태스크 워크아이템 `user_id`에 에이전트가 prepend되지 않아(`database.py`
+`upsert_next_workitems` L1448 경로가 빔) **지정한 에이전트 persona가 로드되지 않고**
+deepagents 폴백 작성기가 동작한다(로그 `서브에이전트 미설정`). → 개선: `act_to_dict`
+반환 dict에 `"agent"` 보존 1줄 추가 후 폴링 서비스 이미지 재빌드. (마운트 없는 baked
+이미지라 로컬 소스 수정만으로는 런타임 미반영 — Lv5는 소스 무수정, 개인화 뉴스레터는
+에이전트 persona+CRM LLM 생성으로 실증.)
+
+**함정 2 — 자식 인스턴스 완료 판정 엣지**: 자식의 마지막 사람 태스크 제출이 한 번에
+처리되지 않아 재제출이 필요하고, 전 워크아이템 DONE·`current_activity_ids={}`가 돼도
+인스턴스 `status`가 RUNNING에 잔류할 수 있다(#52와 동종, 배포 이미지 완료 판정 엣지).
+→ 논리적 완주 확인 후 `bpm_proc_inst.status`만 COMPLETED로 데이터 보정.

@@ -61,3 +61,9 @@
 [submodule "services/ontology-studio"]
 	path = services/ontology-studio
 	url = https://github.com/uengine-oss/ontology-studio.git
+[submodule "services/agents.github.io"]
+	path = services/agents.github.io
+	url = https://github.com/uengine-oss/process-gpt-agents.github.io.git
+[submodule "services/sample-app-wms"]
+	path = services/sample-app-wms
+	url = https://github.com/uengine-oss/process-gpt-sample-app-wms.git

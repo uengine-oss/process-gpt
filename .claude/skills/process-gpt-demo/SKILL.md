@@ -49,6 +49,24 @@ AskUserQuestion으로 하나를 고르게 한다:
 | **9. Prompt Chaining 에이전틱 패턴 데모** | "시장조사 인사이트 체인" 프로세스 — 사람이 보고서를 제출하면, 트렌드 식별·이메일 초안 작성 2단계가 사람 개입 없이 딥에이전트(orchestration=deepagents)로 순차 자동 처리되며 각 단계가 이전 단계 출력을 참조(inputData 체이닝)하는 것까지 생성과 실행 양쪽 다 확인 | [references/scenario-9-prompt-chaining.md](references/scenario-9-prompt-chaining.md) |
 | **전체 순서대로(1→2→3)** | 위 세 개를 이어서 시연 | 위 세 문서를 순서대로 |
 
+### 튜토리얼 영상 시리즈 (Lv.1~Lv.5)
+
+docs 튜토리얼(`docs/doc-site/content/ko/tutorial/tutorial-lv*.md`)의 현대화판
+데모 — deepagents 기본, crewai 비노출. 각 편은 이전 편의 산출물(프로세스
+정의·에이전트)을 확장식으로 이어받으므로 **순서대로** 진행하는 것이 원칙이다.
+완성 영상은 `demo-recordings/tutorial-lv<N>-*-narrated.mp4`에 있고, 녹화
+스크립트는 `scripts/record_tutorial_lv<N>_demo.mjs`(공용 슬라이드 헬퍼
+`scripts/lib_tutorial_slides.mjs` 사용)다. Lv.3부터는 BPMN 편집기 직접 편집
+과정 자체가 교육 목표다(자연어 생성은 골격까지).
+
+| 편 | 내용 | 상세 가이드 |
+|---|---|---|
+| **Lv.1 프로세스 생성과 실행** | 채팅으로 영업 제안서 작성 프로세스 생성 → 저장 → 인스턴스 실행 → COMPLETED 기본 사이클 | [references/scenario-tutorial-lv1.md](references/scenario-tutorial-lv1.md) |
+| **Lv.2 AI 에이전트 제안서 작성** | 조직도 에이전트 생성·학습(mem0) + 규칙성 지식 DMN 이중화 + deepagents 무인 초안 | [references/scenario-tutorial-lv2.md](references/scenario-tutorial-lv2.md) |
+| **Lv.3 조건 분기와 피드백 반영** | 편집기에서 게이트웨이·conditionFunction·체크포인트 편집, 반려→루프백→재작성→승인 실증 | [references/scenario-tutorial-lv3.md](references/scenario-tutorial-lv3.md) |
+| **Lv.4 ERP 데이터 연동 재고 관리** | 로컬 Supabase 데이터소스 연동, MRP 에이전트, 재고 충분/부족 분기와 실제 재고 수치 변화 | [references/scenario-tutorial-lv4.md](references/scenario-tutorial-lv4.md) |
+| **Lv.5 멀티플 인스턴스 뉴스레터** | 확장 서브프로세스 + determinationCode 자동 추론으로 자식 인스턴스 병렬 생성, 고객별 개인화 | [references/scenario-tutorial-lv5.md](references/scenario-tutorial-lv5.md) |
+
 ## 2. 시나리오 3의 전제조건 — 시나리오 2가 먼저 필요
 
 시나리오 3은 시나리오 2에서 생성되는 스킬 연결 에이전트가 있어야 의미가
