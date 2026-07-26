@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>Process GPT — Undo(실행 취소): 고착화 2편</title>
+<style>
+  :root {
+    --bg: #140d1a; --panel: #1f1430; --panel2: #2a1b40;
+    --fg: #f0e8f8; --dim: #b09cc8; --acc: #c084fc; --ok: #3ddc84;
+    --warn: #ffb454; --code: #120a1c; --border: #3a2a55;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body { background: var(--bg); color: var(--fg);
+         font-family: "Apple SD Gothic Neo", "Pretendard", "Noto Sans KR", sans-serif; }
+  section { min-height: 100vh; padding: 56px 72px 120px; position: relative;
+            display: flex; flex-direction: column; justify-content: flex-start; }
+  .cap { position: fixed; left: 0; right: 0; bottom: 0; z-index: 50;
+         background: rgba(12,6,20,.93); border-top: 1px solid var(--border);
+         padding: 18px 48px; font-size: 21px; line-height: 1.5; min-height: 88px;
+         display: flex; align-items: center; }
+  h1 { font-size: 46px; line-height: 1.25; }
+  h2 { font-size: 30px; margin-bottom: 6px; }
+  h2 .no { color: var(--acc); margin-right: 10px; }
+  .sub { color: var(--dim); font-size: 19px; margin-bottom: 22px; }
+  .grid { display: grid; gap: 16px; }
+  .grid > .card { min-width: 0; }
+  .card { background: var(--panel); border: 1px solid var(--border);
+          border-radius: 12px; padding: 20px 22px; }
+  .card h3 { font-size: 17px; color: var(--dim); font-weight: 600; margin-bottom: 10px;
+             text-transform: uppercase; letter-spacing: .04em; }
+  pre { background: var(--code); border: 1px solid var(--border); border-radius: 10px;
+        padding: 16px 18px; overflow-x: auto; font-size: 14.5px; line-height: 1.55;
+        font-family: "SF Mono", Menlo, monospace; color: #e6d7ff; }
+  #undo-code, #undo-results { white-space: pre-wrap; word-break: break-word; }
+  pre .hl { color: var(--warn); font-weight: 700; }
+  pre .okc { color: var(--ok); }
+  .kpis { display: flex; gap: 16px; flex-wrap: wrap; }
+  .kpi { background: var(--panel2); border: 1px solid var(--border); border-radius: 12px;
+         padding: 16px 26px; text-align: center; min-width: 170px; }
+  .kpi .v { font-size: 40px; font-weight: 800; color: var(--acc); }
+  .kpi .v.ok { color: var(--ok); }
+  .kpi .l { color: var(--dim); font-size: 14px; margin-top: 4px; }
+  table { border-collapse: collapse; width: 100%; font-size: 16px; }
+  th, td { border: 1px solid var(--border); padding: 9px 14px; text-align: left; }
+  th { background: var(--panel2); color: var(--dim); font-weight: 600; }
+  td.num { text-align: right; font-variant-numeric: tabular-nums; }
+  .flow { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin: 18px 0; }
+  .flow .node { background: var(--panel2); border: 1px solid var(--acc); border-radius: 10px;
+                padding: 13px 20px; font-size: 17px; }
+  .flow .arr { color: var(--acc); font-size: 24px; }
+  .badge { display: inline-block; border-radius: 999px; padding: 3px 13px; font-size: 14px;
+           font-weight: 700; }
+  .badge.undo { background: #3d1f4f; color: #e6b3ff; border: 1px solid #a855f7; }
+  .badge.redo { background: #103a2a; color: var(--ok); border: 1px solid #2b7d58; }
+  .value li { font-size: 21px; line-height: 1.9; }
+  .value b { color: var(--ok); }
+  .center { display: flex; flex-direction: column; justify-content: center;
+            align-items: center; text-align: center; }
+  .logo { color: var(--acc); font-weight: 800; letter-spacing: .06em; font-size: 18px;
+          margin-bottom: 26px; }
+  .big { font-size: 26px; color: var(--dim); margin-top: 18px; max-width: 940px;
+         line-height: 1.6; }
+  .cols2 { grid-template-columns: 1fr 1fr; }
+  .delta { color: var(--warn); font-weight: 700; }
+</style>
+</head>
+<body>
+
+<section id="u0" class="center">
+  <div class="logo">PROCESS GPT · 실행 경로 고착화 2편</div>
+  <h1>Undo — AI가 실행한 업무,<br>버튼 하나처럼 되돌리기</h1>
+  <p class="big">에이전트가 데이터베이스에 남긴 변경을,
+  기록된 <b style="color:var(--acc)">실행 이력</b>으로부터 만든
+  <b style="color:var(--acc)">역연산(undo) 코드</b>로 안전하게 취소합니다.<br>
+  재작업 시에는 <b style="color:var(--ok)">undo → 새 값으로 재실행</b>이 자동으로 이어집니다.</p>
+</section>
+
+<section id="u1">
+  <h2><span class="no">문제</span>AI가 이미 실행해버린 업무, 잘못됐다면?</h2>
+  <p class="sub">1편에서 에이전트는 iPhone 입고 60을 DB에 반영했습니다(재고 20 → 80).
+  그런데 입고 수량이 40이 맞았다면? 문서 편집처럼 Ctrl+Z가 필요합니다.</p>
+  <div class="grid cols2">
+    <div class="card"><h3>어려운 점</h3>
+      <ul class="value" style="padding-left:22px">
+        <li>부수효과가 이미 실제 DB에 반영됨 (UPDATE·INSERT)</li>
+        <li>사람이 수동 복구하면 실수·누락 위험</li>
+        <li>어떤 실행의 흔적만 골라 되돌려야 함</li>
+      </ul>
+    </div>
+    <div class="card"><h3>Process GPT의 답 — 이력 기반 Undo</h3>
+      <ul class="value" style="padding-left:22px">
+        <li>모든 도구 호출이 <b>이벤트 로그</b>로 남아 있음</li>
+        <li>로그로부터 <b>역연산 코드</b>를 자동 생성·보존</li>
+        <li>실행 시 LLM 없이 <b>결정론적으로 원복</b></li>
+      </ul>
+    </div>
+  </div>
+  <div class="flow">
+    <div class="node">실행 이력 (이벤트 로그)</div>
+    <div class="arr">→</div>
+    <div class="node">역연산 undo 코드 생성·보존</div>
+    <div class="arr">→</div>
+    <div class="node"><span class="badge undo">UNDO</span> 부수효과 원복</div>
+    <div class="arr">→</div>
+    <div class="node"><span class="badge redo">REDO</span> 새 값으로 재실행</div>
+  </div>
+</section>
+
+<section id="u2">
+  <h2><span class="no">STEP 1</span>이력에서 태어난 Undo 코드</h2>
+  <p class="sub">1차 실행의 이벤트 로그(도구 호출 3건)로부터 역연산 코드가 생성되어
+  <code>mcp_python_code.compensation</code>에 보존됩니다.
+  값은 전부 <span class="hl" style="color:var(--warn)">로그에서 동적 파싱</span> — 하드코딩도, LLM 호출도 없습니다.</p>
+  <div class="grid cols2">
+    <div class="card"><h3>생성된 undo 코드 (역연산 부분)</h3><pre id="undo-code"></pre></div>
+    <div class="card"><h3>입력: 1차 실행의 이벤트 로그 (실측)</h3><pre id="event-logs"></pre></div>
+  </div>
+</section>
+
+<section id="u3">
+  <h2><span class="no">STEP 2</span>Undo 실행 — 그 실행의 흔적만 정확히 되돌린다</h2>
+  <p class="sub">undo 코드가 이벤트 로그를 입력으로 실행되어, UPDATE는 반대 연산으로,
+  INSERT는 DELETE로 되돌렸습니다. <b>다른 실행(Galaxy)의 결과는 그대로</b>입니다.</p>
+  <div class="grid cols2">
+    <div class="card"><h3>inventory — undo 전 → 후 (실측)</h3><table id="tbl-undo"></table></div>
+    <div class="card"><h3>실행된 역연산 (실측)</h3><pre id="undo-results"></pre></div>
+  </div>
+  <div class="kpis" style="margin-top:18px">
+    <div class="kpi"><div class="v ok">0회</div><div class="l">undo 실행 시 LLM 호출</div></div>
+    <div class="kpi"><div class="v ok" id="kpi-undo-secs"></div><div class="l">undo 소요 시간</div></div>
+    <div class="kpi"><div class="v ok">보존</div><div class="l">다른 실행(Galaxy) 결과</div></div>
+  </div>
+</section>
+
+<section id="u4">
+  <h2><span class="no">STEP 3</span>Redo — 정정된 값으로 같은 경로 재실행</h2>
+  <p class="sub" id="u4-query"></p>
+  <div class="grid cols2">
+    <div class="card"><h3>최종 inventory (실측)</h3><table id="tbl-final"></table></div>
+    <div class="card"><h3>최종 감사 로그 (실측)</h3><table id="tbl-log"></table></div>
+  </div>
+  <div class="kpis" style="margin-top:18px">
+    <div class="kpi"><div class="v ok">19/19</div><div class="l">Undo E2E 검증 PASS</div></div>
+    <div class="kpi"><div class="v ok" id="kpi-redo-secs"></div><div class="l">redo 소요 시간</div></div>
+    <div class="kpi"><div class="v ok">0회</div><div class="l">경로 LLM 추론</div></div>
+  </div>
+</section>
+
+<section id="u5" class="center">
+  <h1 style="font-size:38px">왜 중요한가 — 시도하고, 검증하고, 안심하고 되돌린다</h1>
+  <div style="max-width:980px; margin-top:30px; text-align:left">
+    <ul class="value" style="list-style:none; padding:0">
+      <li>↩️ <b>안전망</b> — AI 자동화의 가장 큰 두려움은 "잘못 실행되면?"입니다.
+          모든 실행이 이력으로 남고, 이력이 곧 되돌리기가 됩니다.</li>
+      <li>🎯 <b>정밀 복구</b> — 백업 복원처럼 전체를 되돌리는 게 아니라,
+          해당 실행의 부수효과만 골라 원복합니다.</li>
+      <li>🔁 <b>재작업 자동화</b> — 운영자가 "다시 수행하기"를 누르면
+          undo → 새 값 재실행이 사람 개입 없이 이어집니다.</li>
+      <li>📋 <b>감사 추적</b> — 무엇이 실행됐고, 무엇이 취소됐는지
+          전부 코드와 이벤트로 남습니다.</li>
+    </ul>
+  </div>
+</section>
+
+<section id="u6" class="center">
+  <div class="logo">PROCESS GPT</div>
+  <h1 style="font-size:36px">실행할 용기는, 되돌릴 수 있음에서 나온다.</h1>
+  <p class="big">spec: <code>openspec/specs/crewai-action_deterministic-undo</code><br>
+  구현: <code>completion · compensation_handler</code> ·
+  <code>mcp_python_code.compensation</code></p>
+</section>
+
+<div class="cap" id="caption"></div>
+
+<script>
+async function load() {
+  const d = await (await fetch('demo_data.json')).json();
+  const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;');
+
+  const body = (d.undo_code.match(/results = \[\]([\s\S]*?)return results/) || [,''])[1];
+  document.getElementById('undo-code').innerHTML =
+      esc('async def run(inputs, ...):\n    results = []' + body + '    return results')
+      .replace(/reverse_sql/g, '<span class="hl">reverse_sql</span>')
+      .replace(/call_tool/g, '<span class="okc">call_tool</span>');
+
+  document.getElementById('event-logs').innerHTML = d.event_logs.map((l, i) => {
+      const sql = (l.log_data.args || {}).sql || '';
+      return `<span class="okc">#${i+1} ${l.log_data.tool_name}</span>\n    ${esc(sql)}`;
+  }).join('\n\n');
+
+  const before = Object.fromEntries(d.inventory_before.map(r => [r.product_name, r.stock]));
+  document.getElementById('tbl-undo').innerHTML =
+      '<tr><th>product_name</th><th>undo 전</th><th>undo 후</th><th></th></tr>' +
+      d.post_undo_inventory.map(r => {
+          const b = before[r.product_name];
+          const changed = b !== r.stock;
+          return `<tr><td>${esc(r.product_name)}</td><td class="num">${b}</td>
+              <td class="num">${r.stock}</td>
+              <td>${changed ? '<span class="badge undo">원복됨</span>'
+                            : '<span class="badge redo">보존</span>'}</td></tr>`;
+      }).join('');
+
+  document.getElementById('undo-results').innerHTML = d.undo_results.map((r, i) =>
+      `<span class="okc">undo ${i+1} ✓</span> ${r.tool}\n` +
+      `    ${esc(JSON.stringify(r.data).slice(0, 100))}…`).join('\n');
+  document.getElementById('kpi-undo-secs').textContent = d.metrics.undo_secs + 's';
+  document.getElementById('kpi-redo-secs').textContent = d.metrics.redo_secs + 's';
+
+  document.getElementById('u4-query').innerHTML =
+      '재작업 지시: <b>“' + esc(d.undo_query) + '”</b> — 고착화된 순방향 코드가 값만 바꿔 재실행합니다.';
+  document.getElementById('tbl-final').innerHTML =
+      '<tr><th>product_name</th><th>stock</th><th>이력</th></tr>' +
+      d.inventory_after.map(r => `<tr><td>${esc(r.product_name)}</td>
+          <td class="num">${r.stock}</td>
+          <td>${r.product_name === 'iPhone'
+                ? '80 → <span class="delta">undo(20)</span> → <span class="badge redo">redo 60</span>'
+                : '고착화 재실행 결과 유지'}</td></tr>`).join('');
+  document.getElementById('tbl-log').innerHTML =
+      '<tr><th>product_name</th><th>new_stock</th><th>reason</th></tr>' +
+      d.inventory_log_after.map(r => `<tr><td>${esc(r.product_name)}</td>
+          <td class="num">${r.new_stock}</td><td>${esc(r.reason)}</td></tr>`).join('');
+}
+load();
+</script>
+</body>
+</html>

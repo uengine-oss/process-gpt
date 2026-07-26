@@ -49,6 +49,12 @@
 [submodule "services/deepagents"]
 	path = services/deepagents
 	url = https://github.com/uengine-oss/process-gpt-deepagents.git
-[submodule "process-gpt-infra-docker"]
-	path = process-gpt-infra-docker
-	url = https://github.com/uengine-oss/process-gpt-infra-docker
+[submodule "skills/bpmn-process-generation-skill"]
+	path = skills/bpmn-process-generation-skill
+	url = https://github.com/uengine-oss/bpmn-process-generation-skill.git
+[submodule "skills/bsc-strategy-interview"]
+	path = skills/bsc-strategy-interview
+	url = https://github.com/uengine-oss/process-gpt-strategy-skill.git
+[submodule "docs/doc-site"]
+	path = docs/doc-site
+	url = https://github.com/uengine-oss/process-gpt-docs.github.io.git

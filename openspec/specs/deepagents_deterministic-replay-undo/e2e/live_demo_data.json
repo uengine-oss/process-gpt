@@ -1,0 +1,180 @@
+{
+  "workitems": [
+    "22222222-3333-4444-5555-666666660001",
+    "22222222-3333-4444-5555-666666660002",
+    "22222222-3333-4444-5555-666666660003"
+  ],
+  "inventory": [
+    {
+      "product_name": "Galaxy",
+      "stock": 250
+    },
+    {
+      "product_name": "iPhone",
+      "stock": 60
+    }
+  ],
+  "events": [
+    {
+      "todo_id": "22222222-3333-4444-5555-666666660001",
+      "event_type": "task_started",
+      "crew_type": "deepagents",
+      "data": {
+        "goal": "MCP 도구를 선택해 재고 반영 경로를 수행합니다.",
+        "name": "DeepAgents 1차 LLM 실행",
+        "role": "DeepAgents 1차 LLM 실행",
+        "execution_mode": "llm"
+      }
+    },
+    {
+      "todo_id": "22222222-3333-4444-5555-666666660001",
+      "event_type": "tool_usage_started",
+      "crew_type": "deepagents",
+      "data": {
+        "query": "UPDATE inventory ...",
+        "tool_name": "execute_sql"
+      }
+    },
+    {
+      "todo_id": "22222222-3333-4444-5555-666666660001",
+      "event_type": "tool_usage_finished",
+      "crew_type": "deepagents",
+      "data": {
+        "args": {
+          "sql": "UPDATE inventory SET stock = stock + 60 WHERE product_name = 'iPhone';"
+        },
+        "tool_name": "execute_sql"
+      }
+    },
+    {
+      "todo_id": "22222222-3333-4444-5555-666666660001",
+      "event_type": "tool_usage_started",
+      "crew_type": "deepagents",
+      "data": {
+        "query": "INSERT inventory_log ...",
+        "tool_name": "execute_sql"
+      }
+    },
+    {
+      "todo_id": "22222222-3333-4444-5555-666666660001",
+      "event_type": "tool_usage_finished",
+      "crew_type": "deepagents",
+      "data": {
+        "args": {
+          "sql": "INSERT INTO inventory_log (product_name,new_stock,reason) VALUES ('iPhone',80,'발주 입고');"
+        },
+        "tool_name": "execute_sql"
+      }
+    },
+    {
+      "todo_id": "22222222-3333-4444-5555-666666660001",
+      "event_type": "task_completed",
+      "crew_type": "deepagents",
+      "data": {
+        "result": "iPhone 재고와 감사 로그 반영 완료",
+        "execution_mode": "llm"
+      }
+    },
+    {
+      "todo_id": "22222222-3333-4444-5555-666666660002",
+      "event_type": "task_started",
+      "crew_type": "result",
+      "data": {
+        "goal": "저장된 코드로 LLM 추론 없이 실행합니다.",
+        "name": "DeepAgents 결정론적 코드 실행 결과",
+        "role": "DeepAgents 결정론적 코드 실행 결과",
+        "agent_profile": "/images/chat-icon.png",
+        "execution_mode": "deterministic"
+      }
+    },
+    {
+      "todo_id": "22222222-3333-4444-5555-666666660002",
+      "event_type": "task_completed",
+      "crew_type": "result",
+      "data": {
+        "engine": "deepagents",
+        "result": {
+          "ok": true,
+          "results": [
+            {
+              "data": "execute_sqlOutput(result=[TextContent(type='text', text=\"[{'stock': 35}]\", annotations=None, _meta=None)])",
+              "tool": "execute_sql",
+              "server": "supabase-mcp"
+            },
+            {
+              "data": "execute_sqlOutput(result=[TextContent(type='text', text='No results', annotations=None, _meta=None)])",
+              "tool": "execute_sql",
+              "server": "supabase-mcp"
+            },
+            {
+              "data": "execute_sqlOutput(result=[TextContent(type='text', text='No results', annotations=None, _meta=None)])",
+              "tool": "execute_sql",
+              "server": "supabase-mcp"
+            }
+          ],
+          "llm_calls": 0,
+          "undo_results": [],
+          "execution_mode": "deterministic"
+        },
+        "llm_calls": 0,
+        "execution_mode": "deterministic"
+      }
+    },
+    {
+      "todo_id": "22222222-3333-4444-5555-666666660003",
+      "event_type": "task_started",
+      "crew_type": "result",
+      "data": {
+        "goal": "저장된 코드로 LLM 추론 없이 실행합니다.",
+        "name": "DeepAgents Undo 후 재실행 결과",
+        "role": "DeepAgents Undo 후 재실행 결과",
+        "agent_profile": "/images/chat-icon.png",
+        "execution_mode": "deterministic-undo"
+      }
+    },
+    {
+      "todo_id": "22222222-3333-4444-5555-666666660003",
+      "event_type": "task_completed",
+      "crew_type": "result",
+      "data": {
+        "engine": "deepagents",
+        "result": {
+          "ok": true,
+          "results": [
+            {
+              "data": "execute_sqlOutput(result=[TextContent(type='text', text=\"[{'stock': 20}]\", annotations=None, _meta=None)])",
+              "tool": "execute_sql",
+              "server": "supabase-mcp"
+            },
+            {
+              "data": "execute_sqlOutput(result=[TextContent(type='text', text='No results', annotations=None, _meta=None)])",
+              "tool": "execute_sql",
+              "server": "supabase-mcp"
+            },
+            {
+              "data": "execute_sqlOutput(result=[TextContent(type='text', text='No results', annotations=None, _meta=None)])",
+              "tool": "execute_sql",
+              "server": "supabase-mcp"
+            }
+          ],
+          "llm_calls": 0,
+          "undo_results": [
+            {
+              "data": "execute_sqlOutput(result=[TextContent(type='text', text='No results', annotations=None, _meta=None)])",
+              "tool": "execute_sql",
+              "server": "supabase-mcp"
+            },
+            {
+              "data": "execute_sqlOutput(result=[TextContent(type='text', text='No results', annotations=None, _meta=None)])",
+              "tool": "execute_sql",
+              "server": "supabase-mcp"
+            }
+          ],
+          "execution_mode": "deterministic-undo"
+        },
+        "llm_calls": 0,
+        "execution_mode": "deterministic-undo"
+      }
+    }
+  ]
+}

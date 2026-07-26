@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>Process GPT — 실행 경로 고착화 (Deterministic Replay)</title>
+<style>
+  :root {
+    --bg: #0d1420; --panel: #141e30; --panel2: #1a2740;
+    --fg: #e8eef8; --dim: #8ea0bd; --acc: #4da3ff; --ok: #3ddc84;
+    --warn: #ffb454; --code: #0a101b; --border: #24334d;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body { background: var(--bg); color: var(--fg);
+         font-family: "Apple SD Gothic Neo", "Pretendard", "Noto Sans KR", sans-serif; }
+  section { min-height: 100vh; padding: 56px 72px 120px; position: relative;
+            display: flex; flex-direction: column; justify-content: flex-start; }
+  .cap { position: fixed; left: 0; right: 0; bottom: 0; z-index: 50;
+         background: rgba(6,10,18,.92); border-top: 1px solid var(--border);
+         padding: 18px 48px; font-size: 21px; line-height: 1.5; min-height: 88px;
+         display: flex; align-items: center; }
+  .cap b { color: var(--acc); }
+  h1 { font-size: 46px; line-height: 1.25; }
+  h2 { font-size: 30px; margin-bottom: 6px; }
+  h2 .no { color: var(--acc); margin-right: 10px; }
+  .sub { color: var(--dim); font-size: 19px; margin-bottom: 22px; }
+  .grid { display: grid; gap: 16px; }
+  .card { background: var(--panel); border: 1px solid var(--border);
+          border-radius: 12px; padding: 20px 22px; }
+  .card h3 { font-size: 17px; color: var(--dim); font-weight: 600; margin-bottom: 10px;
+             text-transform: uppercase; letter-spacing: .04em; }
+  pre { background: var(--code); border: 1px solid var(--border); border-radius: 10px;
+        padding: 16px 18px; overflow-x: auto; font-size: 14.5px; line-height: 1.55;
+        font-family: "SF Mono", Menlo, monospace; color: #cfe3ff; }
+  pre .hl { color: var(--warn); font-weight: 700; }
+  pre .okc { color: var(--ok); }
+  .grid > .card { min-width: 0; }
+  #gen-code, #replay-results { white-space: pre-wrap; word-break: break-word; }
+  .kpis { display: flex; gap: 16px; flex-wrap: wrap; }
+  .kpi { background: var(--panel2); border: 1px solid var(--border); border-radius: 12px;
+         padding: 16px 26px; text-align: center; min-width: 170px; }
+  .kpi .v { font-size: 40px; font-weight: 800; color: var(--acc); }
+  .kpi .v.ok { color: var(--ok); }
+  .kpi .l { color: var(--dim); font-size: 14px; margin-top: 4px; }
+  table { border-collapse: collapse; width: 100%; font-size: 16px; }
+  th, td { border: 1px solid var(--border); padding: 9px 14px; text-align: left; }
+  th { background: var(--panel2); color: var(--dim); font-weight: 600; }
+  td.num { text-align: right; font-variant-numeric: tabular-nums; }
+  .flow { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin: 18px 0; }
+  .flow .node { background: var(--panel2); border: 1px solid var(--acc); border-radius: 10px;
+                padding: 13px 20px; font-size: 17px; }
+  .flow .arr { color: var(--acc); font-size: 24px; }
+  .badge { display: inline-block; border-radius: 999px; padding: 3px 13px; font-size: 14px;
+           font-weight: 700; }
+  .badge.llm { background: #3b2a55; color: #d0b3ff; border: 1px solid #7b5cc4; }
+  .badge.det { background: #103a2a; color: var(--ok); border: 1px solid #2b7d58; }
+  .value li { font-size: 21px; line-height: 1.9; }
+  .value b { color: var(--ok); }
+  .center { display: flex; flex-direction: column; justify-content: center;
+            align-items: center; text-align: center; }
+  .logo { color: var(--acc); font-weight: 800; letter-spacing: .06em; font-size: 18px;
+          margin-bottom: 26px; }
+  .big { font-size: 26px; color: var(--dim); margin-top: 18px; max-width: 900px;
+         line-height: 1.6; }
+  .cols2 { grid-template-columns: 1fr 1fr; }
+</style>
+</head>
+<body>
+
+<section id="s0" class="center">
+  <div class="logo">PROCESS GPT</div>
+  <h1>실행 경로 고착화<br>(Deterministic Replay)</h1>
+  <p class="big">AI 에이전트가 <b style="color:var(--acc)">한 번</b> 성공적으로 수행한 업무를
+  Python 코드로 <b style="color:var(--acc)">고착화</b>하고,<br>
+  이후에는 LLM 추론 없이 <b style="color:var(--ok)">매번 똑같이</b> 실행합니다.</p>
+</section>
+
+<section id="s1">
+  <h2><span class="no">문제</span>LLM 에이전트는 강력하지만, 매번 다르게 행동할 수 있다</h2>
+  <p class="sub">기업 업무에서 "지난번엔 됐는데 이번엔 다르게 처리했다"는 것은 치명적입니다.</p>
+  <div class="grid cols2">
+    <div class="card"><h3>LLM 재량 실행의 리스크</h3>
+      <ul class="value" style="padding-left:22px">
+        <li>같은 요청에도 실행 경로가 달라질 수 있음 (할루시네이션)</li>
+        <li>매 실행마다 LLM 추론 비용·지연 발생</li>
+        <li>무엇이 실행될지 사전 검증 불가</li>
+      </ul>
+    </div>
+    <div class="card"><h3>Process GPT의 답 — 고착화</h3>
+      <ul class="value" style="padding-left:22px">
+        <li>1차 실행의 <b>도구 호출 이력을 기록</b></li>
+        <li>검증된 경로를 <b>파라미터화된 코드로 고착</b></li>
+        <li>2차 실행부터는 <b>AI가 아니라 코드가 실행</b></li>
+      </ul>
+    </div>
+  </div>
+  <div class="flow">
+    <div class="node"><span class="badge llm">LLM</span> 1차 실행 (탐색·판단)</div>
+    <div class="arr">→</div>
+    <div class="node">이벤트 기록 (tool_usage_finished)</div>
+    <div class="arr">→</div>
+    <div class="node">Python 코드 고착화</div>
+    <div class="arr">→</div>
+    <div class="node"><span class="badge det">DETERMINISTIC</span> n차 실행 (LLM 0회)</div>
+  </div>
+</section>
+
+<section id="s2">
+  <h2><span class="no">STEP 1</span>Supabase MCP 서버 설정</h2>
+  <p class="sub">테넌트 설정(<code>tenants.mcp</code>)에 SQL 실행 MCP 서버를 등록합니다 —
+  에이전트는 이 서버의 <b>execute_sql</b> 도구로 DB를 읽고 씁니다.</p>
+  <div class="grid cols2">
+    <div class="card"><h3>tenants.mcp (실제 저장된 설정)</h3><pre id="mcp-config"></pre></div>
+    <div class="card"><h3>MCP 서버가 노출하는 도구 (실측)</h3><pre id="mcp-tools"></pre></div>
+  </div>
+</section>
+
+<section id="s3">
+  <h2><span class="no">STEP 2</span>1차 실행 — LLM 에이전트가 MCP로 업무 수행</h2>
+  <p class="sub" id="s3-query"></p>
+  <div class="card" style="margin-bottom:16px"><h3>LLM이 실제로 실행한 도구 호출 (이벤트로 기록됨)</h3>
+    <pre id="tool-log"></pre></div>
+  <div class="kpis" id="s3-kpis"></div>
+</section>
+
+<section id="s4">
+  <h2><span class="no">STEP 3</span>고착화 — 실행 경로가 Python 코드가 되다</h2>
+  <p class="sub">기록된 이벤트로부터 <b>파라미터화된 실행 코드</b>를 생성해
+  <code>mcp_python_code</code> 테이블에 (프로세스, 활동, 테넌트) 키로 저장합니다.
+  업무 값들은 <span class="hl" style="color:var(--warn)">${변수}</span> 템플릿으로 추출됩니다.</p>
+  <div class="grid cols2">
+    <div class="card"><h3>고착화된 코드 (실행 경로 부분)</h3><pre id="gen-code"></pre></div>
+    <div class="card"><h3>추출된 파라미터 명세</h3><pre id="gen-params"></pre>
+      <h3 style="margin-top:14px">저장 위치</h3>
+      <pre>mcp_python_code (proc_def_id=order_fulfillment_demo,
+                 activity_id=update_inventory, tenant_id=localhost)</pre></div>
+  </div>
+</section>
+
+<section id="s5">
+  <h2><span class="no">STEP 4</span>재실행 — 다른 입력, 같은 경로, LLM 추론 0회</h2>
+  <p class="sub" id="s5-query"></p>
+  <div class="grid cols2">
+    <div class="card"><h3>새 입력에서 추출된 파라미터 값</h3>
+      <pre>{ "product_name": "Galaxy", "stock_quantity": 250, "reason": "발주 입고" }</pre>
+      <h3 style="margin-top:14px">실행 방식</h3>
+      <pre><span class="okc">고착화된 코드를 그대로 실행</span> — 에이전트 크루 생성 없음
+LLM 추론 루프 <span class="okc">0회</span> (경로·SQL 구조는 코드에 고정)</pre></div>
+    <div class="card"><h3>재실행 결과 (3스텝, 실측)</h3><pre id="replay-results"></pre></div>
+  </div>
+  <div class="kpis" id="s5-kpis" style="margin-top:16px"></div>
+</section>
+
+<section id="s6">
+  <h2><span class="no">검증</span>실제 데이터베이스 반영 결과</h2>
+  <p class="sub">1차(LLM)와 2차(고착화 코드) 실행이 모두 실제 Supabase DB에 반영되었습니다.</p>
+  <div class="grid cols2">
+    <div class="card"><h3>inventory (재고)</h3><table id="tbl-inv"></table></div>
+    <div class="card"><h3>inventory_log (감사 로그)</h3><table id="tbl-log"></table></div>
+  </div>
+  <div class="kpis" style="margin-top:20px">
+    <div class="kpi"><div class="v ok">21/21</div><div class="l">E2E 검증 PASS</div></div>
+    <div class="kpi"><div class="v ok">0회</div><div class="l">재실행 시 LLM 추론</div></div>
+    <div class="kpi"><div class="v ok">100%</div><div class="l">경로 재현율</div></div>
+  </div>
+</section>
+
+<section id="s7" class="center">
+  <h1 style="font-size:38px">왜 중요한가 — 비즈니스 가치</h1>
+  <div style="max-width:980px; margin-top:30px; text-align:left">
+    <ul class="value" style="list-style:none; padding:0">
+      <li>✅ <b>정확성</b> — 한 번 검증된 실행 경로가 그대로 재현됩니다. 두 번째부터는
+          할루시네이션이 개입할 여지가 없습니다.</li>
+      <li>💰 <b>비용·속도</b> — 반복 업무에서 LLM 추론이 사라집니다.
+          이번 데모에서도 실행 시간이 5.2s → 3.1s로 줄고 추론 호출은 3회 → 0회.</li>
+      <li>📋 <b>감사 가능성</b> — 업무가 "프롬프트"가 아니라 <b>읽고 검토할 수 있는 코드</b>로
+          남습니다. 무엇이 실행되는지 사전에 알 수 있습니다.</li>
+      <li>🧠 <b>프로그래밍 없는 자동화</b> — 개발자가 코드를 짠 것이 아닙니다.
+          AI가 일하는 것을 <b>지켜본 시스템이 스스로 코드를 만들었습니다</b>.</li>
+      <li>🔁 <b>되돌리기까지</b> — 같은 메커니즘으로 보상(undo) 코드도 생성되어,
+          재작업 시 이전 부수효과를 안전하게 되돌립니다.</li>
+    </ul>
+  </div>
+</section>
+
+<section id="s8" class="center">
+  <div class="logo">PROCESS GPT</div>
+  <h1 style="font-size:36px">한 번 배운 업무는, 매번 정확하게.</h1>
+  <p class="big">spec: <code>openspec/specs/crewai-action_deterministic-replay</code><br>
+  구현: <code>processgpt-agent-utils · DeterministicCodeTool</code> ·
+  <code>mcp_python_code</code></p>
+</section>
+
+<div class="cap" id="caption"></div>
+
+<script>
+async function load() {
+  const d = await (await fetch('demo_data.json')).json();
+  const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;');
+
+  document.getElementById('mcp-config').textContent =
+      JSON.stringify(d.tenant_mcp, null, 2);
+  document.getElementById('mcp-tools').innerHTML = d.tool_names.map(t =>
+      t === 'execute_sql' ? `<span class="hl">${t}   ← SQL 실행 도구</span>` : t).join('\n');
+
+  document.getElementById('s3-query').innerHTML =
+      '워크아이템 지시: <b>“' + esc(d.first_query) + '”</b>';
+  document.getElementById('tool-log').innerHTML = d.tool_call_log.map((c, i) => {
+      const sql = c.args.sql || c.args.query || JSON.stringify(c.args);
+      const kind = sql.trim().split(/\s/)[0].toUpperCase();
+      return `<span class="okc">#${i+1} ${c.tool_name}</span>  <span class="hl">${kind}</span>\n    ${esc(sql)}`;
+  }).join('\n\n');
+  document.getElementById('s3-kpis').innerHTML = `
+      <div class="kpi"><div class="v">${d.metrics.phase_a_llm_calls}회</div><div class="l">LLM 추론 호출</div></div>
+      <div class="kpi"><div class="v">${d.tool_call_log.length}건</div><div class="l">MCP 도구 호출</div></div>
+      <div class="kpi"><div class="v">${d.metrics.phase_a_secs}s</div><div class="l">소요 시간</div></div>
+      <div class="kpi"><div class="v">${d.tool_call_log.length}건</div><div class="l">tool_usage_finished 이벤트</div></div>`;
+
+  const body = (d.generated_code.match(/results = \[\]([\s\S]*?)return results/) || [,''])[1];
+  document.getElementById('gen-code').innerHTML =
+      'async def run(inputs, timeout_s=60):\n    results = []' +
+      esc(body).replace(/\$\{(\w+)\}/g, '<span class="hl">${$1}</span>')
+               .replace(/call_tool/g, '<span class="okc">call_tool</span>') +
+      '    return results';
+  document.getElementById('gen-params').textContent =
+      JSON.stringify(d.parameters.parameters, null, 2);
+
+  document.getElementById('s5-query').innerHTML =
+      '새 워크아이템 지시: <b>“' + esc(d.replay_query) + '”</b>';
+  document.getElementById('replay-results').innerHTML = d.replay_results.map((r, i) =>
+      `<span class="okc">step ${i+1} ✓</span> ${r.tool} → ${esc(JSON.stringify(r.data).slice(0, 60))}…`
+  ).join('\n');
+  document.getElementById('s5-kpis').innerHTML = `
+      <div class="kpi"><div class="v ok">0회</div><div class="l">LLM 추론 호출</div></div>
+      <div class="kpi"><div class="v ok">${d.metrics.phase_c_secs}s</div><div class="l">소요 시간 (1차: ${d.metrics.phase_a_secs}s)</div></div>
+      <div class="kpi"><div class="v ok">${d.replay_results.length}/${d.replay_results.length}</div><div class="l">경로 스텝 재현</div></div>`;
+
+  document.getElementById('tbl-inv').innerHTML =
+      '<tr><th>product_name</th><th>stock</th><th>실행 주체</th></tr>' +
+      d.inventory_after.map(r => `<tr><td>${esc(r.product_name)}</td><td class="num">${r.stock}</td>
+          <td>${r.product_name === 'iPhone'
+                ? '<span class="badge llm">LLM 1차 실행</span>'
+                : '<span class="badge det">고착화 코드 재실행</span>'}</td></tr>`).join('');
+  document.getElementById('tbl-log').innerHTML =
+      '<tr><th>product_name</th><th>new_stock</th><th>reason</th></tr>' +
+      d.inventory_log_after.map(r => `<tr><td>${esc(r.product_name)}</td>
+          <td class="num">${r.new_stock}</td><td>${esc(r.reason)}</td></tr>`).join('');
+}
+load();
+</script>
+</body>
+</html>

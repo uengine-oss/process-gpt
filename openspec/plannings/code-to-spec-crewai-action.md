@@ -169,7 +169,8 @@
 | 액션 실행기 (리포트/슬라이드 분기) + 결과 변환 | 리포트/슬라이드 산출물 분리 전달 | `crew_type: report`/`slide` 이벤트 | `crewai-action` | 없음 | `report-slide-delivery` | `crewai-action_report-slide-delivery` | 적절 | 포함 |
 | `test_executor.py`, `single_run_test.py`, `test_llm_factory.py` | 로컬 테스트/디버깅 실행기 | - | - | - | - | - | - | 제외 |
 | `smoke_test.py` | 헬스 점검 스크립트 | - | - | - | - | - | - | 제외(evidence로만 사용) |
-| Deterministic Code 경로 | 비활성(주석 처리)된 사전 처리 | - | - | - | - | - | - | 제외(열린 질문) |
+| Deterministic Code 경로 | 실행 경로 고착화·결정론적 재실행(비활성 훅, 도구 구현은 완결) | `mcp_python_code` 보존 + `deterministic_code` generate/execute | `crewai-action` | 없음 | `deterministic-replay` | `crewai-action_deterministic-replay` | 적절 | 포함(후속 추가) |
+| Deterministic Undo 경로 | 이벤트 로그 기반 역연산(undo) 실행·재작업 시 undo 우선 | `mcp_python_code.compensation` + rework 실행 분기 | `crewai-action` | 없음 | `deterministic-undo` | `crewai-action_deterministic-undo` | 적절 | 포함(후속 추가) |
 
 ## 진행 체크리스트
 - [x] 모든 입력 폴더가 확인되었다.

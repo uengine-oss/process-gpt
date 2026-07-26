@@ -1,0 +1,17 @@
+<section>
+  <div class='row' name='review_participation_context' alias='RFP 정보' is_multidata_mode='false'>
+    <div class='col-sm-12'>
+      <label-field label='발주기관·예산 규모·마감일·요구사항 요약을 검토해 참여 여부를 판단하세요.'></label-field>
+    </div>
+  </div>
+</section>
+<section>
+  <div class='row' name='review_participation_decision' alias='참여 여부 판단' is_multidata_mode='false'>
+    <div class='col-sm-6'>
+      <select-field name='participation_decision' alias='참여 여부' is_dynamic_load='fixed' items='[{"참여인 경우":"참여"},{"미참여인 경우":"미참여"}]' disabled='false' readonly='false'></select-field>
+    </div>
+    <div class='col-sm-6'>
+      <textarea-field name='decision_note' alias='판단 근거' rows='3' disabled='false' readonly='false'></textarea-field>
+    </div>
+  </div>
+</section>

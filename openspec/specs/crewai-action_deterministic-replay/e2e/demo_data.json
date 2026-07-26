@@ -1,0 +1,149 @@
+{
+  "tenant_mcp": {
+    "mcpServers": {
+      "supabase-mcp": {
+        "command": "uvx",
+        "args": [
+          "--python",
+          "3.12",
+          "postgres-mcp",
+          "--access-mode=unrestricted"
+        ],
+        "env": {
+          "DATABASE_URI": "postgresql://postgres:*****@localhost:54322/postgres"
+        },
+        "enabled": true
+      }
+    }
+  },
+  "tool_names": [
+    "list_schemas",
+    "list_objects",
+    "get_object_details",
+    "explain_query",
+    "analyze_workload_indexes",
+    "analyze_query_indexes",
+    "analyze_db_health",
+    "get_top_queries",
+    "execute_sql"
+  ],
+  "first_query": "iPhone 상품의 발주 입고를 반영하라. 입고 수량(재고에 더할 값)은 60, 반영 후 재고는 80, 변경 사유는 발주 입고. 재고 UPDATE는 stock = stock + 60 형태로 실행하고, inventory_log에는 반영 후 재고와 사유를 남겨라.",
+  "tool_call_log": [
+    {
+      "tool_name": "execute_sql",
+      "args": {
+        "sql": "SELECT stock FROM inventory WHERE product_name = 'iPhone';"
+      }
+    },
+    {
+      "tool_name": "execute_sql",
+      "args": {
+        "sql": "UPDATE inventory SET stock = stock + 60 WHERE product_name = 'iPhone';"
+      }
+    },
+    {
+      "tool_name": "execute_sql",
+      "args": {
+        "sql": "INSERT INTO inventory_log (product_name, new_stock, reason) VALUES ('iPhone', 80, '발주 입고');"
+      }
+    }
+  ],
+  "generated_code": "# -*- coding: utf-8 -*-\n# generated_11111111-2222-3333-4444-555555550001.py (auto-created)\nimport os\nimport sys\nimport json\nimport asyncio\nfrom typing import Dict, Any, List\nfrom string import Template\nfrom fastmcp import Client\n\ndef render(tpl: str, inputs: Dict[str, Any]) -> str:\n    return Template(tpl).substitute(inputs)\n\ndef load_mcp_config() -> dict:\n    \"\"\"환경 변수에서 MCP 설정을 로드합니다.\"\"\"\n    mcp_config_str = os.environ.get(\"MCP_CONFIG\")\n    if not mcp_config_str:\n        raise RuntimeError(\"환경 변수 MCP_CONFIG가 설정되지 않았습니다.\")\n    return json.loads(mcp_config_str)\n\nasync def _client_from_server_key(server_key: str) -> Client:\n    mcp_config = load_mcp_config()\n    server_config = mcp_config[\"mcpServers\"][server_key]\n    # Client는 mcpServers 형식을 기대하므로 올바른 구조로 전달\n    config = {\"mcpServers\": {server_key: server_config}}\n    return Client(config)\n\nasync def call_tool(server_key: str, tool_name: str, args: Dict[str, Any], timeout_s: int = 60):\n    client = await _client_from_server_key(server_key)\n    async with client:\n        await client.ping()\n        res = await asyncio.wait_for(client.call_tool(tool_name, args), timeout=timeout_s)\n        safe = json.loads(json.dumps(res.data, ensure_ascii=False, default=str))\n        return {\"tool\": tool_name, \"data\": safe, \"server\": server_key}\n\nasync def run(inputs: Dict[str, Any], timeout_s: int = 60) -> List[Dict[str, Any]]:\n    \"\"\"\n    생성된 워크플로우를 입력 파라미터로 실행합니다.\n    \n    Args:\n        inputs: 파라미터 딕셔너리 (예: {\"product_name\": \"iPhone\", \"stock_quantity\": 100})\n        timeout_s: 각 툴 호출의 타임아웃 (초)\n    \n    Returns:\n        각 툴 실행 결과 리스트\n    \n    Parameters:\n        - product_name (string): example=\"iPhone\"\n        - stock_increment (integer): example=60\n        - new_stock (integer): example=80\n        - reason (string): example=\"발주 입고\"\n    \"\"\"\n    results = []\n    results.append(await call_tool(\"supabase-mcp\", \"execute_sql\", { \"sql\": render(\"SELECT stock FROM inventory WHERE product_name = '${product_name}';\", inputs) }, timeout_s=timeout_s))\n    results.append(await call_tool(\"supabase-mcp\", \"execute_sql\", { \"sql\": render(\"UPDATE inventory SET stock = stock + ${stock_increment} WHERE product_name = '${product_name}';\", inputs) }, timeout_s=timeout_s))\n    results.append(await call_tool(\"supabase-mcp\", \"execute_sql\", { \"sql\": render(\"INSERT INTO inventory_log (product_name, new_stock, reason) VALUES ('${product_name}', ${new_stock}, '${reason}');\", inputs) }, timeout_s=timeout_s))\n    return results\n\nif __name__ == \"__main__\":\n    # 사용법: python generated_<todo_id>.py <JSON_STRING_OR_FILE>\n    # 예시: python generated_xxx.py '{\"product_name\": \"iPhone\", \"stock_quantity\": 100}'\n    # 또는: python generated_xxx.py input.json\n    \n    if len(sys.argv) < 2:\n        print(\"ERROR: 입력 파라미터가 필요합니다.\", file=sys.stderr)\n        print(\"사용법: python {sys.argv[0]} <JSON_STRING_OR_FILE>\", file=sys.stderr)\n        print(\"예시: python {sys.argv[0]} '{\\\"param\\\": \\\"value\\\"}'\", file=sys.stderr)\n        sys.exit(1)\n    \n    arg = sys.argv[1]\n    \n    try:\n        # 파일 경로인지 JSON 문자열인지 확인\n        if os.path.exists(arg):\n            with open(arg, 'r', encoding='utf-8') as f:\n                inputs = json.load(f)\n        else:\n            inputs = json.loads(arg)\n    except json.JSONDecodeError as e:\n        print(f\"ERROR: JSON 파싱 실패: {e}\", file=sys.stderr)\n        sys.exit(1)\n    except Exception as e:\n        print(f\"ERROR: 입력 처리 실패: {e}\", file=sys.stderr)\n        sys.exit(1)\n    \n    print(f\"실행 시작 - 입력 파라미터: {inputs}\", file=sys.stderr)\n    \n    try:\n        results = asyncio.run(run(inputs))\n        print(f\"실행 완료 - 총 {len(results)}개의 툴 호출 완료\", file=sys.stderr)\n        payload = {\"ok\": True, \"results\": results}\n        print(json.dumps(payload, ensure_ascii=False))\n    except Exception as e:\n        print(f\"ERROR: 실행 중 오류 발생: {e}\", file=sys.stderr)\n        import traceback\n        traceback.print_exc(file=sys.stderr)\n        sys.exit(1)\n",
+  "parameters": {
+    "bindings": [
+      {
+        "arg": "sql",
+        "mode": "template",
+        "tool": "execute_sql",
+        "template": "SELECT stock FROM inventory WHERE product_name = '${product_name}';"
+      },
+      {
+        "arg": "sql",
+        "mode": "template",
+        "tool": "execute_sql",
+        "template": "UPDATE inventory SET stock = stock + ${stock_increment} WHERE product_name = '${product_name}';"
+      },
+      {
+        "arg": "sql",
+        "mode": "template",
+        "tool": "execute_sql",
+        "template": "INSERT INTO inventory_log (product_name, new_stock, reason) VALUES ('${product_name}', ${new_stock}, '${reason}');"
+      }
+    ],
+    "parameters": [
+      {
+        "name": "product_name",
+        "type": "string",
+        "example": "iPhone"
+      },
+      {
+        "name": "stock_increment",
+        "type": "integer",
+        "example": 60
+      },
+      {
+        "name": "new_stock",
+        "type": "integer",
+        "example": 80
+      },
+      {
+        "name": "reason",
+        "type": "string",
+        "example": "발주 입고"
+      }
+    ]
+  },
+  "replay_query": "Galaxy 상품의 발주 입고를 반영하라. 입고 수량(재고에 더할 값)은 215, 반영 후 재고는 250, 변경 사유는 발주 입고.",
+  "replay_results": [
+    {
+      "tool": "execute_sql",
+      "data": "execute_sqlOutput(result=[TextContent(type='text', text=\"[{'stock': 35}]\", annotations=None, _meta=None)])",
+      "server": "supabase-mcp"
+    },
+    {
+      "tool": "execute_sql",
+      "data": "execute_sqlOutput(result=[TextContent(type='text', text='No results', annotations=None, _meta=None)])",
+      "server": "supabase-mcp"
+    },
+    {
+      "tool": "execute_sql",
+      "data": "execute_sqlOutput(result=[TextContent(type='text', text='No results', annotations=None, _meta=None)])",
+      "server": "supabase-mcp"
+    }
+  ],
+  "inventory_after": [
+    {
+      "product_name": "Galaxy",
+      "stock": 250,
+      "updated_at": "2026-07-23T05:16:37.867898+00:00"
+    },
+    {
+      "product_name": "iPhone",
+      "stock": 80,
+      "updated_at": "2026-07-23T05:16:37.867898+00:00"
+    }
+  ],
+  "inventory_log_after": [
+    {
+      "id": "e8708674-4b6d-42a3-827f-3f63f43b29f4",
+      "product_name": "iPhone",
+      "new_stock": 80,
+      "reason": "발주 입고",
+      "created_at": "2026-07-23T05:16:43.256812+00:00"
+    },
+    {
+      "id": "a923bf60-c9b2-404e-a6b8-89a1c38beb5f",
+      "product_name": "Galaxy",
+      "new_stock": 250,
+      "reason": "발주 입고",
+      "created_at": "2026-07-23T05:16:50.599928+00:00"
+    }
+  ],
+  "metrics": {
+    "phase_a_secs": 5.0,
+    "phase_a_llm_calls": 4,
+    "phase_b_secs": 3.4,
+    "phase_c_secs": 3.2,
+    "phase_c_agent_llm_calls": 0
+  }
+}

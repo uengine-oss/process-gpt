@@ -4,9 +4,9 @@
 
 다각적 KPI 측정과 그래프/이력 반영을 검증한다: 정량(`instance_count`,
 `avg_duration_hours`, `form_value_sum` — 평탄/중첩 폼 값 합산)·정성(`survey_score`)·
-수동(`manual`) 측정을 `POST /api/measure/run` / `POST /api/kpis/{id}/value` 로 실행하고,
-`GET /api/map` 의 `current_value`/`achievement` 와 `GET /api/kpis/{id}/measurements` 이력을
-확인한다.
+외부 연동(`external_source` — HTTP GET + JSON 경로 추출)·수동(`manual`) 측정을
+`POST /api/measure/run` / `POST /api/kpis/{id}/value` 로 실행하고, `GET /api/map` 의
+`current_value`/`achievement` 와 `GET /api/kpis/{id}/measurements` 이력을 확인한다.
 
 ## 사전조건 / 인프라
 
@@ -16,6 +16,9 @@
 - 러너가 완료 인스턴스(`bpm_proc_inst` COMPLETED, 건수·처리시간·`variables_data` 평탄/중첩
   계약금액)와 ANSWERED 설문 요청(`strategy_survey_requests`)을 seed 한다(`seed.sql`).
   각 측정 유형은 별도 `proc_def` 로 격리해 상호 간섭을 막는다.
+- `external_source` 시나리오는 러너가 로컬에 stdlib `HTTPServer`(임의 포트)를 직접
+  기동해 고정 JSON(`{"data": {"nps_score": 82.5}}`)을 반환하는 모의 System of Record로
+  사용하고, 측정 후 종료한다(외부 의존성 없이 실제 HTTP 왕복을 검증).
 - 고유 테넌트 `e2e-measure-<ts>` 사용, 종료 시 정리.
 
 ## 실행 명령 · 포트 · 환경 변수
@@ -35,6 +38,7 @@ services/strategy/.venv/bin/python \
 | form_value_sum: 평탄(100)+중첩(200) → 300 | 폼 입력값 합산 정량 측정 |
 | avg_duration_hours: 1h+3h → 2.0 | (정량 측정) |
 | survey_score: ANSWERED 4,5 → 4.5 (source=survey) | 설문 기반 정성 측정 |
+| external_source: 모의 SoR HTTP GET, `data.nps_score` → 82.5 (source=auto) | 외부 System of Record 연동 측정 |
 | manual: POST value 50 → 50, achievement 50 (source=manual) | 수동 실적 입력과 달성률 계산 |
 | map current_value == 이력 최신값 | 측정 후 전략맵·이력 동시 반영 |
 | 이력 최신순 + source 기록 | (측정 이력 요구) |

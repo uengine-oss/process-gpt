@@ -1,0 +1,127 @@
+{
+  "event_logs": [
+    {
+      "timestamp": "2026-07-23T05:16:40.645473+00:00",
+      "log_data": {
+        "args": {
+          "sql": "SELECT stock FROM inventory WHERE product_name = 'iPhone';"
+        },
+        "tool_name": "execute_sql"
+      }
+    },
+    {
+      "timestamp": "2026-07-23T05:16:41.933329+00:00",
+      "log_data": {
+        "args": {
+          "sql": "UPDATE inventory SET stock = stock + 60 WHERE product_name = 'iPhone';"
+        },
+        "tool_name": "execute_sql"
+      }
+    },
+    {
+      "timestamp": "2026-07-23T05:16:43.312729+00:00",
+      "log_data": {
+        "args": {
+          "sql": "INSERT INTO inventory_log (product_name, new_stock, reason) VALUES ('iPhone', 80, '발주 입고');"
+        },
+        "tool_name": "execute_sql"
+      }
+    }
+  ],
+  "undo_code": "# -*- coding: utf-8 -*-\nimport os\nimport sys\nimport json\nimport asyncio\nfrom typing import Dict, Any, List\nfrom string import Template\nfrom fastmcp import Client\nimport re\n\ndef render(tpl: str, inputs: Dict[str, Any]) -> str:\n    return Template(tpl).substitute(inputs)\n\ndef load_mcp_config() -> dict:\n    \"\"\"환경 변수에서 MCP 설정을 로드합니다.\"\"\"\n    mcp_config_str = os.environ.get(\"MCP_CONFIG\")\n    if not mcp_config_str:\n        raise RuntimeError(\"환경 변수 MCP_CONFIG가 설정되지 않았습니다.\")\n    return json.loads(mcp_config_str)\n\nasync def _client_from_server_key(server_key: str) -> Client:\n    mcp_config = load_mcp_config()\n    server_config = mcp_config[\"mcpServers\"][server_key]\n    # Client는 mcpServers 형식을 기대하므로 올바른 구조로 전달\n    config = {\"mcpServers\": {server_key: server_config}}\n    return Client(config)\n\nasync def call_tool(server_key: str, tool_name: str, args: Dict[str, Any], timeout_s: int = 60):\n    client = await _client_from_server_key(server_key)\n    async with client:\n        await client.ping()\n        res = await asyncio.wait_for(client.call_tool(tool_name, args), timeout=timeout_s)\n        safe = json.loads(json.dumps(res.data, ensure_ascii=False, default=str))\n        return {\"tool\": tool_name, \"data\": safe, \"server\": server_key}\n\nasync def run(inputs: Dict[str, Any], timeout_s: int = 60) -> List[Dict[str, Any]]:\n    \"\"\"\n    생성된 워크플로우를 입력 파라미터로 실행합니다.\n    \n    Args:\n        inputs: 파라미터 딕셔너리 (예: {\"product_name\": \"iPhone\", \"stock_quantity\": 100})\n        timeout_s: 각 툴 호출의 타임아웃 (초)\n    \n    Returns:\n        각 툴 실행 결과 리스트\n    \n    Parameters:\n    - event_logs: List of event logs containing tool_name and args\n    \"\"\"\n    results = []\n    event_logs = inputs['event_logs']\n    for log in event_logs:\n        log_data = log['log_data']\n        tool_name = log_data.get('tool_name')\n        args = log_data.get('args', {})\n        sql = args.get('sql', '')\n        \n        if tool_name == 'execute_sql' and sql:\n            # Reverse SQL operations\n            if 'UPDATE' in sql:\n                # Reverse the update operation\n                match = re.search(r'SET stock = stock \\+ (\\d+)', sql)\n                quantity = int(match.group(1)) if match else 0\n                where_match = re.search(r\"WHERE product_name = ['\\\"](.*?)['\\\"]\", sql)\n                product_name = where_match.group(1) if where_match else ''\n                reverse_sql = f\"UPDATE inventory SET stock = stock - {quantity} WHERE product_name = '{product_name}';\"\n                results.append(await call_tool(\"supabase-mcp\", \"execute_sql\", {\"sql\": reverse_sql}, timeout_s))\n            \n            elif 'INSERT INTO inventory_log' in sql:\n                # Reverse the insert operation\n                match = re.search(r\"VALUES \\(['\\\"](.*?)['\\\"], (\\d+), ['\\\"](.*?)['\\\"]\\)\", sql)\n                product_name = match.group(1) if match else ''\n                new_stock = int(match.group(2)) if match else 0\n                reason = match.group(3) if match else ''\n                reverse_sql = f\"DELETE FROM inventory_log WHERE product_name = '{product_name}' AND new_stock = {new_stock} AND reason = '{reason}';\"\n                results.append(await call_tool(\"supabase-mcp\", \"execute_sql\", {\"sql\": reverse_sql}, timeout_s))\n    \n    return results\n\nif __name__ == \"__main__\":\n    if len(sys.argv) < 2:\n        print(\"ERROR: 입력 파라미터가 필요합니다.\", file=sys.stderr)\n        print(\"사용법: python {sys.argv[0]} <JSON_STRING_OR_FILE>\", file=sys.stderr)\n        print(\"예시: python {sys.argv[0]} '{{\\\"param\\\": \\\"value\\\"}}'\", file=sys.stderr)\n        sys.exit(1)\n    \n    arg = sys.argv[1]\n    \n    try:\n        # 파일 경로인지 JSON 문자열인지 확인\n        if os.path.exists(arg):\n            with open(arg, 'r', encoding='utf-8') as f:\n                inputs = json.load(f)\n        else:\n            inputs = json.loads(arg)\n    except json.JSONDecodeError as e:\n        print(f\"ERROR: JSON 파싱 실패: {e}\", file=sys.stderr)\n        sys.exit(1)\n    except Exception as e:\n        print(f\"ERROR: 입력 처리 실패: {e}\", file=sys.stderr)\n        sys.exit(1)\n    \n    print(f\"실행 시작 - 입력 파라미터: {inputs}\", file=sys.stderr)\n    \n    try:\n        results = asyncio.run(run(inputs))\n        print(f\"실행 완료 - 총 {len(results)}개의 툴 호출 완료\", file=sys.stderr)\n        payload = {\"ok\": True, \"results\": results}\n        print(json.dumps(payload, ensure_ascii=False))\n    except Exception as e:\n        print(f\"ERROR: 실행 중 오류 발생: {e}\", file=sys.stderr)\n        import traceback\n        traceback.print_exc(file=sys.stderr)\n        sys.exit(1)",
+  "undo_results": [
+    {
+      "tool": "execute_sql",
+      "data": "execute_sqlOutput(result=[TextContent(type='text', text='No results', annotations=None, _meta=None)])",
+      "server": "supabase-mcp"
+    },
+    {
+      "tool": "execute_sql",
+      "data": "execute_sqlOutput(result=[TextContent(type='text', text='No results', annotations=None, _meta=None)])",
+      "server": "supabase-mcp"
+    }
+  ],
+  "redo_results": [
+    {
+      "tool": "execute_sql",
+      "data": "execute_sqlOutput(result=[TextContent(type='text', text=\"[{'stock': 20}]\", annotations=None, _meta=None)])",
+      "server": "supabase-mcp"
+    },
+    {
+      "tool": "execute_sql",
+      "data": "execute_sqlOutput(result=[TextContent(type='text', text='No results', annotations=None, _meta=None)])",
+      "server": "supabase-mcp"
+    },
+    {
+      "tool": "execute_sql",
+      "data": "execute_sqlOutput(result=[TextContent(type='text', text='No results', annotations=None, _meta=None)])",
+      "server": "supabase-mcp"
+    }
+  ],
+  "undo_query": "재작업 재실행: iPhone 상품의 정정 입고를 반영하라. 입고 수량(재고에 더할 값)은 40, 반영 후 재고는 60, 변경 사유는 재작업 반영.",
+  "inventory_before": [
+    {
+      "product_name": "iPhone",
+      "stock": 80
+    },
+    {
+      "product_name": "Galaxy",
+      "stock": 250
+    }
+  ],
+  "post_undo_inventory": [
+    {
+      "product_name": "Galaxy",
+      "stock": 250,
+      "updated_at": "2026-07-23T05:16:37.867898+00:00"
+    },
+    {
+      "product_name": "iPhone",
+      "stock": 20,
+      "updated_at": "2026-07-23T05:16:37.867898+00:00"
+    }
+  ],
+  "post_undo_log": [
+    {
+      "id": "a923bf60-c9b2-404e-a6b8-89a1c38beb5f",
+      "product_name": "Galaxy",
+      "new_stock": 250,
+      "reason": "발주 입고",
+      "created_at": "2026-07-23T05:16:50.599928+00:00"
+    }
+  ],
+  "inventory_after": [
+    {
+      "product_name": "Galaxy",
+      "stock": 250,
+      "updated_at": "2026-07-23T05:16:37.867898+00:00"
+    },
+    {
+      "product_name": "iPhone",
+      "stock": 60,
+      "updated_at": "2026-07-23T05:16:37.867898+00:00"
+    }
+  ],
+  "inventory_log_after": [
+    {
+      "id": "a923bf60-c9b2-404e-a6b8-89a1c38beb5f",
+      "product_name": "Galaxy",
+      "new_stock": 250,
+      "reason": "발주 입고",
+      "created_at": "2026-07-23T05:16:50.599928+00:00"
+    },
+    {
+      "id": "f121c8d0-b51d-4ece-bda5-1f63270b4ca5",
+      "product_name": "iPhone",
+      "new_stock": 60,
+      "reason": "재작업 반영",
+      "created_at": "2026-07-23T05:17:10.691811+00:00"
+    }
+  ],
+  "metrics": {
+    "gen_secs": 10.2,
+    "undo_secs": 1.8,
+    "redo_secs": 3.2,
+    "undo_llm_calls": 0
+  }
+}

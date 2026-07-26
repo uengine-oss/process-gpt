@@ -15,8 +15,10 @@ GET /api/map 의 current_value/achievement 와 GET /api/kpis/{id}/measurements �
 import json
 import os
 import sys
+import threading
 import time
 import uuid
+from http.server import BaseHTTPRequestHandler, HTTPServer
 
 import httpx
 from sqlalchemy import create_engine, text
@@ -84,6 +86,26 @@ def map_kpi(c, tid, kpi_id):
     return None
 
 
+def start_mock_sor_server(payload: dict):
+    """고정 JSON 을 반환하는 최소 HTTP 서버(외부 System of Record 모사)."""
+    body = json.dumps(payload).encode()
+
+    class Handler(BaseHTTPRequestHandler):
+        def do_GET(self):
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(body)
+
+        def log_message(self, *args):
+            pass  # 콘솔 액세스 로그 억제
+
+    server = HTTPServer(("127.0.0.1", 0), Handler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    return server, thread
+
+
 def main() -> int:
     ensure_tables()
     ts = int(time.time())
@@ -126,9 +148,18 @@ def main() -> int:
     kpi_man = create_kpi(c, tid, obj["id"], name="수동 실적", measure_type="manual",
                          baseline_value=0, target_value=100)
 
+    # ---- external_source: 외부 System of Record(HTTP GET, 중첩 JSON) → 82.5
+    sor_server, sor_thread = start_mock_sor_server({"data": {"nps_score": 82.5}})
+    sor_port = sor_server.server_port
+    kpi_sor = create_kpi(c, tid, obj["id"], name="NPS(외부)", measure_type="external_source",
+                         source_url=f"http://127.0.0.1:{sor_port}/kpi",
+                         source_field="data.nps_score", baseline_value=0, target_value=100)
+
     # ================================================ 자동 측정 실행
     run = c.post(f"/api/measure/run?tenant_id={tid}").json()
-    check("measure/run 측정 수행(kpis_measured>=4)", run.get("kpis_measured", 0) >= 4, str(run))
+    check("measure/run 측정 수행(kpis_measured>=5)", run.get("kpis_measured", 0) >= 5, str(run))
+    sor_server.shutdown()
+    sor_thread.join()
 
     # 수동 입력
     man_resp = c.post(f"/api/kpis/{kpi_man['id']}/value?tenant_id={tid}", json={"value": 50})
@@ -155,10 +186,18 @@ def main() -> int:
     check("manual current_value=50, achievement=50.0",
           float(km["current_value"]) == 50.0 and km["achievement"] == 50.0, str(km.get("current_value")))
 
+    kso = map_kpi(c, tid, kpi_sor["id"])
+    check("external_source current_value=82.5 (외부 HTTP GET)",
+          kso and float(kso["current_value"]) == 82.5, str(kso and kso.get("current_value")))
+
     # ================================================ 측정 이력 검증
     h_cnt = c.get(f"/api/kpis/{kpi_cnt['id']}/measurements").json()
     check("instance_count 이력 최신값=3, source=auto",
           h_cnt and float(h_cnt[0]["value"]) == 3.0 and h_cnt[0]["source"] == "auto", str(h_cnt[:1]))
+
+    h_sor = c.get(f"/api/kpis/{kpi_sor['id']}/measurements").json()
+    check("external_source 이력 source=auto",
+          h_sor and float(h_sor[0]["value"]) == 82.5 and h_sor[0]["source"] == "auto", str(h_sor[:1]))
 
     h_surv = c.get(f"/api/kpis/{kpi_surv['id']}/measurements").json()
     check("survey_score 이력 source=survey",

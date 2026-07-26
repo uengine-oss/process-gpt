@@ -453,6 +453,45 @@
 
 ---
 
+## 25. 위 19~24번 이슈 전부 자동 보정 스크립트로 고정 + deepagents DooD 샌드박스 수정
+
+반복 재현되는 #19/#25/#27/#28 네 가지를 매번 손으로 진단하지 않도록
+`.claude/skills/install-process-gpt/scripts/post-clone-fixes.sh`로 고정했다
+(멱등적, 신규 클론 + `--pull never` 전에 실행). 프레시 클론에 실제 실행해
+4개 패치가 정확히 적용되는 것까지 확인함.
+
+추가로 deepagents의 "코드 실행 샌드박스"(Docker-outside-of-Docker — 자체
+컨테이너 안에서 `docker.sock`으로 사촌 컨테이너를 띄우는 방식) 기능은 기본
+설치에선 꺼져 있었는데, 실제로 채팅에서 deepagents 오케스트레이션으로
+프로세스 조회/조작을 시키면 아래 순서로 3단계 에러가 난다:
+
+1. `docker.sock` 미마운트 → `DockerException: fetching server API version`.
+2. 마운트해도 `workspace_host`/`SKILLS_HOST`가 컨테이너 내부 경로
+   (`/app/workspace`, `/app/skills`)를 그대로 사촌 컨테이너 bind mount
+   source로 써서 `mounts denied: not shared from the host` (Docker Desktop
+   특유의 DooD 경로 문제 — 사촌 컨테이너는 호스트 데몬이 만들기 때문에
+   전달하는 경로 문자열이 반드시 **진짜 호스트 경로**여야 한다).
+3. `services/deepagents/core/agents/agent.py`의 `get_or_create_sandbox(...)`
+   호출부(200번째 줄 부근)가 `executor.py`와 별개로 **자기만의** 하드코딩된
+   `_BASE_DIR / "workspace"`를 쓰고 있어서, executor.py 쪽만 고치면 놓친다.
+
+해결(코드 3곳 + compose 볼륨/env 변경, `post-clone-fixes.sh --with-deepagents-sandbox`에
+전부 반영됨):
+- `agent.py`에 `_WORKSPACE_DIR = Path(os.getenv("WORKSPACE_HOST", ...))` 추가,
+  `get_or_create_sandbox(..., workspace_host=_WORKSPACE_DIR, ...)`로 교체.
+- `executor.py`의 4개 호출부도 동일하게 `_AGENT_WORKSPACE_DIR`(import alias)로 교체.
+- `docker-compose.yml`: `skills-storage`(named volume) → `./volumes/deepagents-skills`
+  (bind mount)로 교체 + 기존 시드 콘텐츠는 `docker cp deepagents:/app/skills/. ...`로
+  먼저 빼둠. `SKILLS_HOST`/`WORKSPACE_HOST` env를 진짜 호스트 절대경로로 설정.
+  `/var/run/docker.sock:/var/run/docker.sock` 마운트 추가.
+- ⚠️ `docker.sock` 마운트는 그 컨테이너가 호스트 Docker를 통째로 제어할 수
+  있게 되는 보안 민감 변경 — **사용자 승인 없이 적용하지 말 것** (이번
+  세션에서도 AskUserQuestion으로 명시적 승인을 받은 뒤에만 적용함).
+
+수정 후 실제로 deepagents에 "휴가 신청 프로세스 목록을 조회하고 활동 구성을
+요약해줘"를 시켜서 `get_process_list`/`get_current_user`/`get_instance_list`/
+`get_process_detail` 툴 호출이 실제 DB 데이터를 대상으로 성공하는 것까지 확인함.
+
 ## 현재 상태 요약 (기록 시점)
 
 - **34개 컨테이너 running**, 게이트웨이 nginx `:8088` → HTTP 200.
@@ -467,6 +506,161 @@
 - [ ] `mcp-proxy` — k8s 전용, 로컬 제외 여부 결정 (항목 10)
 - [ ] 신규 가입 시 `public.users` 자동 생성 경로 확인 (항목 12)
 - [ ] `SITE_URL`(=http://localhost:8080)과 실제 게이트웨이(:8088) 불일치 여부 점검
+
+## 19. 새 process-gpt-infra-docker 설치 — supabase-db init 스크립트 부분 실패 → 이후 재부팅마다 스킵
+
+- **환경**: `/Users/uengine/process-gpt-infra-docker` (신규 클론, 이 레포가 표준
+  compose 위치). `process-gpt` 본체 쪽엔 기존 레거시 설치가 있었으나
+  `infra/volumes/db/*.sql`(8개 init 스크립트)이 빈 디렉터리로 깨져 있어 복구
+  대신 새 레포로 재설치하기로 결정.
+- **증상**: `docker compose up -d --wait db ...` 직후 `supabase-auth`가
+  `password authentication failed for user "supabase_auth_admin"` /
+  `"User has no password assigned"`로 무한 재시작.
+- **원인**: `volumes/db/roles.sql`이
+  ```sql
+  ALTER USER authenticator WITH PASSWORD :'pgpass';
+  ALTER USER pgbouncer WITH PASSWORD :'pgpass';
+  ALTER USER supabase_auth_admin WITH PASSWORD :'pgpass';
+  ALTER USER supabase_functions_admin WITH PASSWORD :'pgpass';  -- 이 시점에 role 미존재
+  ALTER USER supabase_storage_admin WITH PASSWORD :'pgpass';
+  ```
+  순서로 되어 있는데, `supabase_functions_admin`은 `98-webhooks.sql`이 pg_net
+  확장/스키마 존재 여부에 따라 **조건부**로만 생성한다 (arm64 에뮬레이션 환경 등
+  에선 스킵될 수 있음). 이 role이 없으면 `ON_ERROR_STOP=1`이 걸린
+  `migrate.sh`가 즉시 abort — 그 뒤에 있는 `supabase_storage_admin` 패스워드
+  설정도, 이어지는 `migrations/*.sql` 전체(auth 스키마 소유권 이전 등)도 실행
+  안 됨. 컨테이너 자체는 재부팅 후 `PGDATA`가 이미 존재해 초기화 스크립트를
+  통째로 건너뛰므로 **재시작해도 저절로 복구되지 않는다.**
+- **해결**: `volumes/db/roles.sql`에서 `supabase_storage_admin`을
+  `supabase_functions_admin`보다 앞으로 옮기고, 없어도 되는 role 한 줄만
+  `\set ON_ERROR_STOP off` / `on`으로 감싸기:
+  ```sql
+  ALTER USER authenticator WITH PASSWORD :'pgpass';
+  ALTER USER pgbouncer WITH PASSWORD :'pgpass';
+  ALTER USER supabase_auth_admin WITH PASSWORD :'pgpass';
+  ALTER USER supabase_storage_admin WITH PASSWORD :'pgpass';
+  \set ON_ERROR_STOP off
+  ALTER USER supabase_functions_admin WITH PASSWORD :'pgpass';
+  \set ON_ERROR_STOP on
+  ```
+  이미 떠 있는(초기화 중간에 멈춘) DB는 볼륨을 밀지 않고도 살릴 수 있다 —
+  수정한 `roles.sql`을 그대로 재실행하고, `migrations/*.sql`도 순서대로
+  재실행(대부분 `IF NOT EXISTS`/예외 처리로 idempotent)하면 된다:
+  ```bash
+  docker exec -u postgres supabase-db psql -v ON_ERROR_STOP=1 --no-password \
+    --no-psqlrc -U postgres -f /docker-entrypoint-initdb.d/init-scripts/99-roles.sql
+  docker exec -u postgres supabase-db bash -c \
+    'for f in $(ls /docker-entrypoint-initdb.d/migrations/*.sql | sort); do
+       psql -v ON_ERROR_STOP=1 --no-password --no-psqlrc -U supabase_admin -f "$f"; done'
+  docker restart supabase-auth supabase-storage
+  ```
+
+## 20. GoTrue(auth) 스키마 소유권 불일치 — "must be owner of table/function ..."
+
+- **증상**: 위 roles.sql 수정 후에도 auth가 `ERROR: must be owner of function
+  uid (SQLSTATE 42501)`, 이어서 `must be owner of table identities`로 계속 실패.
+- **원인**: `migrations/20211124212715_update-auth-owner.sql`(auth.uid/role/email
+  함수 소유권을 `supabase_auth_admin`으로 이전)이 위 #19 abort 때문에 실행되지
+  못해, 부트스트랩 스크립트가 만든 auth 스키마 객체들이 여전히 `postgres`
+  소유였음. GoTrue는 `supabase_auth_admin`으로 접속해 `CREATE OR REPLACE
+  FUNCTION`/테이블 마이그레이션을 실행하므로 소유자가 아니면 전부 실패.
+- **해결**: auth 스키마 전체(스키마 자체 + 테이블 + 시퀀스 + 함수) 소유권을
+  일괄 이전 (반드시 `supabase_admin`으로 접속 — `postgres`는
+  `10000000000000_demote-postgres.sql`로 superuser 권한이 이미 박탈된 상태라
+  `must be owner of schema auth`로 실패함):
+  ```sql
+  ALTER SCHEMA auth OWNER TO supabase_auth_admin;
+  DO $$
+  DECLARE r record;
+  BEGIN
+    FOR r IN SELECT tablename FROM pg_tables WHERE schemaname='auth' LOOP
+      EXECUTE format('ALTER TABLE auth.%I OWNER TO supabase_auth_admin', r.tablename);
+    END LOOP;
+    FOR r IN SELECT sequencename FROM pg_sequences WHERE schemaname='auth' LOOP
+      EXECUTE format('ALTER SEQUENCE auth.%I OWNER TO supabase_auth_admin', r.sequencename);
+    END LOOP;
+    FOR r IN SELECT p.proname, pg_get_function_identity_arguments(p.oid) as args
+             FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace
+             WHERE n.nspname='auth' LOOP
+      EXECUTE format('ALTER FUNCTION auth.%I(%s) OWNER TO supabase_auth_admin', r.proname, r.args);
+    END LOOP;
+  END $$;
+  ```
+
+## 21. GoTrue 개별 마이그레이션이 이미 최신인 부트스트랩 스키마와 안 맞음
+
+- **증상**: 소유권 수정 후에도 `20221208132122_backfill_email_last_sign_in_at`
+  단계에서 `ERROR: operator does not exist: uuid = text` (레거시 백필
+  스크립트가 `identities.id`를 옛날 `text` 타입으로 가정하는데, 부트스트랩이
+  이미 최신 `uuid` 타입으로 테이블을 만들어놔서 타입 불일치).
+- **원인**: supabase-postgres 이미지의 부트스트랩 스크립트가 "최종 상태"
+  스키마를 만들어두고 `auth.schema_migrations`에 일부 버전만 선반영해두는데,
+  이 특정 데이터-백필 버전은 선반영 목록에서 빠져 있어 GoTrue가 옛날 가정으로
+  다시 실행을 시도함. 신규 설치(빈 `auth.identities`)라 백필할 데이터도 없음.
+- **해결**: 실제 효과가 없는(데이터 없음) 마이그레이션이므로 완료 처리만:
+  ```sql
+  insert into auth.schema_migrations (version) values ('20221208132122');
+  ```
+  이후 `docker restart supabase-auth`로 나머지 마이그레이션(26개)이 정상 적용됨.
+  ⚠️ 다른 버전에서 비슷한 "이미 최신 스키마인데 옛날 마이그레이션이 실패"
+  패턴을 만나면, `docker run --rm --entrypoint sh supabase/gotrue:<tag> -c
+  'ls /usr/local/etc/auth/migrations'`로 전체 버전 목록을 뽑아
+  `auth.schema_migrations`와 diff해서 판단.
+
+## 22. 무관 도커 스택 동시 실행 → 메모리 고갈 → PostgREST(amd64/QEMU) 세그폴트
+
+- **증상**: `docker run --rm busybox free -h` 기준 15.6GB 중 122MB만 여유,
+  swap도 거의 다 참. `supabase-db`가 간헐적으로 "recovery mode"(#14와 동일
+  패턴)를 겪었고, `supabase-rest` 로그 끝에 `qemu: uncaught target signal 11
+  (Segmentation fault) - core dumped` 이후로 그 프로세스가 완전히 죽어
+  응답을 멈춤 — 그런데 컨테이너 자체는 `Up`으로 남아있어 `docker ps`만 보면
+  정상처럼 보임. Kong이 해당 요청에서 `upstream timed out`/504로 응답.
+- **원인**: Process GPT와 무관한 다른 프로젝트 스택들(wazuh-docker ~2.9GB,
+  oda-canvas-control-plane ~3.35GB, rag-service-control-plane ~2.13GB,
+  infra 프로젝트의 robo-neo4j/mysql/mindsdb ~1.34GB, nkesa-mysql)이 동시에
+  떠 있어 메모리를 다 써버림. amd64 바이너리(PostgREST 등)를 arm64에서 QEMU로
+  에뮬레이션하는 상태에서 메모리 압박이 겹치면 세그폴트로 죽기 쉽다.
+- **해결**: 사용자 승인 하에 무관 스택 전부 `docker stop`(삭제 아님, 나중에
+  `docker start`로 복귀 가능) → 여유 메모리 10GB 확보. 이후
+  `docker restart supabase-rest`로 깨끗하게 재기동하니 즉시 정상화
+  (`Successfully connected to PostgreSQL ...`, `Schema cache loaded ...`).
+  **진단 팁**: 컨테이너가 `Up`이어도 실제 프로세스가 죽어있을 수 있으니, 응답이
+  없으면 `docker logs <name> -t | tail`로 마지막 로그 시각과 `qemu: uncaught
+  target signal` 유무를 확인하고 `docker inspect --format
+  '{{.State.StartedAt}}'`로 컨테이너 자체 재시작 여부까지 같이 봐야 한다
+  (프로세스만 죽고 컨테이너는 안 재시작되는 경우가 있음).
+
+## 23. frontend 소스 빌드 실패(vendor TS 에러) / 이미지 태그 불일치 → 로컬 캐시 재태깅으로 우회
+
+- **증상 A**: `docker compose up ... frontend`가 소스 빌드로 전환되며
+  `src/views/strategy/OntologyExplorer.vue(280,21): error TS2322: Type
+  'number' is not assignable to type 'PropertyValueNode<string>'.`로 실패
+  (서브모듈 체크아웃 커밋 자체의 vendor 버그, 인프라 설치 범위 밖).
+- **증상 B**: `polling-service`는 `build:` 없이 `image:`만 있는데, compose가
+  요구하는 태그(`a100ab6`)가 로컬에 없어 `No such image` 로 실패.
+- **해결**: 로컬에 캐시된 **다른 태그**의 같은 이미지가 있으면(과거 다른
+  설치에서 pull/build된 것) 앱 코드를 고치는 대신 재태깅으로 우회:
+  ```bash
+  docker tag ghcr.io/uengine-oss/process-gpt:e343845 ghcr.io/uengine-oss/process-gpt:1acd8a3
+  docker tag ghcr.io/uengine-oss/process-gpt-polling-service:9b1055c ghcr.io/uengine-oss/process-gpt-polling-service:a100ab6
+  ```
+  `docker images ghcr.io/uengine-oss/<name>`로 로컬 캐시 태그 목록 확인 후
+  compose가 요구하는 태그로 맞춰준다. GHCR 로그인이 없어 정확한 태그를 pull할
+  수 없을 때 특히 유용 (버전 차이가 크지 않다면 핵심 데모 플로우엔 지장 없음).
+
+## 24. deepagents 포트(8021) 바인드 실패 — Docker Desktop 프록시 지연 해제
+
+- **증상**: `docker rm -f`로 기존 `deepagents` 컨테이너를 지운 뒤 재기동해도
+  `Error response from daemon: ports are not available: exposing port TCP
+  0.0.0.0:8021 -> 127.0.0.1:0: listen tcp 0.0.0.0:8021: bind: address already
+  in use`. macOS `lsof -nP -iTCP:8021`로는 소유 프로세스가 안 잡히고
+  (`netstat`로는 `127.0.0.1.8021 LISTEN` 확인됨, sudo 불가 환경이라 소유자
+  특정 불가), Docker Desktop의 `com.docker.backend`가 host-side 포트 포워딩을
+  즉시 해제하지 못하는 것으로 추정.
+- **해결**: 근본 원인 추적 대신 `docker-compose.yml`의 `deepagents` 포트를
+  `8021:8888` → `8022:8888`로 remap하고 재기동. 데모 핵심 경로(챗봇 프로세스
+  생성/BPMN)엔 영향 없음. 재발 시 Docker Desktop 재시작으로도 해결 가능하지만
+  실행 중인 다른 컨테이너에 영향 주므로 remap을 우선 시도할 것.
 
 ### 유용한 커맨드 모음
 ```bash
@@ -483,3 +677,317 @@ docker compose --env-file .env "${CF[@]}" up -d --pull never
 PGPW=$(grep -E '^POSTGRES_PASSWORD=' .env | cut -d= -f2-)
 docker exec -e PGPASSWORD="$PGPW" supabase-db psql -U supabase_admin -d postgres -c "<SQL>"
 ```
+
+## 26. Apache AGE 설치 + PDF 첨부 프로세스 생성 end-to-end 완주 (✅ 해결, troubleshooting #37~#40)
+
+트리거: `strategy`(온톨로지 그래프) 서비스도 어차피 Apache AGE가 필요하므로
+설치 시점에 반영하라는 지시. 기존 #36(미해결로 기록됐던 AGE 부재)을 이번에
+실제로 풀었고, 그 과정에서 PDF 첨부 → BPMN 생성 파이프라인 전체를 최초로
+end-to-end 완주시켰다(스킬 클러스터링 + deepagents 오케스트레이션까지 확인).
+
+- **AGE 설치**: `strategy`의 기존 패턴(`services/strategy/docker-compose.age.yml`)을
+  그대로 채택 — Supabase의 postgres 이미지를 건드리지 않고
+  `apache/age:release_PG16_1.5.0` 전용 컨테이너(`age-postgres`)를 추가해
+  `bpmn-extractor`(`AGE_DSN`)와 `strategy`(`GRAPH_DB_*`)가 공유하도록 와이어링.
+  기존에 데이터가 들어있는 동일 이름 컨테이너와 충돌하는 문제가 있어
+  `container_name`은 고정하지 않기로 함 (troubleshooting #37).
+- **Cypher 문법 비호환 발견**: AGE 설치 후 그래프는 정상 구축되는데 추출된
+  프로세스가 0건 저장되는 문제 발견 → 원인은 Neo4j 전용 맵 프로젝션 문법
+  (`node {.*}`)을 AGE openCypher가 지원하지 않는 것. `neo4j_client.py`,
+  `api/main.py`, `vector_search.py` 3개 파일의 전 발생 지점을 `properties(node)`로
+  치환해 해결 (troubleshooting #38). 이게 실질적으로 #36을 완전히 풀어준
+  핵심 수정이었다 — AGE 컨테이너만 띄운 것으로는 부족했다.
+- **`event_type_enum` 누락 값 2차 발견**: HITL(스킬/DMN 승인) 단계 진행
+  중 `record_events_bulk`가 `waiting_for_user`/`task_cancelled`/
+  `human_feedback_submitted` 값으로 계속 실패 — enum에 값 추가로 해결
+  (troubleshooting #39).
+- **HITL 재개 메커니즘 파악**: `todolist.draft_status='HUMAN_ASKED'`로 멈춘
+  태스크는 `output.hitl_feedbacks`에 답을 채우는 것만으로는 재개되지 않는다
+  — `fetch_pending_task` SQL 함수의 WHERE절이 `draft_status='FB_REQUESTED'`
+  만 폴링 대상으로 보기 때문에, 프론트가 `draft_status`를 `FB_REQUESTED`로
+  다시 PATCH해줘야 한다(정상 프론트 코드는 `requestPdf2BpmnWorkerResume()`가
+  이걸 자동으로 함). 이 사실 자체는 버그가 아니라 설계된 2단계 계약이다.
+- **실제로 걸린 프론트 버그 발견** (troubleshooting #40, 미수정 — 스킬
+  범위 밖): 스킬 승인 질문이 백엔드에서 `feedback_type: "select_items"`
+  (체크박스 UI, 항목별 선택)로 오는데 프론트가 이걸 `승인`/`반려` 2버튼
+  카드로 렌더링하는 경우가 있었다. 이 카드에서 "승인"을 눌러도
+  `selected_ids`가 없는 페이로드가 제출되고, 백엔드는 이를 "스킬 0개
+  선택하고 승인함"으로 정확히 해석해 스킬 생성을 건너뛴다. 정확한 분기
+  조건(어느 코드 경로가 이 카드를 만드는지)은 특정하지 못했다 — 라이브
+  이벤트 경로와 재구성(`loadExistingEvents`) 경로 둘 다 코드상으로는
+  `question.feedback_type`을 그대로 따르게 되어 있어 재현했지만 근본
+  원인은 못 찾음. 데모 완주를 위해 `todolist.output.hitl_feedbacks`에
+  `selected_ids`를 포함한 올바른 페이로드를 직접 넣고 `draft_status`를
+  `FB_REQUESTED`로 바꾸는 SQL 우회로 프론트를 건너뛰어 검증했다.
+- **최종 검증 결과**: 협력사 온보딩 PDF(재무/컴플라이언스 리스크 리포트
+  생성 지침이 2개 activity에 걸쳐 반복되도록 의도적으로 설계한 샘플 문서)를
+  업로드 → 표준 강도 선택 → 스킬/DMN 승인까지 전체 플로우를 완주시켜
+  `proc_def`에 저장된 최종 프로세스 정의에서 두 리포트 생성 activity 모두
+  `agentMode: "complete"`, `orchestration: "deepagents"`, 동일한
+  `skills: ["partner-risk-assessment-report"]`가 붙은 것을 확인 — 스킬
+  클러스터링(Jaccard 유사도 기반 중복 지침 탐지)과 deepagents 오케스트레이션
+  자동 부여가 설계대로 동작함을 실증.
+- **install-process-gpt 스킬에 반영**: `post-clone-fixes.sh`에 9~11번 항목으로
+  (event_type_enum 값 추가 / age-postgres 서비스+와이어링 / Cypher
+  `properties()` 치환) 자동화 추가, 원본 vendor 소스를 재현한 fixture로
+  멱등성·YAML 유효성까지 검증 완료. `troubleshooting.md` #36을 해결됨으로
+  갱신하고 #37~#40 신설.
+
+## 27. PDF 샘플 문서 — 스킬은 생기는데 에이전트가 안 생기는 문제 (✅ 해결, troubleshooting #41)
+
+트리거: "지금 예제가 생성한 프로세스는 스킬과 에이전트가 동반하여 생성되지
+못했다"는 지적. pdf2bpmn은 스킬 클러스터링(지침 문장 유사도, 역할 무관)과
+에이전트 후보 생성(같은 역할 안에서 같은 스킬을 가진 activity ≥2개)을
+서로 다른 조건으로 판단한다는 걸 코드(`process_post_processor.py`)에서
+확인. 처음 버전은 두 리포트 activity를 재무팀/컴플라이언스팀으로 역할을
+나눠뒀어서 스킬은 묶여도 에이전트 후보 조건(같은 역할)을 못 채웠다. 역할을
+하나로 합치자 이번엔 activity **이름**이 너무 비슷해서(`workflow/graph.py`
+`_merge_tasks_by_similarity`, 스킬 클러스터링보다 먼저 실행됨) 같은 역할
+안의 두 activity가 사전에 하나로 병합돼버려 여전히 에이전트 후보가 0개.
+"같은 역할 + 유사한 지침 본문 + 겹치지 않는 activity 이름" 세 조건을 동시에
+만족하도록(짧고 구분되는 소제목을 지침 앞에 붙여 LLM이 그 표현을 activity
+이름으로 채택하도록 유도) `assets/vendor-onboarding.html`을 재설계 → 재업로드
+검증 결과 두 activity 모두 `agentMode: complete`/`orchestration: deepagents`
++ 동일 스킬 + **동일한 신규 에이전트 id**(users 테이블에 `is_agent=true`로
+실제 생성됨)가 붙는 것 확인. `troubleshooting.md` #41 신설,
+`demo-playwright.md` 시나리오 B 검증 단계 업데이트.
+
+## 28. 로컬 개발 모드에서 앱 서비스가 `--build` 없이 옛 GHCR 이미지로 뜨는 문제 (✅ 해결, troubleshooting #15-b)
+
+트리거: "개발환경으로 설치하는 경우는 docker container 이미지로 실행하면
+안 됨. 프론트엔드가 너무 옛날꺼임. 인프라(Supabase/Apache AGE 등) 제외하고는
+`services/` 이하 신규 모듈로 설치돼야 함." — 원인 확인: `docker-compose.yml`의
+자체 개발 서비스는 전부 `image:`(GHCR 고정 태그)와 `build:`(현재 소스) 둘
+다 정의돼 있는데, Compose는 `--build`가 없으면 항상 `image:`를 우선한다.
+`start-all-services.sh`는 애초에 `--build`를 지원하지 않아 이 스크립트로
+설치하면 서브모듈을 최신으로 받아도 항상 옛 이미지가 떴다. 실제 확인:
+`docker inspect ghcr.io/uengine-oss/process-gpt:1acd8a3`의 실제 빌드
+시각이 2026-04-23(서브모듈 HEAD는 2026-07-20)이었음 — 이전 세션에서 태그
+불일치를 `docker tag`로 우회했던 게(#23) 사실은 이 문제를 고치는 대신
+숨기고 있었던 것.
+
+**해결**: `start-all-services.sh`에 `-b`/`--build` CLI 플래그를 추가 —
+`compose up -d`를 호출하는 모든 지점(`start_gateway`, `start_services`,
+"all" 비대화형/대화형 경로)에 조건부로 `--build`를 삽입, 인프라
+(`INFRA_STACK`: db/kong/auth/rest/realtime/storage/imgproxy/meta/functions/
+analytics/studio/neo4j/litellm-db/litellm-proxy/age-postgres)는 애초에
+`build:` 블록이 없어 영향 없음을 사전에 전수 확인. `--build frontend`로
+실제 재빌드해 `docker inspect` 빌드 시각이 서브모듈 최신 커밋 이후로
+찍히는 것까지 검증. `troubleshooting.md` #15-b 신설, #23 개정(재태깅은
+`build:` 없는 서비스에만 쓰라고 명시), `local-dev.md`/`SKILL.md`에 로컬
+개발 모드는 `--build`가 기본이라고 반영.
+
+## 29. 스킬이 proc_def엔 저장되는데 실제 SKILL.md 파일은 안 생기는 3중 silent-failure (✅ 해결, troubleshooting #42)
+
+트리거: 채팅 UI에서 "스킬 1개 생성됨"으로 표시된 프로세스를 보여줬더니
+"이 스킬을 만든 PDF가 assets 폴더에 없다", "스킬/에이전트가 저장된 곳을
+클릭해도 팝업이 안 뜬다"는 지적, 이어서 "업로드가 실패했는데 왜 화면엔
+저장된 것처럼 표시되는가 — 오류 처리 없이 넘어간 부분을 전부 찾아 오류를
+표시하도록 고쳐달라"는 명시적 요청.
+
+조사 결과 서로 독립적인 3개의 "조용한 실패"가 겹쳐 있었다:
+1. `CLAUDE_SKILLS_BASE_URL` 기본값이 nginx에 없는 `/claude-skills` 경로를
+   가리켜, 요청이 프론트 SPA catch-all로 떨어지며 200 HTML을 "성공"으로
+   오판(구 코드는 상태코드만 봄).
+2. `skill_docs`(업로드 대상) dict의 키를 스킬의 **한글 표시명**으로
+   만들었는데, HITL 승인 여부 판정은 **영문 slug**(`safe_name`/`id`) 기준
+   이라 절대 안 맞음 — 승인해도 매번 "미승인"으로 스킵.
+3. 위 두 실패 모두 로그 한 줄(`logger.warning`)로만 남고 채팅 완료
+   메시지·결과 카드엔 아무 표시가 없었음.
+
+**해결**:
+- `docker-compose.yml`: bpmn-extractor에
+  `CLAUDE_SKILLS_BASE_URL: http://deepagents:8888` 추가(게이트웨이
+  우회, `post-clone-fixes.sh` 10번 항목에 반영).
+- `pdf2bpmn_agent_executor.py`: skill_docs 키를 `safe_name`/`id` 기준으로
+  수정, 업로드 시 스킬명도 마크다운 재추출 대신 이 키를 그대로 재사용,
+  `_upload_skill_to_claude_skills()`가 응답 JSON의 `registered: true`까지
+  검증(상태코드만으로 판단하지 않음), 실패 사유를
+  `skill_upload_errors`로 수집해 진행 이벤트·완료 메시지·`saved_skills[]`에
+  모두 노출.
+- 프론트(`Chat.vue`, `ProcessArtifactViewer.vue`): `uploaded === false`인
+  스킬을 빨간 경고 아이콘 + "업로드 실패: <사유>" 캡션으로 표시, 클릭해도
+  깨진 링크로 안 넘어가게 수정.
+- 재빌드(`docker compose up -d --build --no-deps bpmn-extractor frontend`)
+  후 실제로 재업로드까지 재현·검증: 처음엔 여전히 실패(원인 1만 고친
+  상태 — `skills_uploaded: []`, `skill_upload_errors: []`인 채로 조용히
+  스킵되는 걸 보고 원인 2를 추가로 발견), 원인 2까지 고친 뒤에야
+  `volumes/deepagents-skills/localhost/local/partner-risk-score-report/SKILL.md`
+  가 실제로 생성되고 `saved_skills[].uploaded: true`가 찍히는 것을 확인.
+- `troubleshooting.md` #42 신설(위 3원인 + 검증 커맨드 + 일반화된 교훈),
+  `demo-playwright.md` 시나리오 B 검증 단계에 `saved_skills[].uploaded` +
+  파일시스템 확인 절차 추가.
+
+## 30. DMN HITL 질문이 단발성 분기에도 뜸 — 재사용 여부 미검토 (✅ 해결, troubleshooting #43)
+
+트리거: process-gpt-demo 스킬용 "분기 있는 휴가 신청 프로세스" 데모를
+텍스트 채팅으로 생성하는 중, 승인/반려 분기가 딱 하나뿐인데도 "DMN
+의사결정 테이블을 어떤 게이트웨이에 만들까요?" HITL 질문이 뜬 것을 사용자가
+지적: "DMN으로 분리할 대상은 비즈니스 규칙이 반복적으로 사용되는 것이
+감지될 때다. 한 번만 쓰이는 분기는 HITL 대상이 아니다." 원인 확인:
+`pdf2bpmn_agent_executor.py`의 `_collect_dmn_candidates_from_proc_json`이
+"ExclusiveGateway + 분기 2개 이상"이라는 구조적 조건만 보고 후보를
+채택했고, 같은 게이트웨이가 프로세스 안에서 몇 번 재사용되는지는 전혀
+반영하지 않았다(이미 이름 기준 병합 로직은 있었는데 그 결과를 후보
+채택 여부 판단에 안 썼을 뿐). 같은 이름 게이트웨이 그룹의 크기가 1개면
+(=재사용 정황 없음) 후보에서 제외하도록 수정 — 실제로 DMN을 적용하는
+`_augment_runtime_with_gateway_dmn`은 승인된 게이트웨이만 처리하므로
+별도 수정 불필요. bpmn-extractor 재빌드로 반영, PDF/텍스트 채팅 생성
+양쪽 다 같은 코드 경로를 타므로 둘 다 적용됨.
+
+## 31. 프로세스 데모 시나리오 1 실인스턴스 실행 중 발견한 2개 버그 + 하나의 미해결 이슈 (✅✅⚠️, troubleshooting #44/#45)
+
+`process-gpt-demo` 스킬 시나리오 1(휴가 신청 인스턴스를 채팅으로 실제
+실행)을 처음 끝까지 검증하며 발견. 이전까지 이 레포의 어떤 데모도 프로세스
+"생성"만 확인했지 실제 **인스턴스 실행**을 끝까지 밟아본 적이 없었다.
+
+1. **(✅ 해결) work-assistant MCP의 하드코딩 SaaS 도메인**: 채팅에서
+   "휴가 신청 프로세스 실행해줘"를 시켜보니 몇 단계 진행 후 "시스템
+   오류가 발생했습니다('NoneType' object has no attribute 'get')"로 항상
+   실패. `completion` 서비스 로그엔 `/complete` 요청이 아예 안 찍혀
+   요청이 라우팅부터 실패한 것으로 추론. 원인 추적 결과
+   `base-agent-langchain-react`가 pip으로 설치하는 **PyPI 패키지**
+   `process-gpt-mcp==0.3.0`(레포 안의 `process-gpt-mcp/` 폴더는 참고용
+   사본일 뿐 실제 빌드엔 안 쓰임)의 `get_api_base_url()`이 멀티테넌트
+   SaaS 전용 도메인(`https://<tenant>.process-gpt.io`)을 무조건
+   반환 — 자체 호스팅엔 이 도메인이 없어 `execute_process`가 completion에
+   도달할 수조차 없었음.
+   - **처음엔 컨테이너 안 site-packages 파일을 `docker exec`로 직접
+     패치**했는데, 이건 다음 `--build`에 원복되는 임시방편이라는 걸
+     바로 인지 → **`services/base-agent-langchain-react/`에
+     `patch_mcp_server.py`를 추가하고 Dockerfile에서
+     `pip install process-gpt-mcp==0.3.0` 직후 이 스크립트로 설치된
+     패키지 파일을 빌드 시점에 in-place 패치**하도록 재작업(원본 함수
+     텍스트가 바뀌면 `assert`로 빌드가 멈추게 해서, 업스트림이 바뀌어도
+     이 패치가 조용히 무효화되지 않게 함). `docker compose build
+     --no-cache base-agent-langchain-react`로 재빌드해도 패치가 남아있고
+     `get_api_base_url('localhost')`가 올바르게 override되는 것까지 확인.
+   - `docker-compose.yml`의 `base-agent-langchain-react` 서비스에
+     `PROCESS_GPT_API_BASE_URL: http://nginx:8088` 추가 — **게이트웨이
+     주소**여야 함(completion 서비스 자체엔 `/complete`만 있고
+     `/completion` 접두사가 없음, nginx의 `location /completion/`이 그
+     접두사를 벗겨서 전달하는 구조라 MCP가 항상 붙이는
+     `{base}/completion/complete`를 받아줄 수 있는 쪽은 nginx뿐).
+2. **(✅ 해결) `submit_workitem`이 `email` 없는 요청에서 크래시**:
+   위 1번을 고친 뒤 `email` 없이 `task_id`만으로 직접 API를 호출해보니
+   진짜 두 번째 버그를 만남 — `services/completion/process_engine.py`의
+   `submit_workitem()`이 `user_info`가 `None`(=`email` 미포함 요청)이면
+   `user_info.get('id')`를 무조건 호출해 크래시. `if user_info:` 가드
+   추가로 수정, 기존 워크아이템에 이미 배정된 담당자는 그대로 보존되게
+   함. `email` 포함해서 재시도 → 200 OK 확인.
+3. **(⚠️ 미해결, 코드 수정 안 함) 게이트웨이 분기 선택이 승인/반려 입력값과
+   무관하게 항상 "승인" 쪽으로 감**: `approval_status: "rejected"`로
+   제출해도(자연어 채팅 실행 1회 + API 직접 호출 1회, 총 2번) 반려 분기
+   (`task_notify_reject`)가 아니라 승인 분기(`task_register`)가 활성화됨.
+   `prompt_completed`(현재 활동 DONE/PENDING만 결정, 다음 분기와 무관),
+   `run_completed_determination`("진행 가능한 경로가 있는지"만 판정, 어느
+   분기인지는 무관), `get_gateway_condition_data`(제출값 "rejected"를
+   정확히 조회하는 것까지는 확인)까지 추적했지만, 그 값이 최종적으로
+   어떻게 분기 선택에 반영되는지의 정확한 코드 경로는 이번 세션에서
+   특정하지 못함 — 열린 이슈로 문서화(`troubleshooting.md` #45 "버그 2").
+   데모에서는 승인 경로 위주로 시연하고, 반려를 보이려면 매번
+   `select activity_id, status from todolist where proc_inst_id=...`로
+   실제 어느 분기가 선택됐는지 확인할 것.
+
+부가로, 프론트에 새 마케팅 랜딩 페이지(`/`)가 생기며 기존 Playwright
+로그인 스니펫(`page.goto(BASE)` + `networkidle`)이 간헐적으로 깨지는 것도
+발견 — `/auth/login`으로 바로 이동 + `waitUntil: 'load'` +
+`waitForSelector`로 교체(`troubleshooting.md` #46, `demo-playwright.md`·
+`process-gpt-demo/references/demo-account.md` 스니펫에 반영).
+
+## 32. deepagents가 proc_def에 연결된 스킬을 실제로는 전혀 안 쓰는 2개의 독립 버그 (✅✅, troubleshooting #47/#48/#49)
+
+`process-gpt-demo` 시나리오 2(협력사 온보딩 — 스코어링 활동을 deepagents가
+무인으로 처리하며 실제로 스킬 절차를 따르는지 검증하는 것이 이 시나리오의
+핵심 목적)를 실행하며 발견. 워크아이템은 SUBMITTED→DONE으로 자동 처리됐지만
+`docker logs deepagents`를 직접 열어보니 매번 "서브에이전트 '...': skills
+설정 없음 (스킬 없이 빌드)"만 찍히고 있었다 — 겉으로는 성공한 것처럼 보이는
+데모가 사실은 핵심을 증명하지 못하고 있었던 케이스.
+
+**버그 A**: 담당 에이전트의 `users.skills` 컬럼이 비어 있었음
+(`select skills from users where id='<agent-uuid>'` → 빈 문자열).
+deepagents는 활동에 선언된 스킬(`proc_def.definition.activities[].skills`)이
+아니라 **런타임에 `users` 테이블에서 그 값을 다시 읽는다**
+(`processgpt_agent_sdk.database.fetch_users_grouped()` → `select * from users`) —
+즉 에이전트 자신의 프로필에 스킬이 박혀 있어야만 실제로 쓰인다.
+`bpmn-extractor`에 이 값을 채우는 로직(`_sync_skills_to_supabase`)이 이미
+있었지만, 재사용한 기존 데모 에이전트에는 왜인지 채워져 있지 않았다(그
+동기화 로직이 언제부터 있었는지, 신규 생성 시 항상 채워지는지는 이번엔
+검증 못 함 — 다음에 프레시 생성으로 재확인 필요). 즉시 조치: SQL로
+`update users set skills='<skill-slug>' where id='<agent-uuid>';`.
+
+**버그 B**: 버그 A를 고쳐도 여전히 로그에
+`Cannot load skills from '/app/skills/...': path_not_found`가 반복됨.
+deepagents는 실제 실행을 Docker-outside-of-Docker 샌드박스(사촌 컨테이너
+`deepagent-sandbox-<tenant>`)에서 하는데, 그 샌드박스는 스킬을
+`/skills/<name>`에 화이트리스트 단위로 개별 bind-mount한다(다른 테넌트
+스킬이 통째로 노출되는 걸 막기 위한 의도적 설계). 그런데:
+1. `core/agents/subagents.py`가 `_get_skills()`의 결과(이 API 컨테이너 자신의
+   뷰 `/app/skills/...`)를 변환 없이 그대로 `FilteredSkillsMiddleware`에
+   넘겨 샌드박스 backend의 ls()가 항상 path_not_found.
+2. `core/agents/agent.py`의 **루트 에이전트**(1:1 채팅용) 경로는 이미
+   "변환하는 것처럼 보이는" 코드가 있었지만, 그 변환 기준(`_SKILLS_DIR` =
+   `SKILLS_HOST` env = 실제 호스트 절대경로, 예:
+   `/Users/.../deepagents-skills`)이 애초에 `/app/skills/...`와 절대
+   매치될 수 없는 값이라 매번 조용히 no-op — **시나리오 3(딥에이전트
+   1:1 채팅에서 스킬 직접 참조)의 전제도 이번 조사 전까지는 깨져
+   있었을 가능성이 높다**는 뜻.
+3. `core/sandbox/docker_sandbox.py`의 `_skill_volumes()`도 마운트 여부
+   판정을 호스트 절대경로(`self._skills_host.exists()`)로 해서 이 API
+   컨테이너 안에서는 항상 `False` → 애초에 스킬 볼륨을 하나도 안 만듦
+   (`docker inspect deepagent-sandbox-<tenant>`로 `/skills/*` 마운트가
+   전무한 것을 직접 확인).
+   해결: 세 곳 모두 "존재/화이트리스트 판정은 컨테이너 자신의 뷰
+   (`SKILLS_DIRS` 기준) vs 실제 bind-mount source는 호스트 절대경로
+   (`SKILLS_HOST` 기준)"을 명확히 분리하도록 수정
+   (`core/skills/skills.py`에 `to_sandbox_skill_paths()` 추가,
+   `agent.py`/`subagents.py`가 이걸 쓰도록, `docker_sandbox.py`에
+   `skills_container_root` 파라미터 추가). **사촌 컨테이너는 재사용되므로
+   마운트 구성을 고쳤으면 `docker rm -f deepagent-sandbox-<tenant>`로
+   반드시 지워야** 다음 실행에 새 마운트가 적용된다(안 지우면 코드를
+   고쳐도 여전히 실패).
+3개 코드 수정 + 사촌 컨테이너 제거 후 재실행해 `Skills load errors`가
+사라지고 스킬이 실제로 파싱되는 것(이름 규칙 경고만 남고 로드는 성공)까지
+확인.
+
+**추가로 발견(별도 원인, troubleshooting #49)**: proc_def 활동에
+`orchestration`을 명시적으로 안 넣었는데 담당자가 에이전트로 해석되면
+`agent_mode=COMPLETE`가 자동 부여되고 `agent_orch`는 `crewai-deep-research`로
+기본 폴백되는데, 이 install-process-gpt 환경엔 그 서비스 자체가 없어
+워크아이템이 `IN_PROGRESS`에서 에러도 없이 영원히 멈춘다. 데모에서는
+해당 활동을 직접 API로 완료 처리해 우회(사람이 사후 검토한 것으로 간주).
+
+## 33. "기본 에이전트" 1:1 채팅 모드는 self-host docker-compose에서 원천적으로 안 됨 — 버그 아닌 아키텍처 한계 (troubleshooting #50)
+
+`process-gpt-demo` 시나리오 3(기본 에이전트 vs 딥 에이전트 1:1 채팅 비교)
+작업 중 발견. "기본 에이전트"로 메시지를 보내면 항상 "(에이전트 준비
+실패)"만 뜨는데, 원인을 끝까지 따라가 보니 `agent-router` 컨테이너에
+직접 요청해도(게이트웨이 우회) 500이 나고, 로그에
+`kubernetes.config.config_exception.ConfigException: Invalid kube-config
+file. No configuration found.`가 찍혔다. `agent-router`의 `/warmup`은
+에이전트마다 **전용 Kubernetes 파드**를 온디맨드로 띄우는 설계
+(`TARGET_BASE_URL_TEMPLATE: "http://agent-{agent_id}:8000"` 등 compose env가
+이를 뒷받침)라, 진짜 K8s 클러스터가 없는 Docker Compose 단일 설치에서는
+애초에 성립할 수 없는 전제다 — 코드를 고쳐서 해결할 문제가 아니다. 항목 10의
+`mcp-proxy`(K8s 전용, 로컬 무시 가능)와 같은 종류의 제약이지만, `agent-router`는
+그 서비스 자체는 로컬에서도 정상 기동·헬스체크되고 "route"(에이전트 자동
+선택) 기능도 되기 때문에 "이건 K8s 전용이라 아예 빼도 된다"로 오판하기
+쉽다 — 실제로는 `/warmup`(=기본 에이전트 1:1 채팅 한정)만 K8s가 필요하고
+나머지는 로컬에서도 동작한다. 결론: 자체 호스팅 설치에서는 **딥 에이전트
+모드만 1:1 채팅의 실사용 경로**로 안내할 것.
+
+## 34. 에이전트 "지식 관리" 탭이 항상 비어 보임 — mem0 RPC(get_memories)가 DB 초기화 때 누락 (troubleshooting #51)
+
+튜토리얼 Lv2(에이전트 학습) 데모 작업 중 발견. 학습모드로 가르친 지식이
+`vecs.memories`에는 실제로 저장되고 런타임 제안서에도 반영되는데, "지식 관리"
+탭만 "메모리가 없습니다"로 비어 보였다. 원인은 프론트가 부르는 RPC
+`public.get_memories`(+`delete_memory`/`delete_memories_by_agent`)가 DB에
+아예 없어서였다. 이 함수들은 `docker-infra/volumes/db/vecs.sql`에 있지만
+`RETURNS SETOF vecs.memories`라 초기화 시점에 `vecs.memories` 테이블이 없으면
+생성되지 않는데, 그 테이블은 mem0가 **첫 학습 때 지연 생성**하므로 함수가
+영영 누락된다. 한 번이라도 학습해 테이블이 생긴 뒤 `vecs.sql`을 재적용하고
+`anon/authenticated/service_role`에 EXECUTE 부여 + PostgREST 스키마 리로드하면
+해결. deepagents 런타임은 mem0를 안 읽으므로(서브에이전트 프롬프트는
+role/goal/persona/tools/skills만으로 구성됨), 학습 지식이 **실행 결과에도**
+반영되게 하려면 그 지식을 에이전트 **persona/goal**에도 넣어둬야 한다(학습
+채팅은 사용자용 교육 UI, 실행 반영은 프로필 경유 — 두 경로를 함께 채울 것).

@@ -1,0 +1,233 @@
+<title>기여도 조망 UX 스토리보드 — 전략맵 노드 상세 통합</title>
+<style>
+  :root {
+    --bg: #f4f5f8; --panel: #ffffff; --ink: #20262f; --sub: #66707e;
+    --line: #dfe3ea; --accent: #1e5fa8; --hum: #1565c0; --agt: #7b1fa2;
+    --imp-bg: #fff3df; --imp-ink: #a35a00; --ok: #0a7d33; --new: #b7472a;
+    --mock-bg: #eef0f4; --chip-bg: #eef2f7;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#15181d; --panel:#1d2127; --ink:#e6e9ee; --sub:#9aa4b1; --line:#333a44;
+            --accent:#6ea8e8; --hum:#5b9bd9; --agt:#b07fd0; --imp-bg:#3a2c12; --imp-ink:#e8b269;
+            --ok:#5cb87f; --new:#e07a5f; --mock-bg:#242932; --chip-bg:#2a3038; }
+  }
+  :root[data-theme="dark"] { --bg:#15181d; --panel:#1d2127; --ink:#e6e9ee; --sub:#9aa4b1; --line:#333a44;
+            --accent:#6ea8e8; --hum:#5b9bd9; --agt:#b07fd0; --imp-bg:#3a2c12; --imp-ink:#e8b269;
+            --ok:#5cb87f; --new:#e07a5f; --mock-bg:#242932; --chip-bg:#2a3038; }
+  :root[data-theme="light"] { --bg:#f4f5f8; --panel:#ffffff; --ink:#20262f; --sub:#66707e; --line:#dfe3ea;
+            --accent:#1e5fa8; --hum:#1565c0; --agt:#7b1fa2; --imp-bg:#fff3df; --imp-ink:#a35a00;
+            --ok:#0a7d33; --new:#b7472a; --mock-bg:#eef0f4; --chip-bg:#eef2f7; }
+
+  body { background: var(--bg); color: var(--ink); margin: 0;
+         font-family: "Apple SD Gothic Neo", Pretendard, "Noto Sans KR", sans-serif; line-height: 1.55; }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 40px 28px 96px; }
+  h1 { font-size: 25px; margin: 0 0 6px; letter-spacing: -0.01em; text-wrap: balance; }
+  .lede { color: var(--sub); font-size: 14px; margin: 0 0 8px; max-width: 62ch; }
+  .decision { border-left: 3px solid var(--accent); background: var(--panel); border-radius: 0 8px 8px 0;
+              padding: 14px 18px; margin: 22px 0 8px; font-size: 13.5px; }
+  .decision b { color: var(--accent); }
+  .num { font-variant-numeric: tabular-nums; }
+
+  .scene { display: grid; grid-template-columns: 250px 1fr; gap: 24px; margin-top: 44px; align-items: start; }
+  @media (max-width: 860px) { .scene { grid-template-columns: 1fr; } }
+  .scene-label { position: sticky; top: 16px; }
+  .scene-no { font-size: 11px; font-weight: 800; letter-spacing: 0.12em; color: var(--accent); }
+  .scene-label h2 { font-size: 16.5px; margin: 4px 0 8px; text-wrap: balance; }
+  .scene-label p { font-size: 12.5px; color: var(--sub); margin: 0 0 10px; }
+  .api { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px;
+         background: var(--chip-bg); border: 1px solid var(--line); border-radius: 6px;
+         padding: 4px 8px; display: inline-block; margin: 2px 0; word-break: break-all; }
+
+  .frame { background: var(--mock-bg); border: 1px solid var(--line); border-radius: 12px; padding: 18px; overflow-x: auto; }
+  .mock { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 16px; min-width: 560px; }
+  .mk-title { font-size: 13px; font-weight: 700; margin-bottom: 10px; }
+
+  .lanes { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+  .lane { border: 1px dashed var(--line); border-radius: 8px; padding: 8px; }
+  .lane-name { font-size: 10.5px; font-weight: 700; color: var(--sub); letter-spacing: 0.06em; margin-bottom: 6px; }
+  .obj-card { background: var(--panel); border: 1px solid var(--line); border-radius: 8px;
+              padding: 9px 11px; margin-bottom: 6px; box-shadow: 0 1px 2px rgba(20,30,50,0.06); }
+  .obj-card.sel { outline: 2px solid var(--accent); }
+  .obj-name { font-size: 12.5px; font-weight: 700; display: flex; align-items: center; gap: 6px; }
+  .obj-meta { font-size: 10.5px; color: var(--sub); margin-top: 3px; }
+  .achv { height: 5px; border-radius: 3px; background: var(--chip-bg); margin-top: 6px; position: relative; }
+  .achv i { position: absolute; inset: 0 auto 0 0; border-radius: 3px; background: var(--ok); }
+
+  .chip { display: inline-block; font-size: 10px; font-weight: 700; border-radius: 999px; padding: 1px 8px; color: #fff; }
+  .chip.hum { background: var(--hum); } .chip.agt { background: var(--agt); }
+  .imp { display: inline-block; font-size: 10px; font-weight: 800; border-radius: 5px; padding: 1px 6px;
+         background: var(--imp-bg); color: var(--imp-ink); }
+  .tag-new { display: inline-block; font-size: 9.5px; font-weight: 800; letter-spacing: 0.08em;
+             color: var(--new); border: 1px solid var(--new); border-radius: 4px; padding: 0 5px;
+             vertical-align: 2px; margin-left: 6px; }
+
+  .tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--line); margin: 10px 0 12px; }
+  .tab { font-size: 11.5px; padding: 6px 12px; color: var(--sub); }
+  .tab.on { color: var(--accent); font-weight: 700; box-shadow: inset 0 -2px var(--accent); }
+
+  table { border-collapse: collapse; width: 100%; font-size: 11.5px; }
+  th { text-align: left; font-size: 10px; color: var(--sub); font-weight: 700; padding: 4px 8px;
+       border-bottom: 1px solid var(--line); letter-spacing: 0.04em; }
+  td { padding: 6px 8px; border-bottom: 1px solid var(--line); }
+  .bar { height: 6px; border-radius: 3px; background: var(--chip-bg); min-width: 70px; position: relative; }
+  .bar i { position: absolute; inset: 0 auto 0 0; border-radius: 3px; background: var(--accent); }
+
+  .callout { font-size: 11px; color: var(--new); font-weight: 700; margin: 8px 0 0; }
+  .subnote { font-size: 11px; color: var(--sub); background: var(--chip-bg); border-radius: 6px; padding: 7px 10px; margin-top: 10px; }
+  .dialog { border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 8px 28px rgba(10,20,40,0.18);
+            background: var(--panel); padding: 14px 16px; max-width: 430px; margin: 0 auto; }
+  .kpi-row { border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; margin-bottom: 8px; }
+  .muted { color: var(--sub); }
+  .flow { font-size: 12px; }
+  .flow td { padding: 7px 8px; }
+  footer { margin-top: 52px; font-size: 12px; color: var(--sub); border-top: 1px solid var(--line); padding-top: 14px; }
+</style>
+
+<div class="wrap">
+  <h1>기여도 조망 — 전략맵 노드 상세 통합 스토리보드</h1>
+  <p class="lede">별도 대시보드 화면 대신, 이미 쓰고 있는 전략맵 보드(StrategyBoard)의 카드 클릭 → 상세 패널 흐름 안에 기여도를 끼워 넣는다. 백엔드 API는 구현 완료분을 그대로 재사용하고 프론트엔드만 재설계한다.</p>
+  <div class="decision"><b>설계 결정</b> — 기존 상세 패널에는 이미 <span class="num">KPI / 실행과제</span> 탭이 있다 (StrategyBoard.vue L715). 여기에 <b>기여도 탭 하나를 추가</b>하는 것이 새 화면·새 내비게이션 없이 "각 노드에서 상세를 본다"는 요구를 그대로 충족한다. 신규 요소는 아래 프레임에서 <span class="tag-new">신규</span>로 표시.</div>
+
+  <!-- S1 -->
+  <div class="scene">
+    <div class="scene-label">
+      <div class="scene-no">장면 1</div>
+      <h2>보드 — 카드에 전략적 중요도 표시</h2>
+      <p>관점 레인의 목표 카드에 중요도 배지를 추가한다. 정렬·크기는 그대로, 배지만 얹어 중요한 전략이 눈에 들어오게 한다. 목표/KPI 편집 다이얼로그에는 중요도(1~5) 입력 필드가 추가된다.</p>
+      <span class="api">GET /api/map → objectives[].importance</span>
+    </div>
+    <div class="frame"><div class="mock">
+      <div class="mk-title">전략맵 보드</div>
+      <div class="lanes">
+        <div class="lane"><div class="lane-name">재무</div>
+          <div class="obj-card"><div class="obj-name">매출 성장 <span class="imp">중요도 5</span><span class="tag-new">신규</span></div>
+            <div class="obj-meta">KPI 1 · 실행과제 0</div>
+            <div class="achv"><i style="width:30%"></i></div><div class="obj-meta num">30.0%</div></div>
+        </div>
+        <div class="lane"><div class="lane-name">내부 프로세스</div>
+          <div class="obj-card"><div class="obj-name">운영 효율화 <span class="imp">중요도 2</span></div>
+            <div class="obj-meta">KPI 1 · 실행과제 0</div>
+            <div class="achv"><i style="width:40%"></i></div><div class="obj-meta num">40.0%</div></div>
+        </div>
+      </div>
+      <div class="callout">▲ 카드 클릭(기존 동작) → 장면 2의 상세 패널이 열린다</div>
+    </div></div>
+  </div>
+
+  <!-- S2 -->
+  <div class="scene">
+    <div class="scene-label">
+      <div class="scene-no">장면 2</div>
+      <h2>목표 상세 패널 — “기여도” 탭</h2>
+      <p>이 목표(+하위 전략) 범위의 성과자 순위를 중요도 가중 점수로 보여준다. 사람과 에이전트가 한 순위표에 서고, 행 확장 시 KPI별 산출 내역이 보인다. 하단에는 이 전략에 연결된 스킬의 “성장 기여자”(사람)가 붙는다.</p>
+      <span class="api">GET /api/analytics/dashboard/contribution?strategy_id=…</span>
+      <p style="margin-top:8px">분석 게이트웨이 경로 한 번으로 성과 기여(strategy)와 스킬 기여(agent-feedback)를 함께 받는다 — 프론트가 두 서비스를 직접 오케스트레이션하지 않는다.</p>
+    </div>
+    <div class="frame"><div class="mock">
+      <div class="mk-title">매출 성장 <span class="imp">중요도 5</span> <span class="muted" style="font-size:11px">— 상세 패널</span></div>
+      <div class="tabs"><span class="tab">KPI</span><span class="tab">실행과제</span><span class="tab on">기여도<span class="tag-new">신규</span></span></div>
+      <table>
+        <tr><th>순위</th><th>성과자</th><th>유형</th><th>가중 점수</th><th></th></tr>
+        <tr><td class="num">1</td><td><b>계약검토봇</b></td><td><span class="chip agt">에이전트</span></td>
+            <td class="num"><b>3.67</b></td><td><div class="bar"><i style="width:100%"></i></div></td></tr>
+        <tr><td colspan="5" class="muted" style="font-size:10.5px">└ 계약 완료 건수 33.3% × 중요도 5 = 1.67 · 검토 완료 건수 100% × 중요도 2 = 2.0 <i>(행 확장 시)</i></td></tr>
+        <tr><td class="num">2</td><td><b>김지은</b></td><td><span class="chip hum">사람</span></td>
+            <td class="num">3.33</td><td><div class="bar"><i style="width:91%"></i></div></td></tr>
+      </table>
+      <div style="margin-top:14px; font-size:11.5px; font-weight:700">스킬 성장 기여 <span class="muted" style="font-weight:400">— 이 전략에 연결된 스킬을 키운 사람</span></div>
+      <table>
+        <tr><th>스킬</th><th>기여자</th><th>비중</th></tr>
+        <tr><td>계약 검토 스킬</td><td>김지은 <span class="muted">(생성·수정 2건)</span></td><td class="num">66.7%</td></tr>
+        <tr><td></td><td>박민수 <span class="muted">(제안 승인 1건)</span></td><td class="num">33.3%</td></tr>
+      </table>
+      <div class="callout">▲ 성과자 이름 클릭 → 장면 4의 성과자 요약 다이얼로그</div>
+    </div></div>
+  </div>
+
+  <!-- S3 -->
+  <div class="scene">
+    <div class="scene-label">
+      <div class="scene-no">장면 3</div>
+      <h2>KPI 확장 — KPI 단위 기여도</h2>
+      <p>기존 KPI 탭의 행 확장(측정 이력이 보이는 자리)에 “기여도” 블록을 추가한다. 그 KPI의 측정값에 실제로 반영된 인스턴스 기준의 기여 비중이다. manual처럼 추적 불가한 측정 유형은 기여자를 추정하지 않고 상태를 그대로 말해준다.</p>
+      <span class="api">GET /api/contribution/kpi/{id}</span>
+    </div>
+    <div class="frame"><div class="mock">
+      <div class="mk-title">KPI 탭 — 행 확장 상태</div>
+      <div class="kpi-row">
+        <div style="font-size:12px; font-weight:700">계약 완료 건수 <span class="muted num" style="font-weight:400">3 / 10 · 30%</span></div>
+        <div style="font-size:10.5px; color:var(--sub); margin:6px 0 4px">측정 이력 (기존) · <b style="color:var(--new)">기여도 (신규)</b></div>
+        <table>
+          <tr><th>성과자</th><th>유형</th><th>기여 비중</th><th>근거</th></tr>
+          <tr><td>김지은</td><td><span class="chip hum">사람</span></td><td class="num">66.7%</td><td class="muted num">완료 인스턴스 2건 수행</td></tr>
+          <tr><td>계약검토봇</td><td><span class="chip agt">에이전트</span></td><td class="num">33.3%</td><td class="muted num">완료 인스턴스 1건 수행</td></tr>
+        </table>
+      </div>
+      <div class="kpi-row">
+        <div style="font-size:12px; font-weight:700">브랜드 인지도 <span class="muted num" style="font-weight:400">manual · 42 / 100</span></div>
+        <div class="subnote">수동 입력 KPI는 실행 인스턴스와 연결 근거가 없어 성과자별 기여도를 산정하지 않습니다.</div>
+      </div>
+    </div></div>
+  </div>
+
+  <!-- S4 -->
+  <div class="scene">
+    <div class="scene-label">
+      <div class="scene-no">장면 4</div>
+      <h2>성과자 요약 — 역방향 조회</h2>
+      <p>기여도 목록의 성과자 이름을 클릭하면, 그 사람/에이전트 기준의 역방향 요약이 다이얼로그로 뜬다. 어떤 전략의 어떤 KPI에 얼마나 기여했는지 가중 내역으로 보여준다.</p>
+      <span class="api">GET /api/contribution/performer/{id}</span>
+    </div>
+    <div class="frame">
+      <div class="dialog">
+        <div style="font-size:13px; font-weight:700">계약검토봇 <span class="chip agt">에이전트</span></div>
+        <div class="muted num" style="font-size:11px; margin:2px 0 10px">총 가중 기여 3.67 · 기여 KPI 2개</div>
+        <table>
+          <tr><th>전략</th><th>KPI</th><th>비중</th><th>중요도</th><th>가중</th></tr>
+          <tr><td>운영 효율화</td><td>검토 완료 건수</td><td class="num">100%</td><td><span class="imp">2</span></td><td class="num">2.00</td></tr>
+          <tr><td>매출 성장</td><td>계약 완료 건수</td><td class="num">33.3%</td><td><span class="imp">5</span></td><td class="num">1.67</td></tr>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- S5 -->
+  <div class="scene">
+    <div class="scene-label">
+      <div class="scene-no">장면 5 · 선택</div>
+      <h2>온톨로지 탐색기 — 스킬 노드 기여자</h2>
+      <p>OntologyExplorer에서 Skill 노드를 클릭하면 우측 상세 카드의 이웃 관계 목록에 CONTRIBUTED_TO가 이미 흘러들어온다(동기화 구현 완료). 여기에 기여자 이름·유형만 읽기 좋게 표시한다. 범위가 부담스러우면 이 장면은 후속으로 미뤄도 된다.</p>
+      <span class="api">GET /api/ontology/nodes/{id}/neighbors</span>
+    </div>
+    <div class="frame"><div class="mock" style="min-width:380px; max-width:430px">
+      <div class="mk-title">Skill: 계약 검토 스킬</div>
+      <table>
+        <tr><th>관계</th><th>대상</th></tr>
+        <tr><td class="muted">USES_SKILL ←</td><td>계약검토봇 <span class="chip agt">에이전트</span></td></tr>
+        <tr><td class="muted">CONTRIBUTED_TO ← <span class="tag-new">신규 표시</span></td><td>김지은 <span class="chip hum">사람</span></td></tr>
+        <tr><td class="muted">CONTRIBUTED_TO ←</td><td>박민수 <span class="chip hum">사람</span></td></tr>
+      </table>
+    </div></div>
+  </div>
+
+  <!-- data flow -->
+  <div class="scene">
+    <div class="scene-label">
+      <div class="scene-no">부록</div>
+      <h2>데이터 흐름 · 변경 범위</h2>
+      <p>백엔드는 전부 구현·검증 완료분 재사용. 프론트엔드 변경은 StrategyBoard.vue와 strategyStore 확장이 전부다.</p>
+    </div>
+    <div class="frame"><div class="mock">
+      <table class="flow">
+        <tr><th>화면</th><th>호출</th><th>경로</th></tr>
+        <tr><td>보드 카드 중요도</td><td class="num">GET /map (기존 호출에 필드 추가됨)</td><td class="muted">/strategy-service 프록시</td></tr>
+        <tr><td>기여도 탭</td><td class="num">GET /dashboard/contribution?strategy_id=</td><td class="muted">/api/analytics 게이트웨이 (성과+스킬 결합)</td></tr>
+        <tr><td>KPI 기여도 블록</td><td class="num">GET /contribution/kpi/{id}</td><td class="muted">/strategy-service 프록시</td></tr>
+        <tr><td>성과자 다이얼로그</td><td class="num">GET /contribution/performer/{id}</td><td class="muted">/strategy-service 프록시</td></tr>
+      </table>
+      <div class="subnote">기여도 탭이 analytic 결합 API를 쓰므로, 별도 대시보드 화면이 사라져도 analytic 의 <span class="num">GET /api/dashboard/contribution</span> 스펙은 그대로 소비처를 가진다 — 스펙 변경 없음. 변경되는 산출물: tasks.md 4.4(화면 위치), design.md(UI 통합 결정 추가).</div>
+    </div></div>
+  </div>
+
+  <footer>openspec change: strategy-contribution-attribution · 스토리보드 v1 · 데이터는 데모 시나리오(매출 성장/김지은/계약검토봇) 기준 실측값</footer>
+</div>

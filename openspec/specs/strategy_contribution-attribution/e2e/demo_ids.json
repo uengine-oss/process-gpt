@@ -1,0 +1,36 @@
+{
+  "tenant_id": "demo-b6178d44",
+  "objectives": {
+    "sales": "3a9d2ea0-395b-4b9f-aeff-97597d6a26cc",
+    "ops": "0e95695a-46f6-4419-8ccd-5f040bb23de7",
+    "brand": "75dd0b1c-d26f-4f17-8deb-d0755319883a"
+  },
+  "kpis": {
+    "contract": "6ea41a5b-21c4-4333-a90f-f5e6b57eda6f",
+    "review": "cd466fd1-c966-450b-8599-99528447735d",
+    "brand": "84d2d37a-a8cb-410a-913b-5abc55556c23"
+  },
+  "performers": {
+    "kim": "8edf062c-b6fa-4d17-816c-8a656caea47e",
+    "bot": "262f169d-fafe-4f27-9c40-12c5367201ab",
+    "park": "506ad898-937d-46fd-b7a8-3429e23feaf4"
+  },
+  "proc_defs": {
+    "contract": "pd-contract-d16285",
+    "review": "pd-review-584453"
+  },
+  "sync_summary": {
+    "users": {
+      "merged": 3,
+      "deleted": 0
+    },
+    "skill_contributions": {
+      "items": 3,
+      "edges": 2
+    },
+    "performs": {
+      "items": 5,
+      "edges": 3
+    }
+  }
+}

@@ -1,0 +1,400 @@
+{
+  "megaProcessId": "영업·마케팅",
+  "majorProcessId": "입찰관리",
+  "processDefinitionName": "RFP·입찰 파이프라인 관리",
+  "processDefinitionId": "rfp_bid_pipeline_management",
+  "description": "신규 입찰·RFP 발굴부터 제안서 작성, 내부 검토·승인, 제출, 수주 결과 등록까지 관리해 입찰 파이프라인 금액과 수주율 지표를 생산하는 프로세스",
+  "isHorizontal": true,
+
+  "data": [
+    { "name": "발주기관", "description": "입찰·RFP를 발주한 기관명", "type": "Text" },
+    { "name": "예산 규모", "description": "발주기관이 공고한 예산 규모(파이프라인 금액 산정 기준)", "type": "Number" },
+    { "name": "마감일", "description": "제안서 제출 마감일", "type": "Date" },
+    { "name": "요구사항 요약", "description": "RFP 요구사항 핵심 요약", "type": "Text" },
+    { "name": "참여 여부", "description": "이 건에 참여할지 여부", "type": "Text" },
+    { "name": "미참여 사유", "description": "참여하지 않기로 한 사유", "type": "Text" },
+    { "name": "제안서 내용", "description": "기술·가격 제안 내용", "type": "Attachment" },
+    { "name": "승인 여부", "description": "제안서 내부 검토 결과(승인/반려)", "type": "Text" },
+    { "name": "반려 사유", "description": "제안서가 반려된 사유", "type": "Text" },
+    { "name": "제출일", "description": "발주기관에 제안서를 제출한 날짜", "type": "Date" },
+    { "name": "수주 여부", "description": "발주기관의 최종 결과(수주/탈락)", "type": "Text" },
+    { "name": "탈락 사유", "description": "탈락한 경우의 사유", "type": "Text" },
+    { "name": "계약체결 안내 결과", "description": "수주 후 계약 체결 프로세스로의 인계 결과", "type": "Text" }
+  ],
+
+  "roles": [
+    { "name": "영업담당자", "endpoint": "sales_rep", "resolutionRule": "프로세스 시작자", "origin": "created" },
+    { "name": "영업팀장", "endpoint": "sales_manager", "resolutionRule": "영업담당자의 상위 관리자", "origin": "created" },
+    { "name": "제안팀", "endpoint": "proposal_team", "resolutionRule": "제안서 작성 담당 팀", "origin": "created" }
+  ],
+
+  "skills": [
+    { "id": "bid-participation-eligibility-check", "name": "입찰 참여 적격성 판단", "description": "예산 규모·마감일·요구사항 적합도를 기준으로 입찰 참여 여부를 판단한다." },
+    { "id": "proposal-quality-review", "name": "제안서 품질 검토", "description": "제출 전 제안서의 요구사항 충족도·기술 타당성·가격·리스크를 점검한다." }
+  ],
+
+  "dmn_decisions": [
+    {
+      "decision_id": "dmn_decision_participation_gateway",
+      "name": "참여 여부 판단",
+      "description": "참여 여부에 따라 제안서 작성 또는 종료로 분기",
+      "related_gateway_id": "participation_gateway"
+    }
+  ],
+
+  "dmn_rules": [
+    {
+      "rule_id": "dmn_rule_participation_gateway_1",
+      "decision_id": "dmn_decision_participation_gateway",
+      "decision_name": "참여 여부 판단",
+      "when": "참여인 경우",
+      "then": "제안서 작성 경로 선택",
+      "condition": "참여인 경우",
+      "target": "write_proposal"
+    },
+    {
+      "rule_id": "dmn_rule_participation_gateway_2",
+      "decision_id": "dmn_decision_participation_gateway",
+      "decision_name": "참여 여부 판단",
+      "when": "미참여인 경우",
+      "then": "미참여 사유 기록 경로 선택",
+      "condition": "미참여인 경우",
+      "target": "record_no_participation"
+    }
+  ],
+
+  "elements": [
+    {
+      "elementType": "Event",
+      "id": "start_event",
+      "name": "RFP·입찰 파이프라인 관리 시작",
+      "role": "영업담당자",
+      "source": "",
+      "type": "StartEvent",
+      "description": "영업담당자가 신규 입찰·RFP를 발견하면 프로세스가 시작된다",
+      "trigger": "신규 입찰·RFP 발견"
+    },
+    {
+      "elementType": "Sequence",
+      "id": "seq_start_to_register",
+      "source": "start_event",
+      "target": "register_rfp"
+    },
+    {
+      "elementType": "Activity",
+      "id": "register_rfp",
+      "name": "RFP 발굴·등록",
+      "type": "UserActivity",
+      "source": "start_event",
+      "description": "영업담당자가 신규 입찰·RFP의 기본 정보를 등록한다",
+      "instruction": "발주기관, 예산 규모, 마감일, 요구사항 요약을 등록한다.",
+      "role": "영업담당자",
+      "skills": [],
+      "tool": "formHandler:rfp_bid_pipeline_management_register_rfp_form",
+      "agent": null,
+      "agentMode": "none",
+      "orchestration": null,
+      "inputData": [],
+      "outputData": ["발주기관", "예산 규모", "마감일", "요구사항 요약"],
+      "checkpoints": ["필수 항목 입력 여부"],
+      "duration": "1"
+    },
+    {
+      "elementType": "Sequence",
+      "id": "seq_register_to_participation",
+      "source": "register_rfp",
+      "target": "review_participation"
+    },
+    {
+      "elementType": "Activity",
+      "id": "review_participation",
+      "name": "참여 여부 검토",
+      "type": "UserActivity",
+      "source": "register_rfp",
+      "description": "영업팀장이 이 건에 참여할지 판단한다",
+      "instruction": "발주기관, 예산 규모, 요구사항 요약을 검토해 참여 여부를 결정한다.",
+      "role": "영업팀장",
+      "skills": ["bid-participation-eligibility-check"],
+      "tool": "formHandler:rfp_bid_pipeline_management_review_participation_form",
+      "agent": "sales_manager_bid_participation_agent",
+      "agentMode": "complete",
+      "orchestration": "deepagents",
+      "inputData": ["rfp_bid_pipeline_management_register_rfp_form.organization", "rfp_bid_pipeline_management_register_rfp_form.budget", "rfp_bid_pipeline_management_register_rfp_form.deadline", "rfp_bid_pipeline_management_register_rfp_form.requirements_summary"],
+      "outputData": ["참여 여부"],
+      "checkpoints": ["참여 여부 판단 근거 기록 여부"],
+      "duration": "1"
+    },
+    {
+      "elementType": "Sequence",
+      "id": "seq_participation_to_gateway",
+      "source": "review_participation",
+      "target": "participation_gateway"
+    },
+    {
+      "elementType": "Gateway",
+      "id": "participation_gateway",
+      "name": "참여 여부 판단",
+      "role": "영업팀장",
+      "source": "review_participation",
+      "type": "ExclusiveGateway",
+      "description": "참여 여부에 따라 제안서 작성 또는 종료로 분기",
+      "conditionData": ["rfp_bid_pipeline_management_review_participation_form.participation_decision"]
+    },
+    {
+      "elementType": "Sequence",
+      "id": "seq_gateway_to_write_proposal",
+      "name": "참여",
+      "source": "participation_gateway",
+      "target": "write_proposal",
+      "condition": "참여인 경우",
+      "properties": "{\"examples\": {\"good_examples\": [{\"given\": \"참여 여부 판단\", \"when\": \"참여인 경우\", \"then\": \"제안서 작성으로 진행\"}], \"bad_examples\": [{\"given\": \"참여 여부 판단\", \"when\": \"미참여인 경우\", \"then\": \"이 경로로 진행하지 않음\"}]}}"
+    },
+    {
+      "elementType": "Sequence",
+      "id": "seq_gateway_to_no_participation",
+      "name": "미참여",
+      "source": "participation_gateway",
+      "target": "record_no_participation",
+      "condition": "미참여인 경우",
+      "properties": "{\"examples\": {\"good_examples\": [{\"given\": \"참여 여부 판단\", \"when\": \"미참여인 경우\", \"then\": \"미참여 사유 기록으로 진행\"}], \"bad_examples\": [{\"given\": \"참여 여부 판단\", \"when\": \"참여인 경우\", \"then\": \"이 경로로 진행하지 않음\"}]}}"
+    },
+    {
+      "elementType": "Activity",
+      "id": "record_no_participation",
+      "name": "미참여 사유 기록",
+      "type": "UserActivity",
+      "source": "participation_gateway",
+      "description": "미참여로 결정된 사유를 기록한다",
+      "instruction": "참여하지 않기로 한 사유를 기록한다.",
+      "role": "영업팀장",
+      "skills": [],
+      "tool": "formHandler:rfp_bid_pipeline_management_record_no_participation_form",
+      "agent": null,
+      "agentMode": "none",
+      "orchestration": null,
+      "inputData": ["rfp_bid_pipeline_management_review_participation_form.decision_note"],
+      "outputData": ["미참여 사유"],
+      "checkpoints": [],
+      "duration": "1"
+    },
+    {
+      "elementType": "Sequence",
+      "id": "seq_no_participation_to_end",
+      "source": "record_no_participation",
+      "target": "end_event"
+    },
+    {
+      "elementType": "Activity",
+      "id": "write_proposal",
+      "name": "제안서 작성",
+      "type": "UserActivity",
+      "source": "participation_gateway",
+      "description": "제안팀이 기술·가격 제안 내용을 작성한다",
+      "instruction": "요구사항 요약을 바탕으로 기술·가격 제안 내용을 작성한다.",
+      "role": "제안팀",
+      "skills": [],
+      "tool": "formHandler:rfp_bid_pipeline_management_write_proposal_form",
+      "agent": null,
+      "agentMode": "none",
+      "orchestration": null,
+      "inputData": ["rfp_bid_pipeline_management_register_rfp_form.requirements_summary"],
+      "outputData": ["제안서 내용"],
+      "checkpoints": ["기술 제안 포함 여부", "가격 제안 포함 여부"],
+      "duration": "3"
+    },
+    {
+      "elementType": "Sequence",
+      "id": "seq_write_proposal_to_review",
+      "source": "write_proposal",
+      "target": "internal_review"
+    },
+    {
+      "elementType": "Activity",
+      "id": "internal_review",
+      "name": "내부 검토·승인",
+      "type": "UserActivity",
+      "source": "write_proposal",
+      "description": "영업팀장이 제안서를 검토해 승인 또는 반려한다",
+      "instruction": "제안서 내용을 검토하고 승인/반려를 결정한다.",
+      "role": "영업팀장",
+      "skills": ["proposal-quality-review"],
+      "tool": "formHandler:rfp_bid_pipeline_management_internal_review_form",
+      "agent": "sales_manager_proposal_quality_agent",
+      "agentMode": "complete",
+      "orchestration": "deepagents",
+      "inputData": ["rfp_bid_pipeline_management_write_proposal_form.proposal_summary", "rfp_bid_pipeline_management_write_proposal_form.proposal_file"],
+      "outputData": ["승인 여부"],
+      "checkpoints": ["검토 의견 작성 여부"],
+      "duration": "1"
+    },
+    {
+      "elementType": "Sequence",
+      "id": "seq_review_to_gateway",
+      "source": "internal_review",
+      "target": "approval_gateway"
+    },
+    {
+      "elementType": "Gateway",
+      "id": "approval_gateway",
+      "name": "승인 여부 판단",
+      "role": "영업팀장",
+      "source": "internal_review",
+      "type": "ExclusiveGateway",
+      "description": "내부 검토 결과에 따라 제출 또는 재작성으로 분기",
+      "conditionData": ["rfp_bid_pipeline_management_internal_review_form.approval_decision"]
+    },
+    {
+      "elementType": "Sequence",
+      "id": "seq_gateway_to_submit",
+      "name": "승인",
+      "source": "approval_gateway",
+      "target": "submit_proposal",
+      "condition": "승인인 경우"
+    },
+    {
+      "elementType": "Sequence",
+      "id": "seq_gateway_to_rewrite",
+      "name": "반려",
+      "source": "approval_gateway",
+      "target": "write_proposal",
+      "condition": "반려인 경우"
+    },
+    {
+      "elementType": "Activity",
+      "id": "submit_proposal",
+      "name": "제출",
+      "type": "UserActivity",
+      "source": "approval_gateway",
+      "description": "영업담당자가 발주기관에 제안서를 제출한다",
+      "instruction": "발주기관에 제안서를 제출하고 제출일을 기록한다.",
+      "role": "영업담당자",
+      "skills": [],
+      "tool": "formHandler:rfp_bid_pipeline_management_submit_proposal_form",
+      "agent": null,
+      "agentMode": "none",
+      "orchestration": null,
+      "inputData": ["rfp_bid_pipeline_management_write_proposal_form.proposal_file"],
+      "outputData": ["제출일"],
+      "checkpoints": [],
+      "duration": "1"
+    },
+    {
+      "elementType": "Sequence",
+      "id": "seq_submit_to_result",
+      "source": "submit_proposal",
+      "target": "register_result"
+    },
+    {
+      "elementType": "Activity",
+      "id": "register_result",
+      "name": "결과 등록",
+      "type": "UserActivity",
+      "source": "submit_proposal",
+      "description": "영업담당자가 발주기관의 결과를 등록한다",
+      "instruction": "발주기관으로부터 통보받은 수주 여부를 등록한다.",
+      "role": "영업담당자",
+      "skills": [],
+      "tool": "formHandler:rfp_bid_pipeline_management_register_result_form",
+      "agent": null,
+      "agentMode": "none",
+      "orchestration": null,
+      "inputData": ["rfp_bid_pipeline_management_submit_proposal_form.submission_date"],
+      "outputData": ["수주 여부"],
+      "checkpoints": [],
+      "duration": "1"
+    },
+    {
+      "elementType": "Sequence",
+      "id": "seq_result_to_gateway",
+      "source": "register_result",
+      "target": "result_gateway"
+    },
+    {
+      "elementType": "Gateway",
+      "id": "result_gateway",
+      "name": "수주 여부 판단",
+      "role": "영업담당자",
+      "source": "register_result",
+      "type": "ExclusiveGateway",
+      "description": "결과에 따라 계약 체결 안내 또는 탈락 사유 기록으로 분기",
+      "conditionData": ["rfp_bid_pipeline_management_register_result_form.result_decision"]
+    },
+    {
+      "elementType": "Sequence",
+      "id": "seq_gateway_to_contract_notice",
+      "name": "수주",
+      "source": "result_gateway",
+      "target": "contract_notice",
+      "condition": "수주인 경우"
+    },
+    {
+      "elementType": "Sequence",
+      "id": "seq_gateway_to_loss_reason",
+      "name": "탈락",
+      "source": "result_gateway",
+      "target": "record_loss_reason",
+      "condition": "탈락인 경우"
+    },
+    {
+      "elementType": "Activity",
+      "id": "contract_notice",
+      "name": "계약 체결 안내",
+      "type": "UserActivity",
+      "source": "result_gateway",
+      "description": "수주 확정 건을 계약 체결 관리 프로세스로 인계한다",
+      "instruction": "수주 확정 내용을 정리해 장기 유지보수·재계약 관리 프로세스로 인계한다.",
+      "role": "영업담당자",
+      "skills": [],
+      "tool": "formHandler:rfp_bid_pipeline_management_contract_notice_form",
+      "agent": null,
+      "agentMode": "none",
+      "orchestration": null,
+      "inputData": ["rfp_bid_pipeline_management_register_rfp_form.organization", "rfp_bid_pipeline_management_register_rfp_form.budget"],
+      "outputData": ["계약체결 안내 결과"],
+      "checkpoints": [],
+      "duration": "1"
+    },
+    {
+      "elementType": "Sequence",
+      "id": "seq_contract_notice_to_end",
+      "source": "contract_notice",
+      "target": "end_event"
+    },
+    {
+      "elementType": "Activity",
+      "id": "record_loss_reason",
+      "name": "탈락 사유 기록",
+      "type": "UserActivity",
+      "source": "result_gateway",
+      "description": "탈락 사유를 기록한다",
+      "instruction": "탈락 사유를 기록해 향후 입찰 전략에 반영할 수 있게 한다.",
+      "role": "영업담당자",
+      "skills": [],
+      "tool": "formHandler:rfp_bid_pipeline_management_record_loss_reason_form",
+      "agent": null,
+      "agentMode": "none",
+      "orchestration": null,
+      "inputData": ["rfp_bid_pipeline_management_register_rfp_form.organization"],
+      "outputData": ["탈락 사유"],
+      "checkpoints": [],
+      "duration": "1"
+    },
+    {
+      "elementType": "Sequence",
+      "id": "seq_loss_reason_to_end",
+      "source": "record_loss_reason",
+      "target": "end_event"
+    },
+    {
+      "elementType": "Event",
+      "id": "end_event",
+      "name": "RFP·입찰 파이프라인 관리 종료",
+      "role": "영업담당자",
+      "source": "",
+      "type": "EndEvent",
+      "description": "프로세스 종료"
+    }
+  ],
+
+  "subProcesses": []
+}

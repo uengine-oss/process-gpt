@@ -1,0 +1,27 @@
+<section>
+  <div class='row' name='register_rfp_basic' alias='RFP 기본 정보' is_multidata_mode='false'>
+    <div class='col-sm-6'>
+      <text-field name='organization' alias='발주기관' type='text' disabled='false' readonly='false'></text-field>
+    </div>
+    <div class='col-sm-6'>
+      <text-field name='budget' alias='예산 규모' type='number' disabled='false' readonly='false'></text-field>
+    </div>
+  </div>
+</section>
+<section>
+  <div class='row' name='register_rfp_schedule' alias='일정' is_multidata_mode='false'>
+    <div class='col-sm-6'>
+      <text-field name='deadline' alias='마감일' type='date' disabled='false' readonly='false'></text-field>
+    </div>
+    <div class='col-sm-6'>
+      <label-field label='마감일까지 제안서 작성·내부 검토 기간을 확보할 수 있는지 함께 확인하세요.'></label-field>
+    </div>
+  </div>
+</section>
+<section>
+  <div class='row' name='register_rfp_requirements' alias='요구사항' is_multidata_mode='false'>
+    <div class='col-sm-12'>
+      <textarea-field name='requirements_summary' alias='요구사항 요약' rows='5' disabled='false' readonly='false'></textarea-field>
+    </div>
+  </div>
+</section>

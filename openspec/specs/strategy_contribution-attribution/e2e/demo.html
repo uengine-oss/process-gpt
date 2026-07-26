@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>성과·성장 기여도 데모 — strategy-contribution-attribution</title>
+<style>
+  :root { --ink:#1a2233; --sub:#5b6474; --line:#e3e7ee; --hum:#1565c0; --agt:#7b1fa2; --hi:#0a7d33; }
+  * { box-sizing: border-box; }
+  body { font-family: "Apple SD Gothic Neo", Pretendard, sans-serif; color: var(--ink);
+         margin: 0; background: #f7f8fa; }
+  header { background: #fff; border-bottom: 1px solid var(--line); padding: 22px 36px; }
+  header h1 { margin: 0 0 4px; font-size: 21px; }
+  header p { margin: 0; color: var(--sub); font-size: 13px; }
+  main { max-width: 980px; margin: 0 auto; padding: 24px 36px 80px; }
+  section { background: #fff; border: 1px solid var(--line); border-radius: 10px;
+            padding: 22px 26px; margin: 22px 0; }
+  section h2 { margin: 0 0 2px; font-size: 16px; }
+  section .intent { color: var(--sub); font-size: 12.5px; margin: 0 0 14px; }
+  table { border-collapse: collapse; width: 100%; font-size: 13.5px; }
+  th { text-align: left; color: var(--sub); font-weight: 600; font-size: 12px;
+       border-bottom: 1px solid var(--line); padding: 6px 10px; }
+  td { padding: 7px 10px; border-bottom: 1px solid #f0f2f6; }
+  .chip { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 11px;
+          font-weight: 700; color: #fff; }
+  .chip.HUMAN { background: var(--hum); } .chip.AGENT { background: var(--agt); }
+  .bar { height: 8px; border-radius: 4px; background: #e9edf3; position: relative; min-width: 120px; }
+  .bar > i { position: absolute; inset: 0 auto 0 0; border-radius: 4px; background: var(--hi); }
+  .imp { display: inline-block; min-width: 22px; text-align: center; padding: 1px 7px;
+         border-radius: 6px; background: #fff3e0; color: #b25a00; font-weight: 700; font-size: 12px; }
+  .num { font-variant-numeric: tabular-nums; }
+  .note { background: #f2f7ff; border: 1px solid #d6e4ff; color: #274b8f; border-radius: 8px;
+          padding: 9px 13px; font-size: 12.5px; margin-top: 12px; }
+  .warn { background: #fff8e6; border-color: #ffe3a3; color: #7a5b00; }
+  .edge { font-family: ui-monospace, monospace; font-size: 12.5px; background:#f4f6f9;
+          border-radius: 6px; padding: 5px 10px; margin: 4px 0; display: inline-block; }
+  .src-tag { color: var(--sub); font-size: 11px; float: right; }
+  #loading { padding: 60px; text-align: center; color: var(--sub); }
+</style>
+</head>
+<body>
+<header>
+  <h1>성과·성장 기여도 조망 — 라이브 데모</h1>
+  <p>3개 실제 서비스(strategy :8014 · agent-feedback :6789 · analytic :8022)의 실시간 응답을 그대로 렌더링합니다 — mock 없음</p>
+</header>
+<main>
+  <div id="loading">서비스에서 데이터를 불러오는 중…</div>
+  <div id="app" style="display:none"></div>
+</main>
+<script>
+const S = "http://127.0.0.1:8014", A = "http://127.0.0.1:8022";
+const pct = v => (v*100).toFixed(1) + "%";
+const chip = t => `<span class="chip ${t}">${t === "HUMAN" ? "사람" : "에이전트"}</span>`;
+const bar = v => `<div class="bar"><i style="width:${Math.min(v*100,100)}%"></i></div>`;
+
+async function j(url) { const r = await fetch(url); return r.json(); }
+
+async function run() {
+  const ids = await j("demo_ids.json");
+  const T = ids.tenant_id, q = `?tenant_id=${T}`;
+  const [map, kpiC, kpiB, strat, perf, onto, dash] = await Promise.all([
+    j(`${S}/api/map${q}`),
+    j(`${S}/api/contribution/kpi/${ids.kpis.contract}${q}`),
+    j(`${S}/api/contribution/kpi/${ids.kpis.brand}${q}`),
+    j(`${S}/api/contribution/strategy/${ids.objectives.sales}${q}`),
+    j(`${S}/api/contribution/performer/${ids.performers.bot}${q}`),
+    j(`${S}/api/ontology/graph${q}&layers=resource,skill`),
+    j(`${A}/api/dashboard/contribution${q}`),
+  ]);
+
+  const el = document.getElementById("app");
+  let h = "";
+
+  // 1. 전략맵 + 중요도
+  h += `<section id="s1"><h2>① 전략맵에 전략적 중요도(importance)가 추가되었다</h2>
+    <p class="intent">검증 의도: Strategy/KPI 노드의 1~5 중요도 속성이 GET /api/map 응답에 노출되고, 미지정 시 기본값 3이 적용된다 <span class="src-tag">GET /api/map</span></p>
+    <table><tr><th>전략 목표</th><th>관점</th><th>중요도</th><th>달성률</th><th>KPI (측정값 / 중요도)</th></tr>` +
+    map.objectives.map(o => `<tr><td><b>${o.name}</b></td><td>${o.perspective}</td>
+      <td><span class="imp">${o.importance}</span></td><td class="num">${o.achievement ?? "-"}%</td>
+      <td>${o.kpis.map(k => `${k.name} <span class="num">(${k.current_value ?? "-"} / 중요도 ${k.importance})</span>`).join("<br>")}</td></tr>`).join("") +
+    `</table><div class="note">"브랜드 강화"는 중요도 미지정으로 생성 → 기본값 3 자동 적용</div></section>`;
+
+  // 2. KPI 기준 성과자 기여도
+  h += `<section id="s2"><h2>② KPI 기준 — 측정에 실제 반영된 인스턴스로 성과자 기여도 산정</h2>
+    <p class="intent">검증 의도: "계약 완료 건수" KPI(완료 3건)의 기여도가 실제 태스크 수행 이력 기반으로 산정되고, 사람·에이전트가 같은 순위표에 선다 <span class="src-tag">GET /api/contribution/kpi/{id}</span></p>
+    <table><tr><th>순위</th><th>성과자</th><th>유형</th><th>기여 비중</th><th></th><th>근거(수행 건수)</th></tr>` +
+    kpiC.performers.map((p,i) => `<tr><td class="num">${i+1}</td><td><b>${p.name}</b></td><td>${chip(p.performer_type)}</td>
+      <td class="num">${pct(p.share)}</td><td>${bar(p.share)}</td><td class="num">${p.raw_value}건</td></tr>`).join("") +
+    `</table></section>`;
+
+  // 3. 전략 범위 가중 합산 — 역전
+  h += `<section id="s3"><h2>③ 전략 범위 가중 합산 — 중요도가 순위를 바꾼다</h2>
+    <p class="intent">검증 의도: "매출 성장"(중요도 5) + 하위 "운영 효율화"(중요도 2) 전체 범위에서, KPI별 비중 × 전략 중요도의 가중합으로 순위 산정. 개별 KPI 1위였던 김지은을 에이전트가 역전한다 <span class="src-tag">GET /api/contribution/strategy/{id}</span></p>
+    <table><tr><th>순위</th><th>성과자</th><th>유형</th><th>가중 점수</th><th>산출 내역</th></tr>` +
+    strat.performers.map((p,i) => `<tr><td class="num">${i+1}</td><td><b>${p.name}</b></td><td>${chip(p.performer_type)}</td>
+      <td class="num"><b>${p.weighted_score}</b></td>
+      <td class="num">${p.kpi_breakdown.map(b => `${b.kpi_name}: ${b.share} × <span class="imp">${b.importance}</span> = ${b.weighted}`).join("<br>")}</td></tr>`).join("") +
+    `</table><div class="note">계약 KPI에선 김지은(66.7%)이 1위지만, 에이전트가 중요도 2 전략의 KPI를 100% 수행해 합산 3.67 &gt; 3.33으로 역전 — 전략 중요도에 따라 기여도가 조망된다</div></section>`;
+
+  // 4. 성과자 관점(역방향)
+  h += `<section id="s4"><h2>④ 성과자 기준(역방향) — 에이전트 한 명의 전략 기여 통계</h2>
+    <p class="intent">검증 의도: 성과자를 기준으로 그가 기여한 모든 KPI·전략의 가중 기여 내역을 역방향 조회 <span class="src-tag">GET /api/contribution/performer/{id}</span></p>
+    <p style="font-size:14px">${chip(perf.performer.performer_type)} <b>${perf.performer.name}</b>
+      — 총 가중 점수 <b class="num">${perf.total_weighted_score}</b> (기여 KPI ${perf.kpi_count}개)</p>
+    <table><tr><th>전략</th><th>KPI</th><th>비중</th><th>중요도</th><th>가중</th></tr>` +
+    perf.strategy_breakdown.map(b => `<tr><td>${b.strategy.name}</td><td>${b.kpi_name}</td>
+      <td class="num">${pct(b.share)}</td><td><span class="imp">${b.importance}</span></td><td class="num">${b.weighted}</td></tr>`).join("") +
+    `</table></section>`;
+
+  // 5. 추적 불가 KPI
+  h += `<section id="s5"><h2>⑤ 추적 불가 측정 유형은 정직하게 표시된다</h2>
+    <p class="intent">검증 의도: manual KPI(수동 입력)는 인스턴스-성과자 연결 근거가 없으므로, 기여자를 추정하지 않고 traceable=false 로 응답 <span class="src-tag">GET /api/contribution/kpi/{id}</span></p>
+    <div class="note warn">"${kpiB.kpi.name}" (measure_type=${kpiB.kpi.measure_type}) → traceable: <b>${kpiB.traceable}</b>, performers: [${kpiB.performers.length}건]</div></section>`;
+
+  // 6. 스킬 기여자 (dashboard 데이터에서)
+  const salesItem = dash.data.find(d => d.objective.id === ids.objectives.sales) || {skill_contributions:[]};
+  h += `<section id="s6"><h2>⑥ 사람의 "에이전트 성장 기여" — 스킬별 기여자 (실제 agent-feedback 서비스)</h2>
+    <p class="intent">검증 의도: 스킬 생성/수정/제안승인 이력에서 기여한 사람과 비중을 조회 — 실제 Supabase의 skill_contributions + 실제 스킬 API 존재 확인 경유 <span class="src-tag">GET /api/skills/{name}/contributors</span></p>` +
+    salesItem.skill_contributions.map(sc => `<p style="font-size:14px"><b>🛠 ${sc.skill.name}</b></p>
+      <table><tr><th>기여자</th><th>기여 건수</th><th>비중</th><th></th></tr>` +
+      sc.contributors.map(c => `<tr><td><b>${c.contributor_name || c.contributor_user_id}</b></td>
+        <td class="num">${c.count}건</td><td class="num">${pct(c.share)}</td><td>${bar(c.share)}</td></tr>`).join("") +
+      `</table>`).join("") +
+    `<div class="note">김지은: 스킬 생성 + 수정(2건) / 박민수: 피드백 제안 승인(1건)</div></section>`;
+
+  // 7. CONTRIBUTED_TO 온톨로지 엣지
+  const names = Object.fromEntries(onto.nodes.map(n => [n.id, n.name]));
+  const edges = onto.edges.filter(e => e.rel_type === "CONTRIBUTED_TO");
+  h += `<section id="s7"><h2>⑦ 온톨로지 그래프에 CONTRIBUTED_TO 엣지로 반영된다</h2>
+    <p class="intent">검증 의도: agent-feedback이 적재한 기여 이력을 strategy의 온톨로지 동기화가 (User)-[:CONTRIBUTED_TO]->(Skill) 엣지로 증분 반영 — 전략→…→스킬→기여자를 그래프 한 번의 순회로 조회 가능 <span class="src-tag">GET /api/ontology/graph</span></p>` +
+    edges.map(e => `<div class="edge">(${names[e.source] || e.source}) -[:CONTRIBUTED_TO]-&gt; (${names[e.target] || e.target})</div>`).join("<br>") +
+    `</section>`;
+
+  // 8. 통합 대시보드
+  h += `<section id="s8"><h2>⑧ 통합 — 전략 중요도 순 성과·성장 기여도 대시보드</h2>
+    <p class="intent">검증 의도: analytic 서비스가 strategy(기여도)와 agent-feedback(스킬 기여자)을 결합해 전략 중요도 내림차순으로 반환 <span class="src-tag">GET /api/dashboard/contribution</span></p>` +
+    dash.data.map(item => `<div style="border:1px solid var(--line);border-radius:8px;padding:14px 18px;margin:10px 0">
+      <p style="margin:0 0 8px;font-size:14.5px"><span class="imp">${item.objective.importance}</span> <b>${item.objective.name}</b></p>` +
+      (item.performers.length ? `<table><tr><th>성과자</th><th>유형</th><th>가중 점수</th></tr>` +
+        item.performers.map(p => `<tr><td>${p.name}</td><td>${chip(p.performer_type)}</td><td class="num">${p.weighted_score}</td></tr>`).join("") + `</table>` :
+        `<p style="color:var(--sub);font-size:12.5px;margin:4px 0">추적 가능한 성과자 없음</p>`) +
+      item.skill_contributions.map(sc => `<p style="font-size:12.5px;margin:8px 0 2px">🛠 ${sc.skill.name} 기여자: ` +
+        sc.contributors.map(c => `${c.contributor_name} ${pct(c.share)}`).join(" · ") + `</p>`).join("") +
+      `</div>`).join("") +
+    `<div class="note">"운영 효율화"는 "매출 성장"의 하위 전략이라 최상위 목록에서 이중 집계하지 않고 상위 합산에 포함된다</div></section>`;
+
+  el.innerHTML = h;
+  document.getElementById("loading").style.display = "none";
+  el.style.display = "block";
+  document.body.dataset.ready = "1";
+}
+run().catch(e => { document.getElementById("loading").textContent = "로드 실패: " + e; });
+</script>
+</body>
+</html>

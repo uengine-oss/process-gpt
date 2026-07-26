@@ -1,0 +1,254 @@
+{
+  "_comment": "ProcessGPT 프로세스 정의 JSON 스키마 예시. 이 파일은 참고용 예시이며 실제 산출물은 .bpmn/process-definition.json 입니다. 주석(_comment)은 실제 산출물에 넣지 마세요(JSON 주석/설명 금지). id는 영문 소문자+언더스코어, 이름/설명은 한글.",
+
+  "megaProcessId": "인사관리",
+  "majorProcessId": "근태관리",
+  "processDefinitionName": "휴가 신청 프로세스",
+  "processDefinitionId": "leave_request_process",
+  "description": "임직원이 휴가를 신청하고 팀장이 결재한 뒤 등록하는 프로세스",
+  "isHorizontal": true,
+
+  "data": [
+    { "name": "휴가종류", "description": "연차/병가/경조사 등", "type": "Text" },
+    { "name": "신청기간", "description": "휴가 시작일과 종료일", "type": "Date" },
+    { "name": "첨부서류", "description": "증빙 서류", "type": "Attachment" }
+  ],
+
+  "roles": [
+    { "name": "신청자", "endpoint": "applicant", "resolutionRule": "프로세스 시작자", "origin": "created" },
+    { "name": "팀장", "endpoint": "team_lead", "resolutionRule": "신청자의 상위 관리자", "origin": "created" }
+  ],
+
+  "skills": [
+    { "id": "leave-balance-check", "name": "휴가 잔여일수 검증", "description": "신청 전 잔여 연차를 확인해 신청 가능 여부를 판단한다." }
+  ],
+
+  "dmn_decisions": [
+    {
+      "decision_id": "dmn_decision_approval_gateway",
+      "name": "승인 여부 판단",
+      "description": "팀장의 결재 결과에 따른 분기 판단",
+      "related_gateway_id": "approval_gateway"
+    }
+  ],
+
+  "dmn_rules": [
+    {
+      "rule_id": "dmn_rule_approval_gateway_1",
+      "decision_id": "dmn_decision_approval_gateway",
+      "decision_name": "승인 여부 판단",
+      "when": "승인인 경우",
+      "then": "휴가 등록 경로 선택",
+      "condition": "승인인 경우",
+      "target": "register_leave"
+    },
+    {
+      "rule_id": "dmn_rule_approval_gateway_2",
+      "decision_id": "dmn_decision_approval_gateway",
+      "decision_name": "승인 여부 판단",
+      "when": "반려인 경우",
+      "then": "신청자 통보 경로 선택",
+      "condition": "반려인 경우",
+      "target": "notify_applicant"
+    }
+  ],
+
+  "elements": [
+    {
+      "elementType": "Event",
+      "id": "start_event",
+      "name": "휴가 신청 시작",
+      "role": "신청자",
+      "source": "",
+      "type": "StartEvent",
+      "description": "임직원이 휴가 신청을 시작한다",
+      "trigger": "휴가 신청 필요 발생"
+    },
+    {
+      "elementType": "Sequence",
+      "id": "seq_start_to_apply",
+      "source": "start_event",
+      "target": "apply_leave"
+    },
+    {
+      "elementType": "Activity",
+      "id": "apply_leave",
+      "name": "휴가 신청서 작성",
+      "type": "UserActivity",
+      "source": "start_event",
+      "description": "신청자가 휴가 신청서를 작성한다",
+      "instruction": "휴가 종류, 기간, 사유를 입력하고 필요한 증빙을 첨부한다.",
+      "role": "신청자",
+      "skills": ["leave-balance-check"],
+      "tool": "formHandler:leave_request_apply_leave_form",
+      "agent": null,
+      "agentMode": "complete",
+      "orchestration": "deepagents",
+      "inputData": [],
+      "outputData": ["휴가신청서"],
+      "checkpoints": ["필수 항목 입력 여부", "잔여 연차 충분 여부"],
+      "duration": "1"
+    },
+    {
+      "elementType": "Sequence",
+      "id": "seq_apply_to_review",
+      "source": "apply_leave",
+      "target": "review_leave"
+    },
+    {
+      "elementType": "Activity",
+      "id": "review_leave",
+      "name": "휴가 결재",
+      "type": "UserActivity",
+      "source": "apply_leave",
+      "description": "팀장이 휴가 신청을 검토하고 승인 또는 반려한다",
+      "instruction": "신청 내용을 확인하고 승인/반려를 결정한다.",
+      "role": "팀장",
+      "skills": [],
+      "tool": "formHandler:leave_request_review_leave_form",
+      "agent": "team_lead_review_agent",
+      "agentMode": "draft",
+      "orchestration": "crewai-action",
+      "inputData": ["leave_request_apply_leave_form.leave_type", "leave_request_apply_leave_form.period"],
+      "outputData": ["결재결과"],
+      "checkpoints": ["결재 의견 작성 여부"],
+      "duration": "1"
+    },
+    {
+      "elementType": "Sequence",
+      "id": "seq_review_to_gateway",
+      "source": "review_leave",
+      "target": "approval_gateway"
+    },
+    {
+      "elementType": "Gateway",
+      "id": "approval_gateway",
+      "name": "승인 여부 판단",
+      "role": "팀장",
+      "source": "review_leave",
+      "type": "ExclusiveGateway",
+      "description": "결재 결과에 따라 등록 또는 통보로 분기",
+      "conditionData": ["leave_request_review_leave_form.decision"]
+    },
+    {
+      "elementType": "Sequence",
+      "id": "seq_gateway_to_register",
+      "name": "승인",
+      "source": "approval_gateway",
+      "target": "register_leave",
+      "condition": "승인인 경우"
+    },
+    {
+      "elementType": "Sequence",
+      "id": "seq_gateway_to_notify",
+      "name": "반려",
+      "source": "approval_gateway",
+      "target": "notify_applicant",
+      "condition": "반려인 경우"
+    },
+    {
+      "elementType": "Activity",
+      "id": "register_leave",
+      "name": "휴가 등록",
+      "type": "UserActivity",
+      "source": "approval_gateway",
+      "description": "승인된 휴가를 근태 시스템에 등록한다",
+      "instruction": "승인된 휴가를 등록하고 신청자에게 확정을 알린다.",
+      "role": "팀장",
+      "skills": [],
+      "tool": "formHandler:leave_request_register_leave_form",
+      "agent": null,
+      "agentMode": "none",
+      "orchestration": null,
+      "inputData": ["leave_request_apply_leave_form.period"],
+      "outputData": ["휴가등록결과"],
+      "checkpoints": [],
+      "duration": "1"
+    },
+    {
+      "elementType": "Sequence",
+      "id": "seq_register_to_end",
+      "source": "register_leave",
+      "target": "end_event"
+    },
+    {
+      "elementType": "Activity",
+      "id": "notify_applicant",
+      "name": "반려 통보",
+      "type": "UserActivity",
+      "source": "approval_gateway",
+      "description": "반려 사유를 신청자에게 통보한다",
+      "instruction": "반려 사유를 정리해 신청자에게 통보한다.",
+      "role": "팀장",
+      "skills": [],
+      "tool": "formHandler:leave_request_notify_applicant_form",
+      "agent": null,
+      "agentMode": "none",
+      "orchestration": null,
+      "inputData": ["leave_request_review_leave_form.comment"],
+      "outputData": ["통보내역"],
+      "checkpoints": [],
+      "duration": "1"
+    },
+    {
+      "elementType": "Sequence",
+      "id": "seq_notify_to_end",
+      "source": "notify_applicant",
+      "target": "end_event"
+    },
+    {
+      "elementType": "Event",
+      "id": "end_event",
+      "name": "휴가 신청 종료",
+      "role": "신청자",
+      "source": "",
+      "type": "EndEvent",
+      "description": "프로세스 종료"
+    }
+  ],
+
+  "subProcesses": [
+    {
+      "_comment": "subProcesses 예시. 메인 elements 의 Activity 와 children.activities 의 키가 다름에 주의(type: userTask, tool: formHandler:...).",
+      "id": "example_subprocess",
+      "name": "예시 서브프로세스",
+      "role": "팀장",
+      "type": "subProcess",
+      "process": "leave_request_process",
+      "duration": "5",
+      "properties": "{}",
+      "attachedEvents": null,
+      "processDefinitionId": "example_subprocess_def",
+      "processDefinitionName": "예시 서브프로세스 정의",
+      "children": {
+        "data": [],
+        "roles": [
+          { "name": "팀장", "endpoint": "team_lead", "resolutionRule": "", "origin": "used" }
+        ],
+        "events": [
+          { "elementType": "Event", "id": "sub_start", "name": "시작", "type": "StartEvent", "source": "" },
+          { "elementType": "Event", "id": "sub_end", "name": "종료", "type": "EndEvent", "source": "" }
+        ],
+        "gateways": [],
+        "sequences": [
+          { "elementType": "Sequence", "id": "sub_seq_1", "source": "sub_start", "target": "sub_task_1" },
+          { "elementType": "Sequence", "id": "sub_seq_2", "source": "sub_task_1", "target": "sub_end" }
+        ],
+        "activities": [
+          {
+            "id": "sub_task_1",
+            "name": "하위 작업",
+            "type": "userTask",
+            "source": "sub_start",
+            "role": "팀장",
+            "tool": "formHandler:example_subprocess_sub_task_1_form",
+            "inputData": [],
+            "outputData": ["하위작업결과"],
+            "duration": "1"
+          }
+        ],
+        "subProcesses": []
+      }
+    }
+  ]
+}

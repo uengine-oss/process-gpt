@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><title>DeepAgents Replay & Undo</title>
+<style>
+:root{--bg:#09111f;--panel:#121f34;--line:#263a59;--fg:#eef5ff;--dim:#91a6c5;--blue:#55a7ff;--green:#46df91;--orange:#ffb65b}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font-family:Arial,"Apple SD Gothic Neo",sans-serif}
+section{height:720px;padding:54px 70px 120px;display:flex;flex-direction:column;justify-content:center}
+h1{font-size:52px;margin:10px 0}h2{font-size:34px;margin:0 0 12px}.sub{font-size:21px;color:var(--dim);line-height:1.6}
+.brand{color:var(--blue);font-weight:800;letter-spacing:.12em}.flow{display:flex;gap:14px;align-items:center;margin:32px 0;flex-wrap:wrap}
+.node,.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:20px}.node{font-size:19px}.arrow{font-size:28px;color:var(--blue)}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}.card h3{margin:0 0 12px;color:var(--dim)}
+pre{white-space:pre-wrap;background:#07101d;border-radius:10px;padding:18px;font-size:16px;line-height:1.6;color:#cce2ff}
+.ok{color:var(--green)}.warn{color:var(--orange)}.kpis{display:flex;gap:16px;margin-top:22px}.kpi{background:var(--panel);border:1px solid var(--line);padding:18px 28px;border-radius:12px}.v{font-size:36px;font-weight:800;color:var(--green)}
+#caption{position:fixed;bottom:0;left:0;right:0;min-height:90px;padding:22px 48px;background:#050a12ee;border-top:1px solid var(--line);font-size:21px;z-index:5}
+</style></head><body>
+<section id="d0"><div class="brand">PROCESS GPT · DEEPAGENTS</div><h1>Deterministic Replay & Undo</h1><p class="sub">한 번 검증된 MCP 실행은 코드로 재현하고,<br>재작업은 이전 부수효과를 되돌린 뒤 새 입력을 적용합니다.</p></section>
+<section id="d1"><h2>DeepAgents에도 같은 실행 자산</h2><p class="sub">CrewAI 전용이던 mcp_python_code를 DeepAgents 실행 시작점에서도 조회합니다.</p>
+<div class="flow"><div class="node">워크아이템</div><div class="arrow">→</div><div class="node">저장 코드 조회</div><div class="arrow">→</div><div class="node ok">코드 있음: LLM 없이 실행</div><div class="arrow">↘</div><div class="node">없음: DeepAgents 폴백</div></div></section>
+<section id="d2"><h2>Replay — 새 값, 검증된 같은 경로</h2><div class="grid"><div class="card"><h3>새 워크아이템</h3><pre>Galaxy 상품 입고
+입고 수량: <span class="warn">215</span>
+반영 후 재고: <span class="warn">250</span>
+변경 사유: 발주 입고</pre></div><div class="card"><h3>파라미터 바인딩</h3><pre>{
+  "product_name": "Galaxy",
+  "stock_increment": 215,
+  "new_stock": 250,
+  "reason": "발주 입고"
+}</pre></div></div><div class="kpis"><div class="kpi"><div class="v">0</div>LLM calls</div><div class="kpi"><div class="v">3</div>replayed MCP steps</div></div></section>
+<section id="d3"><h2>Undo — 재작업은 되돌리기부터</h2><div class="flow"><div class="node">이전 쓰기 이벤트</div><div class="arrow">→</div><div class="node warn">Undo code</div><div class="arrow">→</div><div class="node">이전 값 원복</div><div class="arrow">→</div><div class="node ok">Forward code · 새 입력</div></div>
+<div class="grid"><div class="card"><h3>필터링</h3><pre>SELECT 제외
+mem0 · memento · human_asked · dmn_rule 제외
+이전 동일 활동의 쓰기 이벤트만 전달</pre></div><div class="card"><h3>실행 결과</h3><pre><span class="ok">execution_mode: deterministic-undo
+llm_calls: 0
+undo_results + results</span></pre></div></div></section>
+<section id="d4"><h2>운영 화면에서도 명확하게 구분</h2><div class="grid"><div class="card"><h3>결정론적 코드 실행 결과</h3><pre>crew_type: result
+execution_mode: deterministic
+에이전트 도구 추론 이벤트 없음</pre></div><div class="card"><h3>Undo 후 재실행 결과</h3><pre>crew_type: result
+execution_mode: deterministic-undo
+undo → forward 스텝 표시</pre></div></div></section>
+<section id="d5"><div class="brand">VERIFIED</div><h1 class="ok">3 tests passed</h1><p class="sub">DeepAgents에서도 Replay와 Undo가 동일한 저장 코드·MCP 계약으로 동작합니다.</p></section>
+<div id="caption">DeepAgents Deterministic Replay & Undo</div></body></html>

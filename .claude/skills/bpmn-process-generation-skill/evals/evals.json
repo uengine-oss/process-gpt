@@ -1,0 +1,52 @@
+{
+  "skill_name": "bpmn-process-generation",
+  "evals": [
+    {
+      "id": 1,
+      "name": "leave-request-beginner",
+      "prompt": "휴가 신청 프로세스 만들고 싶어. 직원이 신청하면 팀장이 승인하거나 반려하는 흐름이야. BPMN은 잘 몰라.",
+      "expected_output": ".bpmn/process-definition.json 이 생성되고, StartEvent→휴가신청→팀장결재→(승인/반려 ExclusiveGateway 분기)→EndEvent 구조. 모든 id는 영문 소문자, 이름은 한글. 컨설팅 요약(.bpmn/01-consulting.md)도 존재. 초심자 대상이라 용어를 풀어 설명.",
+      "files": [],
+      "assertions": [
+        ".bpmn/process-definition.json exists and is valid JSON",
+        ".bpmn/01-consulting.md (consulting summary) exists",
+        "Definition contains both a StartEvent and an EndEvent element",
+        "Definition contains an ExclusiveGateway for the 승인/반려 branch",
+        "All element ids are lowercase English (^[a-z0-9_]+$)",
+        "Element/role display names contain Korean characters",
+        "Elements are linked by Sequence connections"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "purchase-approval-branching",
+      "prompt": "비품 구매 결재 프로세스를 설계해줘. 5만원 이하는 팀장 승인만, 초과하면 부서장까지 결재가 필요해. 승인되면 구매 진행, 반려되면 신청자에게 통보.",
+      "expected_output": ".bpmn/process-definition.json 에 금액 기준 분기(ExclusiveGateway, condition 한글)와 승인/반려 분기가 정확히 반영. 역할(신청자/팀장/부서장)이 roles에 분리. 각 Activity는 outputData≥1. 모든 요소가 Sequence로 연결.",
+      "files": [],
+      "assertions": [
+        ".bpmn/process-definition.json exists and is valid JSON",
+        "Contains an ExclusiveGateway whose condition references the 5만원/50000 threshold in Korean",
+        "roles separate 신청자, 팀장, 부서장 as distinct roles",
+        "Every Activity carries outputData with at least 1 entry",
+        "All elements are connected by Sequence (no orphan nodes)",
+        "Has both an approve path (구매 진행) and a reject path (반려 통보)"
+      ]
+    },
+    {
+      "id": 3,
+      "name": "onboarding-with-artifacts",
+      "prompt": "신규 입사자 온보딩 흐름을 자동화하고 싶어. 계정 생성, 장비 지급, 교육 안내가 필요해. 스킬이랑 폼도 만들어줘.",
+      "expected_output": ".bpmn/process-definition.json 생성 + HITL 단계에서 스킬/에이전트/DMN 후보를 사용자에게 제시(AskUserQuestion 또는 명시적 선택 질문). 선택된 스킬 카드가 .bpmn/skills/ 에, 폼 HTML이 .bpmn/forms/ 에 생성되고 activity.tool=formHandler:* 로 연결.",
+      "files": [],
+      "assertions": [
+        ".bpmn/process-definition.json exists and is valid JSON",
+        "At least one skill card exists in .bpmn/skills/*.md",
+        "Form HTML files exist in .bpmn/forms/*.html",
+        "At least one activity is linked to a form via tool=formHandler:*",
+        "Selected skills are reflected in JSON (skills[] non-empty and activity references a skill)",
+        "Each form row's col-sm-* values sum to 12",
+        "Form field name attributes are English; alias attributes contain Korean"
+      ]
+    }
+  ]
+}

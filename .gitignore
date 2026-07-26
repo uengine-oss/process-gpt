@@ -40,5 +40,14 @@ openspec/specs/**/e2e/results/**
 # Launcher state (last selection + per-user presets — local only)
 .process-gpt-state/
 
+# Legacy local docker-compose volumes (superseded by process-gpt-infra-docker
+# submodule — see INSTALL_MEMORY.md #1/#19). Contains live Postgres data files
+# when the old 4-layer compose setup (docker-compose.yml + infra/ + compose/ +
+# gateway/) was run locally; not needed for the current install path.
+infra/
+
 **/node_modules/
 _private/
+.venv
+demo-recordings/
+docker-infra/volumes/db/data/__pycache__/
