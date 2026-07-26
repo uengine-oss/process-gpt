@@ -50,4 +50,5 @@ infra/
 _private/
 .venv
 demo-recordings/
-docker-infra/volumes/db/data/__pycache__/
+docker-infra/volumes/db/data/
+__pycache__/
