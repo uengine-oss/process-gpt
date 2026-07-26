@@ -58,3 +58,6 @@
 [submodule "docs/doc-site"]
 	path = docs/doc-site
 	url = https://github.com/uengine-oss/process-gpt-docs.github.io.git
+[submodule "services/ontology-studio"]
+	path = services/ontology-studio
+	url = https://github.com/uengine-oss/ontology-studio.git
