@@ -47,6 +47,7 @@ AskUserQuestion으로 하나를 고르게 한다:
 | **7. 실행 경로 고착화 데모** | Supabase MCP(`execute_sql`)로 LLM이 한 번 수행한 활동을 Python 코드로 고착화하고, 다음 실행을 LLM 추론 0회로 결정론적으로 재실행 — 프론트 없이 Supabase만 있으면 됨 | [references/scenario-7-deterministic-replay.md](references/scenario-7-deterministic-replay.md) |
 | **8. Undo(실행 취소) 데모** | 시나리오 7에 이어지는 2편(별도 영상·별도 스펙): 이벤트 로그로부터 생성된 역연산 코드로 AI 실행의 부수효과를 원복하고, 정정 값으로 재실행 — 시나리오 7 선행 필수 | [references/scenario-8-deterministic-undo.md](references/scenario-8-deterministic-undo.md) |
 | **9. Prompt Chaining 에이전틱 패턴 데모** | "시장조사 인사이트 체인" 프로세스 — 사람이 보고서를 제출하면, 트렌드 식별·이메일 초안 작성 2단계가 사람 개입 없이 딥에이전트(orchestration=deepagents)로 순차 자동 처리되며 각 단계가 이전 단계 출력을 참조(inputData 체이닝)하는 것까지 생성과 실행 양쪽 다 확인 | [references/scenario-9-prompt-chaining.md](references/scenario-9-prompt-chaining.md) |
+| **10. WMS 서열 출고·팔레타이징 데모** | 두산·Dematic이 파는 "서열 출고·로봇 팔레타이징"을 실제 ProcessGPT 프로세스(`wms_sequential_dispatch_process`, 11개 활동)로 재현 — 정상 경로는 사람 없이 완주(agent 6단계 → 자동 종료), 설비가 중량/용적 초과·적재 실패를 보고했을 때만 사람이 재포장을 지시하는 예외 분기까지 빌드타임(BPMN 편집기)·런타임(정상+예외 2경로) 둘 다 확인 | [references/scenario-10-wms-sequential-dispatch.md](references/scenario-10-wms-sequential-dispatch.md) |
 | **전체 순서대로(1→2→3)** | 위 세 개를 이어서 시연 | 위 세 문서를 순서대로 |
 
 ### 튜토리얼 영상 시리즈 (Lv.1~Lv.5)
