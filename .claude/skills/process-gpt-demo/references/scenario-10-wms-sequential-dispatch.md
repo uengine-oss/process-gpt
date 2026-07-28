@@ -14,9 +14,11 @@
   등록해 둔 `tenants.mcp.mcpServers.wms`를 재사용하므로 그것도 먼저 실행돼
   있어야 한다)
 - 녹화 스크립트: `scripts/record_wms_sequential_dispatch_demo.mjs`
-- 완성 영상: `demo-recordings/wms-sequential-dispatch-demo/wms-sequential-dispatch-demo.mp4`
-  (~12분, 무음 — 슬라이드 2장 + 빌드타임(BPMN 편집기) + 런타임 정상/예외 2경로,
-  스크린샷 20장 동봉)
+- 완성 영상: `docs/demo/wms-sequential-dispatch-demo-narrated.mp4`
+  (= `demo-recordings/wms-sequential-dispatch-demo-narrated.mp4`, 12분 35초,
+  OpenAI TTS 내레이션(marin) 20장면 — 슬라이드 2장 + 빌드타임(BPMN 편집기) +
+  런타임 정상/예외 2경로. 원본 스크린샷 20장은
+  `demo-recordings/wms-sequential-dispatch-demo/`에 남아 있다(gitignore됨))
 
 ## 이 데모가 실제로 실행하는 흐름
 
