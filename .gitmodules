@@ -70,3 +70,9 @@
 [submodule "docs/tutorials/odoo"]
 	path = docs/tutorials/odoo
 	url = https://github.com/uengine-oss/process-gpt-tutorial-odoo.git
+[submodule "services/cliagents"]
+	path = services/cliagents
+	url = https://github.com/uengine-oss/cliagents.git
+[submodule "services/cli-agent"]
+	path = services/cli-agent
+	url = https://github.com/uengine-oss/process-gpt-cli-agent.git
