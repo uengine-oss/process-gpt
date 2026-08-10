@@ -4,7 +4,28 @@
       "Bash(rtk read *)",
       "Bash(rtk docker *)",
       "Bash(rtk find *)",
-      "Bash(rtk wc *)"
+      "Bash(rtk wc *)",
+
+      "mcp__wms__get_availability",
+      "mcp__wms__get_equipment_status",
+      "mcp__wms__get_work_order_status",
+      "mcp__wms__get_sortation_profile",
+      "mcp__wms__get_equipment_routing_status",
+      "mcp__wms__get_dispatch_sequence_status",
+      "mcp__wms__get_pallet_manifest",
+      "mcp__wms__get_simulation_profile",
+      "mcp__wms__get_simulation_schedule_status",
+      "mcp__wms__get_simulation_scenario_status",
+      "mcp__wms__get_due_simulation_actions",
+      "mcp__wms__get_dock_schedule",
+      "mcp__wms__get_labor_productivity",
+      "mcp__wms__get_labor_leaderboard",
+      "mcp__wms__get_labor_balance_signals",
+      "mcp__wms__get_dispatch_delay_signals",
+      "mcp__wms__get_worker_next_actions",
+      "mcp__wms__get_agent_decisions",
+      "mcp__wms__get_twin_layout",
+      "mcp__wms__query_audit_log"
     ]
   }
 }

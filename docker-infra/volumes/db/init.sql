@@ -102,7 +102,9 @@ DO $$ BEGIN
   'error',
   'waiting_for_user',
   'task_cancelled',
-  'human_feedback_submitted'
+  'human_feedback_submitted',
+  'gateway_decision',
+  'gateway_decision_trace'
   );
 EXCEPTION
   WHEN duplicate_object THEN NULL;
@@ -657,9 +659,16 @@ create table if not exists public.events (
   status event_status null,
   crew_type text null,
   data jsonb not null,
+  tenant_id text null default public.tenant_id(),
   timestamp timestamp with time zone null default now(),
   constraint events_pkey primary key (id)
 ) TABLESPACE pg_default;
+
+-- 이벤트 조회(분기 판단 이력 포함)에 쓰이는 인덱스
+create index if not exists idx_events_proc_inst_id on public.events (proc_inst_id);
+create index if not exists idx_events_todo_id on public.events (todo_id);
+create index if not exists idx_events_tenant_id on public.events (tenant_id);
+create index if not exists idx_events_event_type on public.events (event_type);
 
 create or replace function match_documents(
   query_embedding vector(1536),

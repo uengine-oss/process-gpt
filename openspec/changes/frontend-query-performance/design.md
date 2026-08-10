@@ -200,6 +200,81 @@ function dedupe<T>(key: string, run: () => Promise<T>): Promise<T>
 순차 스캔이 이미 충분히 빠르다. 인덱스는 데이터가 자랐을 때를 위한 보험이지
 지금 체감 속도의 원인이 아니었다. 병목은 전부 **전송량**이었다.
 
+### 4-7. 채팅방을 열 때 proc_def 을 읽던 이유 — 우발적 이벤트 결합
+
+"채팅방을 열 때 왜 `proc_def` 을 읽는가"를 스택트레이스로 추적했다. **채팅방은 읽지 않는다.**
+읽는 주체는 왼쪽 사이드바였고, 채팅방은 4단계 건너 그것을 깨우는 방아쇠였을 뿐이다.
+
+```
+ChatRoomPage.mounted() / bootstrapRoom()
+ └ backend.getUserInfo()
+    └ StorageBaseSupabase.getUserInfo()        ← 이름은 조회인데
+       └ this.isConnection()                    ← 세션 확인이 아니라
+          └ writeUserData(session)              ← users 재조회 + localStorage 재기록
+             └ dispatchEvent('localStorageChange', {key:'isAdmin'})   ← 값이 안 바뀌어도 매번
+                └ VerticalSidebar 리스너
+                   └ loadSidebar() → getDefinitionList()
+                      └ listDefinition()        ← proc_def 전체 목록
+```
+
+세 겹의 문제가 겹쳐 있었다.
+
+1. `getUserInfo()` 가 조회가 아니라 쓰기 작업이다. `isConnection()` 은 세션이 유효해도 `writeUserData()` 를 부른다.
+2. `writeUserData` 가 `is_admin` 이 참이기만 하면 **이전 값과 비교 없이** 이벤트를 쐈다.
+   → 관리자 계정만 증상이 나타나는 버그였다. 일반 계정은 이 분기를 타지 않는다.
+3. 사이드바가 그 이벤트를 "정의 목록을 다시 받으라"는 신호로 해석했다. 정작 `isAdmin` 값은 바뀐 적이 없다.
+
+**수정**: `StorageBaseSupabase.writeUserData` 에서 이전 localStorage 값과 다를 때만 dispatch 한다.
+값이 없으면 사이드바가 mount 시 읽는 기본값과 같으므로 `false` 로 본다. 강등(true→false)도 함께 알린다.
+
+실측(로컬 dev + 운영 DB, uengine 테넌트, 관리자 계정):
+
+| 구간 | 수정 전 | 수정 후 |
+|---|---|---|
+| `localStorageChange(isAdmin)` — 첫 로딩 | 6건 | 1건 |
+| `proc_def` 목록 — 첫 로딩 | 3건 | 2건 |
+| `proc_def` 목록 — **채팅방 열기 1회** | **2건** | **0건** |
+
+배포본에는 컬럼 투영이 없어 이 호출 한 건이 `select=*` 로 5.2MB 였다.
+4-1 표의 `10797ms` · `8602ms` · `2631ms` 항목이 전부 이것이다.
+투영(3-1)으로 건당 5,048KB → 73KB 로 줄었지만 **호출 자체는 남아 있었고**, 이 수정으로 사라졌다.
+
+배운 것: 전역 이벤트를 캐시 무효화 신호로 쓸 때 **값이 바뀌었는지 확인하지 않으면**
+관계없는 화면이 조용히 무거운 재조회를 유발한다. 호출부(`ChatRoomPage`)만 봐서는 절대 보이지 않고,
+`fetch` 를 감싸 스택을 남기는 방식으로만 잡혔다 (`playwright/demo/procdef-callers.mjs`, `procdef-trigger.mjs`).
+
+### 4-8. 첫 화면이 다 그려진 뒤에도 잠겨 있던 이유 — `$try` 의 전면 오버레이
+
+`App.vue` 의 `$try(...)` 는 호출부가 **179곳**인 공용 래퍼다. 이게 도는 동안
+`<v-overlay :scrim :persistent>` 가 화면 전체를 덮었다. `$try` 는 저장뿐 아니라 배경 조회에도
+쓰이므로, 부팅 직후처럼 여러 건이 겹치면 **콘텐츠가 이미 그려졌는데도** 사용자는 기다려야 했다.
+
+거기에 `loading` 이 boolean 이라, 동시에 뜬 `$try` 중 하나만 끝나도 표시가 꺼지는 경합도 있었다.
+
+**수정** — 부팅 구간에서만 잠금을 끈다. 다른 화면 동작은 그대로 둔다.
+
+- `loading: false` → `loadingCount: 0` (겹친 호출을 센다)
+- `loading` = `loadingCount > 0` — 상단 진행 바는 부팅 중에도 그대로 보여준다
+- `blockingLoading` = `loadingCount > 0 && initialLoadSettled` — 오버레이는 이쪽에만 물린다
+- `initialLoadSettled` 는 카운터가 0 인 상태가 700ms 유지되면 확정. 호출 사이의 짧은 틈으로
+  성급히 확정되지 않게 한 것이다. 부팅 중 `$try` 가 한 건도 없는 경우를 위해 `loadScreen` 감시도 둔다
+
+**앵커 주의** — `App.vue` 는 로그인 화면과 같은 인스턴스다. 처음엔 부팅 플래그가 로그인 화면에서
+이미 켜져 버려, 정작 무거운 로그인 **직후** 화면이 그대로 잠긴 채 로딩됐다 (계측으로 발견).
+`/auth/*` 에서 앱으로 넘어오는 전환에서 플래그를 되돌리도록 고쳤다.
+
+검증 (로컬 dev + 운영 DB):
+
+| settled | loadingCount | 스크림(화면 잠금) | 상단 진행 바 |
+|---|---|---|---|
+| false (부팅 중) | 0 | 없음 | 없음 |
+| false (부팅 중) | 2 | **없음** | 있음 |
+| true (부팅 후) | 0 | 없음 | 없음 |
+| true (부팅 후) | 2 | **있음** | 있음 |
+
+로그인 후 실측: 스켈레톤 걷힘 1,661ms → `$try` 전부 종료 2,618ms.
+그 사이 **957ms** 가 예전에는 화면이 잠겨 있던 구간이다 (배포본은 쿼리가 훨씬 느려 더 길다).
+
 ## 5. 고치지 않은 것 (근거 포함)
 
 ### DB 인덱스 부재 — 별도 승인 필요

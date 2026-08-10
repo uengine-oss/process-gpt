@@ -2585,3 +2585,54 @@ CREATE POLICY delegation_history_update_policy ON public.delegation_history
 DROP POLICY IF EXISTS delegation_history_delete_policy ON public.delegation_history;
 CREATE POLICY delegation_history_delete_policy ON public.delegation_history
     FOR DELETE TO authenticated USING (tenant_id = public.tenant_id());
+
+
+-- =====================================================================
+-- 분기 판단 이력(Gateway Decision Journal)
+-- events 테이블을 재사용해 게이트웨이/분기 판단 이력을 남긴다.
+-- =====================================================================
+
+-- 1) 이벤트 종류 enum 확장
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM pg_type WHERE typname = 'event_type_enum') THEN
+        IF NOT EXISTS (
+            SELECT 1 FROM pg_enum
+            WHERE enumtypid = (SELECT oid FROM pg_type WHERE typname = 'event_type_enum')
+            AND enumlabel = 'gateway_decision'
+        ) THEN
+            ALTER TYPE event_type_enum ADD VALUE 'gateway_decision';
+            RAISE NOTICE 'Added gateway_decision value to event_type_enum';
+        END IF;
+
+        IF NOT EXISTS (
+            SELECT 1 FROM pg_enum
+            WHERE enumtypid = (SELECT oid FROM pg_type WHERE typname = 'event_type_enum')
+            AND enumlabel = 'gateway_decision_trace'
+        ) THEN
+            ALTER TYPE event_type_enum ADD VALUE 'gateway_decision_trace';
+            RAISE NOTICE 'Added gateway_decision_trace value to event_type_enum';
+        END IF;
+    END IF;
+END $$;
+
+-- 2) events 에 테넌트 컬럼 추가
+--    기존 행은 NULL 로 남으며, 조회 계층이 테넌트로 필터링하므로 과거 이벤트는
+--    분기 판단 이력 조회 대상에 포함되지 않는다(분기 판단 이력은 이 변경 이후에만 생성된다).
+--    NOTE: events 테이블에는 아직 RLS 를 켜지 않는다. 다른 서비스들이 이 테이블에
+--    쓰고 있고 과거 행의 tenant_id 가 NULL 이라, RLS 를 지금 켜면 기존 조회가 끊긴다.
+--    DB 레벨 격리는 백필 이후 별도 변경으로 다룬다.
+ALTER TABLE public.events ADD COLUMN IF NOT EXISTS tenant_id text;
+
+DO $$
+BEGIN
+    ALTER TABLE public.events ALTER COLUMN tenant_id SET DEFAULT public.tenant_id();
+EXCEPTION WHEN undefined_function THEN
+    RAISE NOTICE 'public.tenant_id() not available; skipping default for events.tenant_id';
+END $$;
+
+-- 3) 조회 인덱스
+CREATE INDEX IF NOT EXISTS idx_events_proc_inst_id ON public.events (proc_inst_id);
+CREATE INDEX IF NOT EXISTS idx_events_todo_id ON public.events (todo_id);
+CREATE INDEX IF NOT EXISTS idx_events_tenant_id ON public.events (tenant_id);
+CREATE INDEX IF NOT EXISTS idx_events_event_type ON public.events (event_type);
