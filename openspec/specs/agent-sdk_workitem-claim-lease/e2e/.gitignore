@@ -1,0 +1,4 @@
+services.env
+.tools/
+.logs/
+__pycache__/
