@@ -1,0 +1,11 @@
+.logs/
+.sdk-ctx/
+.e2e-credentials.json
+.env
+results/*.png
+node_modules/
+test-results/
+playwright-report/
+.frontend-dist/
+results/
+run.sh

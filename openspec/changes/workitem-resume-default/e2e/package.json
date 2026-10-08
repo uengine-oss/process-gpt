@@ -1,0 +1,12 @@
+{
+  "name": "workitem-resume-e2e",
+  "private": true,
+  "description": "체크포인트 재개 기본화 — kind 클러스터 + 로컬 Supabase + 실제 브라우저 e2e",
+  "scripts": {
+    "test": "playwright test",
+    "test:headed": "playwright test --headed"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.58.2"
+  }
+}

@@ -1,0 +1,339 @@
+# 체크포인트 재개 e2e — 로컬 kind(kind-kind) 네임스페이스 resume-e2e.
+# 운영 매니페스트(infra/process-gpt-k8s/deployments)와 같은 구성을 kind 에 맞게 줄였다.
+#   - 데이터: 호스트의 로컬 Supabase(54321/54322), LLM: 호스트의 LiteLLM(4000)
+#     → 컨테이너 IP 대신 colima 호스트 게이트웨이(192.168.5.2)를 selector 없는 Service 로 연결
+#   - 이미지: pgpt-e2e/*:e2e (build-images.sh — 작업 트리 + 미릴리스 SDK)
+#   - lease 20초/heartbeat 5초: 운영(120/30)과 비율만 맞추고 재점유를 빨리 관찰한다
+# secret e2e-secrets 는 up.sh 가 supabase status·LiteLLM .env 에서 만든다(파일로 남기지 않는다).
+apiVersion: v1
+kind: Namespace
+metadata: {name: resume-e2e}
+---
+apiVersion: v1
+kind: Service
+metadata: {name: supabase-kong, namespace: resume-e2e}
+spec: {ports: [{port: 8000, targetPort: 54321}]}
+---
+apiVersion: v1
+kind: Endpoints
+metadata: {name: supabase-kong, namespace: resume-e2e}
+subsets: [{addresses: [{ip: 192.168.5.2}], ports: [{port: 54321}]}]
+---
+apiVersion: v1
+kind: Service
+metadata: {name: supabase-db, namespace: resume-e2e}
+spec: {ports: [{port: 5432, targetPort: 54322}]}
+---
+apiVersion: v1
+kind: Endpoints
+metadata: {name: supabase-db, namespace: resume-e2e}
+subsets: [{addresses: [{ip: 192.168.5.2}], ports: [{port: 54322}]}]
+---
+apiVersion: v1
+kind: Service
+metadata: {name: litellm-proxy, namespace: resume-e2e}
+spec: {ports: [{port: 4000, targetPort: 4000}]}
+---
+apiVersion: v1
+kind: Endpoints
+metadata: {name: litellm-proxy, namespace: resume-e2e}
+subsets: [{addresses: [{ip: 192.168.5.2}], ports: [{port: 4000}]}]
+---
+apiVersion: v1
+kind: ConfigMap
+metadata: {name: e2e-config, namespace: resume-e2e}
+data:
+  SUPABASE_URL: http://supabase-kong:8000
+  DB_HOST: supabase-db
+  DB_PORT: "5432"
+  DB_NAME: postgres
+  DB_USER: postgres
+  ENV: dev
+  TZ: Asia/Seoul
+  PYTHONUNBUFFERED: "1"
+  TASK_LEASE_SECONDS: "20"
+  TASK_LEASE_HEARTBEAT_SECONDS: "5"
+  LLM_PROXY_URL: http://litellm-proxy:4000/v1
+  LLM_MODEL: gpt-4.1-mini
+---
+# ---------------- 게이트웨이 · 프론트엔드 · 백엔드 ----------------
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: gateway, namespace: resume-e2e}
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: gateway}}
+  template:
+    metadata: {labels: {app: gateway}}
+    spec:
+      containers:
+        - name: gateway
+          image: ghcr.io/uengine-oss/process-gpt-gateway:b38bf3c
+          imagePullPolicy: IfNotPresent
+          env:
+            - {name: SPRING_PROFILES_ACTIVE, value: docker}
+            - {name: SECRET_KEY, valueFrom: {secretKeyRef: {name: e2e-secrets, key: SUPABASE_JWT_SECRET}}}
+          ports: [{containerPort: 8080}]
+---
+apiVersion: v1
+kind: Service
+metadata: {name: gateway, namespace: resume-e2e}
+spec: {selector: {app: gateway}, ports: [{port: 8088, targetPort: 8080}]}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: frontend, namespace: resume-e2e}
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: frontend}}
+  template:
+    metadata: {labels: {app: frontend}}
+    spec:
+      containers:
+        - name: frontend
+          image: pgpt-e2e/frontend:e2e
+          imagePullPolicy: Never
+          env:
+            # 브라우저가 직접 붙는 주소 — 호스트의 로컬 Supabase
+            - {name: VITE_SUPABASE_URL, value: "http://127.0.0.1:54321"}
+            - {name: VITE_SUPABASE_KEY, valueFrom: {secretKeyRef: {name: e2e-secrets, key: SUPABASE_ANON_KEY}}}
+          ports: [{containerPort: 8080}]
+---
+apiVersion: v1
+kind: Service
+metadata: {name: frontend-service, namespace: resume-e2e}
+spec: {selector: {app: frontend}, ports: [{port: 5173, targetPort: 8080}]}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: completion, namespace: resume-e2e}
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: completion}}
+  template:
+    metadata: {labels: {app: completion}}
+    spec:
+      containers:
+        - name: completion
+          image: pgpt-e2e/completion:e2e
+          imagePullPolicy: Never
+          envFrom: [{configMapRef: {name: e2e-config}}]
+          env:
+            - {name: LLM_PROXY_URL, value: "http://litellm-proxy:4000"}
+            - {name: LLM_PROXY_API_KEY, valueFrom: {secretKeyRef: {name: e2e-secrets, key: LITELLM_KEY}}}
+            - {name: OPENAI_API_KEY, valueFrom: {secretKeyRef: {name: e2e-secrets, key: LITELLM_KEY}}}
+            - {name: SUPABASE_KEY, valueFrom: {secretKeyRef: {name: e2e-secrets, key: SUPABASE_SERVICE_KEY}}}
+            - {name: SUPABASE_JWT_SECRET, valueFrom: {secretKeyRef: {name: e2e-secrets, key: SUPABASE_JWT_SECRET}}}
+            - {name: DB_PASSWORD, valueFrom: {secretKeyRef: {name: e2e-secrets, key: DB_PASSWORD}}}
+          ports: [{containerPort: 8000}]
+---
+apiVersion: v1
+kind: Service
+metadata: {name: completion-service, namespace: resume-e2e}
+spec: {selector: {app: completion}, ports: [{port: 8000, targetPort: 8000}]}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: polling-service, namespace: resume-e2e}
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: polling-service}}
+  template:
+    metadata: {labels: {app: polling-service}}
+    spec:
+      containers:
+        - name: polling-service
+          image: pgpt-e2e/polling:e2e
+          imagePullPolicy: Never
+          envFrom: [{configMapRef: {name: e2e-config}}]
+          env:
+            - {name: LLM_PROXY_URL, value: "http://litellm-proxy:4000"}
+            - {name: LLM_PROXY_API_KEY, valueFrom: {secretKeyRef: {name: e2e-secrets, key: LITELLM_KEY}}}
+            - {name: OPENAI_API_KEY, valueFrom: {secretKeyRef: {name: e2e-secrets, key: LITELLM_KEY}}}
+            - {name: SUPABASE_KEY, valueFrom: {secretKeyRef: {name: e2e-secrets, key: SUPABASE_SERVICE_KEY}}}
+            - {name: SUPABASE_JWT_SECRET, valueFrom: {secretKeyRef: {name: e2e-secrets, key: SUPABASE_JWT_SECRET}}}
+            - {name: COMPLETION_SERVICE_URL, value: "http://completion-service:8000"}
+            - {name: MEMENTO_SERVICE_URL, value: "http://memento-service:8005"}
+---
+# ---------------- 에이전트 워커 ----------------
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata: {name: deepagents-workspace, namespace: resume-e2e}
+spec: {accessModes: [ReadWriteOnce], storageClassName: standard, resources: {requests: {storage: 2Gi}}}
+---
+# 운영은 replicas 5. 재점유가 다른 파드에서 일어나는 것을 보려고 2개.
+# 단일 노드 kind 라 RWO local-path PVC 를 두 파드가 함께 마운트할 수 있다.
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: process-gpt-deepagents, namespace: resume-e2e}
+spec:
+  replicas: 2
+  selector: {matchLabels: {app: process-gpt-deepagents}}
+  template:
+    metadata: {labels: {app: process-gpt-deepagents}}
+    spec:
+      terminationGracePeriodSeconds: 5
+      containers:
+        - name: deepagents
+          image: pgpt-e2e/deepagents:e2e
+          imagePullPolicy: Never
+          envFrom: [{configMapRef: {name: e2e-config}}]
+          env:
+            - {name: DEEPAGENTS_PROCESS_POLLING, value: "true"}
+            - {name: FEEDBACK_POLLING_ENABLED, value: "false"}
+            - {name: LLM_PROXY_API_KEY, valueFrom: {secretKeyRef: {name: e2e-secrets, key: LITELLM_KEY}}}
+            - {name: SUPABASE_KEY, valueFrom: {secretKeyRef: {name: e2e-secrets, key: SUPABASE_SERVICE_KEY}}}
+            - {name: SUPABASE_JWT_SECRET, valueFrom: {secretKeyRef: {name: e2e-secrets, key: SUPABASE_JWT_SECRET}}}
+            - {name: DB_PASSWORD, valueFrom: {secretKeyRef: {name: e2e-secrets, key: DB_PASSWORD}}}
+            - {name: SKILLS_DIRS, value: /skills-storage}
+            - {name: POD_NAME, valueFrom: {fieldRef: {fieldPath: metadata.name}}}
+            # 파일 도구는 샌드박스 컨테이너 안에서 돈다 — 운영과 같은 DinD 사이드카
+            - {name: DOCKER_HOST, value: "tcp://localhost:2375"}
+            - {name: SANDBOX_NETWORK_NAME, value: deepagent-sandbox-net}
+            - {name: SANDBOX_NETWORK_MTU, value: "1400"}
+          ports: [{containerPort: 8888}]
+          volumeMounts:
+            - {name: workspace, mountPath: /app/workspace}
+            - {name: skills, mountPath: /skills-storage}
+        - name: docker-dind
+          image: docker:dind
+          securityContext: {privileged: true}
+          env: [{name: DOCKER_TLS_CERTDIR, value: ""}]
+          volumeMounts:
+            - {name: workspace, mountPath: /app/workspace}
+            - {name: skills, mountPath: /skills-storage}
+      volumes:
+        - {name: workspace, persistentVolumeClaim: {claimName: deepagents-workspace}}
+        - {name: skills, emptyDir: {}}
+---
+apiVersion: v1
+kind: Service
+metadata: {name: process-gpt-deepagents, namespace: resume-e2e}
+spec: {selector: {app: process-gpt-deepagents}, ports: [{port: 8888, targetPort: 8888}]}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata: {name: cli-agent-workspace, namespace: resume-e2e}
+spec: {accessModes: [ReadWriteOnce], storageClassName: standard, resources: {requests: {storage: 2Gi}}}
+---
+# 운영과 같다: replicas 1 + RWO PVC. 파드가 죽으면 새 파드가 같은 PVC 로 뜬다.
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: process-gpt-cli-agent, namespace: resume-e2e}
+spec:
+  replicas: 1
+  strategy: {type: Recreate}
+  selector: {matchLabels: {app: process-gpt-cli-agent}}
+  template:
+    metadata: {labels: {app: process-gpt-cli-agent}}
+    spec:
+      terminationGracePeriodSeconds: 5
+      containers:
+        - name: cli-agent
+          image: pgpt-e2e/cli-agent:e2e
+          imagePullPolicy: Never
+          envFrom: [{configMapRef: {name: e2e-config}}]
+          env:
+            - {name: SUPABASE_KEY, valueFrom: {secretKeyRef: {name: e2e-secrets, key: SUPABASE_SERVICE_KEY}}}
+            - {name: SUPABASE_JWT_SECRET, valueFrom: {secretKeyRef: {name: e2e-secrets, key: SUPABASE_JWT_SECRET}}}
+            # Claude Code → LiteLLM 의 Anthropic 호환 엔드포인트(실험 E3 와 같은 조건)
+            - {name: ANTHROPIC_BASE_URL, value: "http://litellm-proxy:4000"}
+            - {name: ANTHROPIC_AUTH_TOKEN, valueFrom: {secretKeyRef: {name: e2e-secrets, key: LITELLM_KEY}}}
+            - {name: ANTHROPIC_MODEL, value: gpt-4.1-mini}
+            - {name: ANTHROPIC_SMALL_FAST_MODEL, value: gpt-4.1-mini}
+            - {name: DISABLE_TELEMETRY, value: "1"}
+            # 운영과 다른 점: 컨테이너가 root 라 Claude Code 가 command_exec 의
+            # --dangerously-skip-permissions 를 거부한다(즉시 종료, 오류 원문은 삼켜짐).
+            # e2e 발견 사항 — 운영 매니페스트에도 필요하다(검증 문서 참고).
+            - {name: IS_SANDBOX, value: "1"}
+            - {name: CLIAGENTS_DEFAULT_CLI, value: claude-code}
+            - {name: CLIAGENTS_DEFAULT_PERMISSION, value: workspace_write}
+            - {name: CLIAGENTS_WORKSPACE_ROOT, value: /workspace}
+            - {name: CLIAGENTS_SYSTEM_SKILLS_DIR, value: /app/system-skills}
+            - {name: SKILLS_DIRS, value: /app/skills}
+          ports: [{containerPort: 8890}]
+          volumeMounts: [{name: workspace, mountPath: /workspace}]
+      volumes: [{name: workspace, persistentVolumeClaim: {claimName: cli-agent-workspace}}]
+---
+apiVersion: v1
+kind: Service
+metadata: {name: process-gpt-cli-agent, namespace: resume-e2e}
+spec: {selector: {app: process-gpt-cli-agent}, ports: [{port: 8890, targetPort: 8890}]}
+---
+# 운영 codex 워커는 replicas 3 + emptyDir. 같은 파드 재점유(E4 C1)를 보려고 1개.
+# 크래시는 노드에서 컨테이너 프로세스만 죽여(emptyDir 유지) 같은 파드에서 재시작시킨다.
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: process-gpt-codex-worker, namespace: resume-e2e}
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: process-gpt-codex-worker}}
+  template:
+    metadata: {labels: {app: process-gpt-codex-worker}}
+    spec:
+      terminationGracePeriodSeconds: 5
+      containers:
+        - name: codex
+          image: pgpt-e2e/codex:e2e-bwrap   # bwrap 대역 포함(codex-bwrap.Dockerfile)
+          imagePullPolicy: Never
+          securityContext: {privileged: true}   # bubblewrap(운영은 DinD 사이드카가 권한을 준다)
+          envFrom: [{configMapRef: {name: e2e-config}}]
+          env:
+            - {name: CODEX_PROCESS_POLLING, value: "true"}
+            - {name: CODEX_APP_SERVER_CONTAINER_IMAGE, value: ""}
+            - {name: SUPABASE_KEY, valueFrom: {secretKeyRef: {name: e2e-secrets, key: SUPABASE_SERVICE_KEY}}}
+            - {name: SUPABASE_JWT_SECRET, valueFrom: {secretKeyRef: {name: e2e-secrets, key: SUPABASE_JWT_SECRET}}}
+            - {name: CODEX_MODEL_PROFILE, value: custom}
+            - {name: CODEX_CUSTOM_MODEL, value: gpt-4.1-mini}
+            - {name: CODEX_CUSTOM_PROVIDER_BASE_URL, value: "http://litellm-proxy:4000/v1"}
+            - {name: CODEX_CUSTOM_PROVIDER_API_KEY_ENV, value: CUSTOM_PROVIDER_API_KEY}
+            - {name: CUSTOM_PROVIDER_API_KEY, valueFrom: {secretKeyRef: {name: e2e-secrets, key: LITELLM_KEY}}}
+            - {name: CODEX_CUSTOM_SAMPLING_PROXY_ENABLED, value: "false"}
+            - {name: CODEX_CUSTOM_REASONING_EFFORT, value: ""}
+            - {name: CODEX_WEB_SEARCH, value: disabled}
+            - {name: CODEX_CHAT_TENANT_AUTH, value: "false"}
+            - {name: CODEX_CONFINE_READS, value: "0"}
+            - {name: SKIP_WARMUP, value: "true"}
+            - {name: MEMENTO_BASE_URL, value: "http://memento-service:8005"}
+          ports: [{containerPort: 8891}]
+          volumeMounts: [{name: data, mountPath: /app/.data}]
+      volumes: [{name: data, emptyDir: {sizeLimit: 4Gi}}]
+---
+apiVersion: v1
+kind: Service
+metadata: {name: process-gpt-codex, namespace: resume-e2e}
+spec: {selector: {app: process-gpt-codex-worker}, ports: [{port: 8891, targetPort: 8891}]}
+---
+# codex 는 산출물 파일을 memento 에 올린다(없으면 파일을 만든 턴이 끝에서 실패한다).
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: memento, namespace: resume-e2e}
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: memento}}
+  template:
+    metadata: {labels: {app: memento}}
+    spec:
+      containers:
+        - name: memento
+          image: pgpt-e2e/memento:e2e
+          imagePullPolicy: Never
+          env:
+            - {name: PYTHONUNBUFFERED, value: "1"}
+            - {name: SUPABASE_URL, value: "http://supabase-kong:8000"}
+            - {name: SUPABASE_KEY, valueFrom: {secretKeyRef: {name: e2e-secrets, key: SUPABASE_SERVICE_KEY}}}
+            - {name: MEMENTO_LLM_PROVIDER, value: openai}
+            - {name: MEMENTO_EMBEDDING_PROVIDER, value: openai}
+            - {name: MEMENTO_LLM_BASE_URL, value: "http://litellm-proxy:4000/v1"}
+            - {name: MEMENTO_LLM_MODEL, value: gpt-4.1-mini}
+            - {name: MEMENTO_LLM_API_KEY, valueFrom: {secretKeyRef: {name: e2e-secrets, key: LITELLM_KEY}}}
+            - {name: MEMENTO_EMBEDDING_BASE_URL, value: "http://litellm-proxy:4000/v1"}
+            - {name: MEMENTO_EMBEDDING_MODEL, value: text-embedding-3-small}
+            - {name: MEMENTO_EMBEDDING_API_KEY, valueFrom: {secretKeyRef: {name: e2e-secrets, key: LITELLM_KEY}}}
+            - {name: OPENAI_API_KEY, valueFrom: {secretKeyRef: {name: e2e-secrets, key: LITELLM_KEY}}}
+          ports: [{containerPort: 8005}]
+---
+apiVersion: v1
+kind: Service
+metadata: {name: memento-service, namespace: resume-e2e}
+spec: {selector: {app: memento}, ports: [{port: 8005, targetPort: 8005}]}

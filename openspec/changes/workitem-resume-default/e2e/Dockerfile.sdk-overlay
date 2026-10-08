@@ -1,0 +1,9 @@
+# 서비스 이미지 위에 작업 트리의 process-gpt-agent-sdk(재개 정보 포함, 미릴리스)를 얹는다.
+# 서비스 requirements 는 PyPI 의 0.10.x 를 고정하므로, 릴리스 전 e2e 에서만 이 층을 쓴다.
+ARG BASE
+FROM ${BASE}
+USER root
+COPY --from=sdk . /tmp/process-gpt-agent-sdk
+RUN if command -v uv >/dev/null 2>&1; then uv pip install --system --no-deps --reinstall /tmp/process-gpt-agent-sdk; \
+    else pip install --no-cache-dir --no-deps --force-reinstall /tmp/process-gpt-agent-sdk; fi \
+ && python -c "import processgpt_agent_sdk as s; from processgpt_agent_sdk import resume_info_from_row; print('sdk', s.__file__)"
