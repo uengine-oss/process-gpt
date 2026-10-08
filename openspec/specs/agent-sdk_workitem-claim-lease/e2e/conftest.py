@@ -62,14 +62,19 @@ class Harness:
         self.legacy_before: db.Snapshot | None = None
         LOG_DIR.mkdir(exist_ok=True)
 
-    def worker(self, label: str) -> Worker:
-        """label('A','B')의 워커를 살아 있는 상태로 돌려준다."""
+    def worker(self, label: str, env_transform=None) -> Worker:
+        """label('A','B',...)의 워커를 살아 있는 상태로 돌려준다."""
         w = self.workers.get(label)
         if w is None or not w.alive:
             port = BASE_PORT[self.service.name] + (ord(label) - ord("A"))
-            w = Worker(self.service, f"lease-svc-{self.service.name}-{label}", port, LOG_DIR).start()
+            w = Worker(self.service, f"lease-svc-{self.service.name}-{label}", port, LOG_DIR,
+                       env_transform=env_transform).start()
             self.workers[label] = w
         return w
+
+    def stop_workers(self) -> None:
+        for w in self.workers.values():
+            w.stop()
 
     def new_task(self) -> str:
         todo_id = db.clone_task(TEMPLATE_TODO, self.service.agent_orch)
@@ -162,6 +167,22 @@ def reclaim_run(harness: Harness, normal_run: Run) -> Run:
     run.samples.append(at_kill)
     run.killed_at, run.lease_at_kill = at_kill.at, at_kill.lease_until
     harness.worker("B")
+    harness.observe(run, ended(run))
+    return run
+
+
+@pytest.fixture(scope="module")
+def unfinished_run(harness: Harness, reclaim_run: Run) -> Run:
+    """실행기가 실패만 보고하고 반환하는 워커 C 가 작업 하나를 수행한다.
+
+    A·B 는 내린다. 살아 있으면 그쪽이 같은 작업을 집어 정상 경로로 끝낸다.
+    """
+    transform = harness.service.unfinished_env
+    if transform is None:
+        pytest.skip(f"{harness.service.name}: 실행기가 실패만 보고하고 반환하는 경로를 결정적으로 유도할 방법이 없다")
+    harness.stop_workers()
+    harness.worker("C", env_transform=transform)
+    run = Run(harness.new_task())
     harness.observe(run, ended(run))
     return run
 

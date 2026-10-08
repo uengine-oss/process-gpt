@@ -9,6 +9,8 @@ GIVEN/WHEN/THEN 은 그 시나리오의 문장 그대로다 — 스펙으로 옮
 
 from __future__ import annotations
 
+import time
+
 import pytest
 
 import db
@@ -142,3 +144,27 @@ def test_SVC_LEASE_06_만료_시한이_없는_기존_점유는_회수하지_않�
     assert (after.draft_status, after.consumer, after.lease_until, after.claim_count) == (
         before.draft_status, before.consumer, before.lease_until, before.claim_count
     )
+
+
+def test_SVC_LEASE_07_실행기가_실패만_보고하고_반환해도_종결된다(unfinished_run: Run):
+    """
+    GIVEN 워커가 작업을 점유해 수행했다
+    WHEN  실행기가 예외 없이, 실패 상태만 보고하고(결과 없이) 반환한다
+    THEN  작업은 FAILED 로 종결된다 — 점유만 풀린 STARTED 로 남지 않는다
+    AND   만료 시한과 점유자가 비워진다
+    AND   그 작업에 완료 이벤트(crew_completed)가 기록되지 않는다
+    AND   실패를 알리는 오류 이벤트(error)가 남는다
+    """
+    last = unfinished_run.last
+    assert last.draft_status == "FAILED", (
+        f"실패를 보고하고 끝난 실행이 종결되지 않았다: {last}. 아무도 다시 집지 않는 고아다"
+    )
+    assert last.lease_until is None
+    assert last.consumer == ""
+    # 이벤트는 비동기로 묶어 저장된다(묶음이 거절되면 재시도 뒤 한 건씩). 행이 종결된
+    # 시점에 아직 쓰는 중일 수 있으므로 기다린다.
+    deadline = time.monotonic() + 30
+    while db.event_count(unfinished_run.todo_id, "error") == 0 and time.monotonic() < deadline:
+        time.sleep(1)
+    assert db.event_count(unfinished_run.todo_id, "error") >= 1, "실패 이유를 알리는 오류 이벤트가 없다"
+    assert db.event_count(unfinished_run.todo_id, "crew_completed") == 0, "실패한 실행이 완료로 표시됐다"

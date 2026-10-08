@@ -61,6 +61,9 @@ class Service:
     env: Callable[[str, int], dict[str, str]]
     #: 실행에 꼭 필요한데 없으면 테스트를 건너뛸 항목(이유 문자열). 없으면 빈 목록.
     missing: Callable[[], list[str]] = field(default=lambda: [])
+    #: 실행기가 "실패만 보고하고 반환" 하게 만드는 워커 환경 변환(SVC-LEASE-07).
+    #: 그 경로를 결정적으로 유도할 방법이 없는 서비스는 None.
+    unfinished_env: Callable[[dict[str, str]], dict[str, str]] | None = None
 
 
 def _common(consumer: str, port: int) -> dict[str, str]:
@@ -105,6 +108,10 @@ def deepagents() -> Service:
     )
 
 
+_CLAUDE_CREDENTIALS = ("ANTHROPIC_BASE_URL", "ANTHROPIC_AUTH_TOKEN", "ANTHROPIC_API_KEY",
+                       "CLAUDE_CODE_OAUTH_TOKEN", "ANTHROPIC_MODEL", "ANTHROPIC_SMALL_FAST_MODEL")
+
+
 def cliagents() -> Service:
     root = _root("LEASE_SVC_CLIAGENT_DIR", "process-gpt-cli-agent")
     py = _python(root, "LEASE_SVC_CLIAGENT_PYTHON")
@@ -121,14 +128,21 @@ def cliagents() -> Service:
         }
         # CLI 의 자격증명. cli-agent 는 실행마다 설정 폴더를 바꾸므로 로컬 로그인은
         # 보이지 않는다 — 환경변수로 넘겨야 한다.
-        for key in ("ANTHROPIC_BASE_URL", "ANTHROPIC_AUTH_TOKEN", "ANTHROPIC_API_KEY",
-                    "CLAUDE_CODE_OAUTH_TOKEN", "ANTHROPIC_MODEL", "ANTHROPIC_SMALL_FAST_MODEL"):
+        for key in _CLAUDE_CREDENTIALS:
             if conf(key):
                 e[key] = conf(key)
         return e
 
+    def without_credentials(e: dict[str, str]) -> dict[str, str]:
+        # 자격증명이 없으면 claude CLI 는 "Not logged in" 을 내고 바로 끝난다. 그 답은
+        # 출력 계약(폼 JSON)에 맞지 않으므로 실행기는 실패 상태만 보내고 반환한다.
+        for key in _CLAUDE_CREDENTIALS:
+            e.pop(key, None)
+        return e
+
     return Service(
         name="cliagents", agent_orch="cliagents", cwd=root, argv=[py, "server.py"], env=env,
+        unfinished_env=without_credentials,
         missing=lambda: _need(
             (Path(py).exists(), f"python 없음: {py} (uv venv && uv pip install -r requirements.txt)"),
             (bool(conf("SUPABASE_KEY")), "SUPABASE_KEY 없음"),
@@ -186,8 +200,10 @@ class Worker:
     프로세스 하나만 죽이면 CLI 자식 프로세스가 고아로 남아 계속 돈다.
     """
 
-    def __init__(self, service: Service, consumer: str, port: int, log_dir: Path):
+    def __init__(self, service: Service, consumer: str, port: int, log_dir: Path,
+                 env_transform: Callable[[dict[str, str]], dict[str, str]] | None = None):
         self.service = service
+        self.env_transform = env_transform
         self.consumer = consumer
         self.port = port
         self.log_path = log_dir / f"{service.name}-{consumer}.log"
@@ -195,6 +211,8 @@ class Worker:
 
     def start(self, ready_timeout: float = 120.0) -> "Worker":
         env = {**os.environ, **self.service.env(self.consumer, self.port)}
+        if self.env_transform:
+            env = self.env_transform(env)
         log = open(self.log_path, "ab")
         self.proc = subprocess.Popen(
             self.service.argv, cwd=self.service.cwd, env=env,
