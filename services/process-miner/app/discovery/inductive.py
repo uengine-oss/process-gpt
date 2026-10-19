@@ -2,7 +2,9 @@
 
 의존성 없는 자체 구현. 표준 IM 순서대로 컷을 시도한다:
     base case → 배타 선택(XOR) → 순차(SEQ) → 병렬(AND) → 반복(LOOP)
-어떤 컷도 못 찾으면 fallback 으로 XOR 묶음을 만든다(구조는 건전하게 유지).
+컷을 찾으면 로그도 그 컷대로 나눠(하위 로그) 각 부분을 다시 도출한다.
+어떤 컷도 못 찾으면 표준 IM 처럼 순서 없는 반복(flower, ⟲(τ, a, b, …))으로 둔다 —
+"이 중 하나만 한다" 는 배타 관계는 로그에 근거가 없으므로 만들지 않는다.
 
 pm4py 대신 직접 구현한 이유: pm4py 는 GPLv3 라 상용 배포에 라이선스 검토가 필요하다.
 """
@@ -172,28 +174,42 @@ def _and_cut(activities: set[str], dfg: Dfg) -> list[set[str]] | None:
 
 
 def _loop_cut(activities: set[str], dfg: Dfg) -> list[set[str]] | None:
-    """본체(시작·종료를 품은 부분) + 되돌아가는 부분으로 나눈다."""
+    """본체(시작·종료 활동을 품은 부분) + 되돌아가는 부분(redo)으로 나눈다.
+
+    표준 IM 의 반복 컷이다. 시작·종료 활동을 본체로 두고, 나머지를 연결 요소로 나눈 뒤
+    redo 가 될 수 없는 요소를 본체로 합친다. redo 는
+      - 종료 활동에서만 들어가고(모든 종료 활동에서 들어가야 한다)
+      - 시작 활동으로만 돌아와야 한다(모든 시작 활동으로 돌아와야 한다).
+    예) 작성 → 검토 → 수정 → 검토 → 승인 의 {검토, 수정} 에서는 본체 = 검토, redo = 수정.
+    """
     starts = set(dfg.starts) & activities
     ends = set(dfg.ends) & activities
     if not starts or not ends:
         return None
+    edges = {(a, b) for (a, b) in dfg.edges if a in activities and b in activities}
 
-    body = set(starts) | set(ends)
-    # 시작에서 정방향으로 닿고, 종료로도 닿는 활동은 본체에 속한다
-    reach = _reachability(activities, dfg)
-    for a in activities:
-        if any(a in reach[s] for s in starts) and any(e in reach[a] for e in ends):
-            body.add(a)
+    body = starts | ends
+    comps = _undirected_components(activities - body, dfg)
+    changed = True
+    while changed:
+        changed = False
+        for c in list(comps):
+            entered_from = {a for (a, b) in edges if b in c and a not in c}
+            exits_to = {b for (a, b) in edges if a in c and b not in c}
+            ok = entered_from <= ends and exits_to <= starts
+            # 완전성: 한 종료 활동에서 들어가면 모든 종료 활동에서, 한 시작 활동으로 돌아오면 모든 시작 활동으로
+            for x in c:
+                src = {a for a in ends if (a, x) in edges}
+                dst = {b for b in starts if (x, b) in edges}
+                if (src and src != ends) or (dst and dst != starts):
+                    ok = False
+            if not ok:
+                body |= c
+                comps.remove(c)
+                changed = True
     redo = activities - body
-    if not redo or not body:
+    if not redo:
         return None
-
-    # redo 는 본체의 종료에서만 들어가고 본체의 시작으로만 돌아와야 한다
-    for (a, b) in dfg.edges:
-        if a in body and b in redo and a not in ends:
-            return None
-        if a in redo and b in body and b not in starts:
-            return None
     return [body, redo]
 
 
@@ -201,10 +217,12 @@ def _loop_cut(activities: set[str], dfg: Dfg) -> list[set[str]] | None:
 # 메인
 # ---------------------------------------------------------------------------
 def _make_optional(child: Node, part: set[str], traces: list[list[str]] | None) -> Node:
-    """모든 케이스에 나타나지 않는 구간은 건너뛸 수 있게 xor(구간, τ) 로 감싼다.
+    """이 하위 로그의 모든 케이스에 나타나지 않는 구간은 건너뛸 수 있게 xor(구간, τ) 로 감싼다.
 
     이걸 안 하면 8건 중 3건에만 있던 '견적 재산출' 이 순차 단계로 굳어져
     모든 케이스가 그 단계를 반드시 거치는 모델이 나온다(= 로그와 안 맞는 모델).
+    traces 는 전체 로그가 아니라 지금 도출 중인 부분의 하위 로그여야 한다 —
+    배타 분기의 한 갈래에서 늘 하는 단계는 그 갈래의 케이스만으로 세야 필수로 남는다.
     """
     if not traces:
         return child
@@ -214,18 +232,100 @@ def _make_optional(child: Node, part: set[str], traces: list[list[str]] | None) 
     return Node(XOR, children=[child, tau()])
 
 
+def _flower(acts: set[str]) -> Node:
+    """순서를 주장하지 않는 반복 ⟲(τ, a, b, …). 컷을 못 찾았을 때의 표준 대안."""
+    return Node(LOOP, children=[tau(), flatten(Node(XOR, children=[act(a) for a in sorted(acts)]))])
+
+
+def _project(traces: list[list[str]], part: set[str]) -> list[list[str]]:
+    return [[a for a in t if a in part] for t in traces]
+
+
+def _segments(traces: list[list[str]], part: set[str]) -> list[list[str]]:
+    """반복 컷용 로그 분할: 각 케이스에서 part 에 속한 활동이 연달아 나온 구간들."""
+    out: list[list[str]] = []
+    for t in traces:
+        run: list[str] = []
+        for a in t:
+            if a in part:
+                run.append(a)
+            elif run:
+                out.append(run)
+                run = []
+        if run:
+            out.append(run)
+    return out
+
+
+def _split_log(kind: str, parts: list[set[str]], traces: list[list[str]]) -> list[list[list[str]]]:
+    """컷에 맞춰 로그를 부분별 하위 로그로 나눈다."""
+    if kind == XOR:
+        # 각 케이스는 자기 활동이 속한 갈래에만 간다
+        return [[[a for a in t if a in p] for t in traces if p & set(t)] for p in parts]
+    if kind == LOOP:
+        return [_segments(traces, p) for p in parts]
+    return [_project(traces, p) for p in parts]
+
+
+def _discover_log(
+    traces: list[list[str]],
+    min_freq: int,
+    dependency_threshold: float,
+    depth: int,
+) -> Node:
+    """하위 로그 하나에서 트리를 도출한다(표준 IM 재귀)."""
+    from .dfg import build_dfg, filter_noise
+
+    traces = [t for t in traces if t]
+    acts = {a for t in traces for a in t}
+    if not acts:
+        return tau()
+    if len(acts) == 1:
+        only = next(iter(acts))
+        # 한 케이스 안에서 여러 번 나오면 반복으로 표현한다
+        if any(len(t) > 1 for t in traces):
+            return Node(LOOP, children=[act(only), tau()])
+        return act(only)
+    if depth > 24:  # 병리적 로그 방어
+        return _flower(acts)
+
+    dfg = filter_noise(build_dfg(traces), min_freq=min_freq, dependency_threshold=dependency_threshold)
+    for kind, finder in ((XOR, _xor_cut), (SEQ, _seq_cut), (AND, _and_cut), (LOOP, _loop_cut)):
+        parts = finder(acts, dfg)
+        if not parts:
+            continue
+        children = []
+        for p, sub_log in zip(parts, _split_log(kind, parts, traces)):
+            sub = _discover_log(sub_log, min_freq, dependency_threshold, depth + 1)
+            # 배타 분기는 갈래 자체가 선택이므로 다시 선택적으로 만들지 않는다
+            if kind in (SEQ, AND):
+                sub = _make_optional(sub, p, sub_log)
+            children.append(sub)
+        return flatten(Node(kind, children=children))
+
+    return _flower(acts)
+
+
 def discover(
     dfg: Dfg,
     activities: set[str] | None = None,
     traces: list[list[str]] | None = None,
     _depth: int = 0,
+    *,
+    min_freq: int = 1,
+    dependency_threshold: float = 0.0,
 ) -> Node:
     """DFG → 프로세스 트리.
 
-    traces 를 함께 주면 '모든 케이스에 등장하지는 않는 구간' 을 선택적으로 표현한다.
+    traces 를 주면 표준 IM 대로 컷마다 로그를 나눠 재귀한다. 선택적 단계 판정과
+    반복 판정이 하위 로그 기준으로 이뤄진다. traces 가 없으면 DFG 만으로 도출한다.
     """
-    acts = set(dfg.activities if activities is None else activities)
+    if traces is not None:
+        if activities is not None:
+            traces = _project(traces, set(activities))
+        return _discover_log(traces, min_freq, dependency_threshold, _depth)
 
+    acts = set(dfg.activities if activities is None else activities)
     if not acts:
         return tau()
     if len(acts) == 1:
@@ -235,27 +335,17 @@ def discover(
             return Node(LOOP, children=[act(only), tau()])
         return act(only)
     if _depth > 24:  # 병리적 로그 방어
-        return flatten(Node(XOR, children=[act(a) for a in sorted(acts)]))
+        return _flower(acts)
 
     for kind, finder in ((XOR, _xor_cut), (SEQ, _seq_cut), (AND, _and_cut), (LOOP, _loop_cut)):
         parts = finder(acts, dfg)
         if not parts:
             continue
-        children = []
-        for p in parts:
-            sub = discover(dfg.project(p), p, traces, _depth + 1)
-            # 배타 분기는 갈래 자체가 선택이므로 다시 선택적으로 만들지 않는다
-            if kind in (SEQ, AND):
-                sub = _make_optional(sub, p, traces)
-            children.append(sub)
+        children = [discover(dfg.project(p), p, None, _depth + 1) for p in parts]
         return flatten(Node(kind, children=children))
 
-    # 컷 없음 → 구조는 건전하게 두되 순서는 주장하지 않는다
-    return flatten(Node(XOR, children=[act(a) for a in sorted(acts)]))
+    return _flower(acts)
 
 
 def discover_from_traces(traces: list[list[str]], min_freq: int = 1, dependency_threshold: float = 0.0) -> Node:
-    from .dfg import build_dfg, filter_noise
-
-    dfg = filter_noise(build_dfg(traces), min_freq=min_freq, dependency_threshold=dependency_threshold)
-    return discover(dfg, traces=traces)
+    return _discover_log([list(t) for t in traces], min_freq, dependency_threshold, 0)

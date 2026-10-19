@@ -44,12 +44,14 @@ def open_process_pr(
 ) -> dict:
     """draft 버전 + PR 을 만들고 식별자를 돌려준다."""
     conn = db.connect()
-    version = db.next_mined_version(proc_def_id, tenant_id)
-    arcv_id = f"{proc_def_id}_{version}"
     description = "\n".join(_summary_lines(defn, stats))
     title = f"[마이닝] {proc_def_name}"
 
-    with conn.cursor() as cur:
+    with conn.transaction(), conn.cursor() as cur:
+        # 같은 정의에 대한 동시 제안이 같은 번호를 집지 않게 정의 단위로 잠근다
+        cur.execute("select pg_advisory_xact_lock(hashtext(%s))", (f"{tenant_id}:{proc_def_id}",))
+        version = db.next_mined_version(proc_def_id, tenant_id, cur)
+        arcv_id = f"{proc_def_id}_{version}"
         cur.execute(
             """
             insert into public.proc_def_version
@@ -75,7 +77,6 @@ def open_process_pr(
             (pr_id, tenant_id, proc_def_id, f"mined-v{version}", title, description, requesters),
         )
         pr = cur.fetchone()
-    conn.commit()
 
     return {
         "pr_id": pr["id"],

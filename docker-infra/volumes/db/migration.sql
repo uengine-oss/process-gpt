@@ -2590,7 +2590,7 @@ CREATE POLICY delegation_history_delete_policy ON public.delegation_history
 
 -- ============================================================================
 -- 핸드오버 이벤트 로그 (2026-08-12)
--- 상세 주석은 services/frontend/supabase/migrations/20260812_handover_events.sql 참고
+-- 상세 주석은 services/frontend/supabase/migrations/20261019000001_handover_events.sql 참고
 -- ============================================================================
 -- ============================================================================
 -- 핸드오버 이벤트 로그

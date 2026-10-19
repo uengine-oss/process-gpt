@@ -1,3 +1,5 @@
 psycopg[binary]>=3.1
 fastapi>=0.110
 uvicorn>=0.27
+# 요청자 JWT 검증과 테넌트 확인 — 에이전트 서비스들과 같은 규칙(tenant_auth)을 쓴다
+process-gpt-agent-sdk[auth]>=0.11.0

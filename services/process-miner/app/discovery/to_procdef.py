@@ -165,9 +165,13 @@ def _emit(node: Node, b: _Builder) -> tuple[str, str]:
         redo = node.children[1] if len(node.children) > 1 else None
         entry = b.add_gateway(XOR, "반복 진입")
         exit_gw = b.add_gateway(XOR, "반복 판정")
-        bin_, bout = _emit(body, b)
-        b.connect(entry, bin_)
-        b.connect(bout, exit_gw)
+        if body.kind == TAU:
+            # 순서 없는 반복 ⟲(τ, …): 본체가 비어 있으니 진입에서 판정으로 바로 잇는다
+            b.connect(entry, exit_gw)
+        else:
+            bin_, bout = _emit(body, b)
+            b.connect(entry, bin_)
+            b.connect(bout, exit_gw)
         if redo is not None and redo.kind != TAU:
             rin, rout = _emit(redo, b)
             b.connect(exit_gw, rin, condition="재수행")

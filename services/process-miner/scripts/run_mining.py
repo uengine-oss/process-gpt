@@ -3,7 +3,8 @@
 실행:
   cd services/process-miner
   ./.venv/bin/python scripts/run_mining.py --tenant localhost \
-      --process-id mined_quote_process --name "견적 처리 프로세스" [--dry-run] [--out result.json]
+      [--process-id mined_quote_process --name "견적 처리 프로세스"] [--dry-run] [--out result.json]
+  id·이름을 주지 않으면 도출 결과에서 정한다.
 """
 from __future__ import annotations
 
@@ -19,9 +20,9 @@ from app import miner  # noqa: E402
 
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--tenant", default="localhost")
-    ap.add_argument("--process-id", default="mined_quote_process")
-    ap.add_argument("--name", default="견적 처리 프로세스")
+    ap.add_argument("--tenant", required=True)
+    ap.add_argument("--process-id", default=None)
+    ap.add_argument("--name", default=None)
     ap.add_argument("--min-freq", type=int, default=1)
     ap.add_argument("--dry-run", action="store_true")
     ap.add_argument("--out", default=None)

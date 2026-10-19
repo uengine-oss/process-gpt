@@ -1,4 +1,4 @@
-"""process-miner 진입점. 실행: ./.venv/bin/python main.py (기본 :8014)"""
+"""process-miner 진입점. 실행: ./.venv/bin/python main.py (기본 :8015)"""
 import os
 import uvicorn
 
@@ -6,6 +6,6 @@ if __name__ == "__main__":
     uvicorn.run(
         "app.server:app",
         host=os.environ.get("HOST", "127.0.0.1"),
-        port=int(os.environ.get("PORT", "8014")),
+        port=int(os.environ.get("PORT", "8015")),
         log_level="info",
     )

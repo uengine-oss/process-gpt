@@ -17,7 +17,7 @@ from __future__ import annotations
 import math
 from collections import defaultdict
 
-from .eventlog import Event
+from .eventlog import Event, transfers
 
 
 def _cosine(a: dict[str, int], b: dict[str, int]) -> float:
@@ -32,7 +32,7 @@ def activity_profiles(events: list[Event]) -> dict[str, dict[str, int]]:
     """리소스별 '어떤 활동을 몇 번 했나' 벡터."""
     prof: dict[str, dict[str, int]] = defaultdict(lambda: defaultdict(int))
     for e in events:
-        if e.resource:
+        if e.resource and e.activity:
             prof[e.resource][e.activity] += 1
     return {r: dict(v) for r, v in prof.items()}
 
@@ -101,7 +101,7 @@ def activity_eligibility(events: list[Event]) -> list[dict]:
     agents: dict[str, bool] = {}
     roles: dict[str, str] = {}
     for e in events:
-        if not e.resource:
+        if not e.resource or not e.activity:
             continue
         by_act[e.activity][e.resource] += 1
         names[e.resource] = e.resource_name
@@ -134,18 +134,19 @@ def activity_eligibility(events: list[Event]) -> list[dict]:
 
 
 def handover_matrix(events: list[Event]) -> list[dict]:
-    """리소스 간 이관 빈도. 사람과 에이전트를 하나의 네트워크로 본다."""
-    by_case: dict[str, list[Event]] = defaultdict(list)
-    for e in events:
-        by_case[e.case_id].append(e)
+    """리소스 간 이관 빈도. 사람과 에이전트를 하나의 네트워크로 본다.
+
+    활동명이 없는 에이전트 위임도 이관이므로 함께 센다.
+    """
     counts: dict[tuple[str, str], int] = defaultdict(int)
     names: dict[str, str] = {}
-    for seq in by_case.values():
-        for a, b in zip(seq, seq[1:]):
-            if a.resource and b.resource and a.resource != b.resource:
-                counts[(a.resource, b.resource)] += 1
-                names[a.resource] = a.resource_name
-                names[b.resource] = b.resource_name
+    for e in events:
+        if e.resource:
+            names.setdefault(e.resource, e.resource_name)
+        if e.from_resource:
+            names.setdefault(e.from_resource, e.from_name or e.from_resource)
+    for _, a, b in transfers(events):
+        counts[(a, b)] += 1
     return [
         {"from": a, "from_name": names.get(a, a), "to": b, "to_name": names.get(b, b), "count": n}
         for (a, b), n in sorted(counts.items(), key=lambda kv: -kv[1])
