@@ -184,3 +184,13 @@ def test_agent_delegation_stays_out_of_control_flow():
     review = next(a for a in defn["activities"] if a["name"] == "견적 검토")
     assert review["role"] == "이팀장" and review["agent"] == ""
     assert all("계약서 초안" not in a["name"] for a in defn["activities"])
+
+
+def test_gateways_carry_their_structural_role():
+    """반복 판정 게이트웨이를 배타 분기로 읽어 그 뒤 단계를 '건너뛸 수 있음'으로 오인하지 않게 역할을 남긴다."""
+    import json
+
+    traces = [["작성", "검토", "승인"], ["작성", "검토", "수정", "검토", "승인"]] * 2
+    defn = to_process_definition(discover_from_traces(traces), process_id="p", process_name="p")
+    roles = {g["name"]: json.loads(g["properties"]).get("minedRole") for g in defn["gateways"]}
+    assert roles == {"반복 진입": "loop_entry", "반복 판정": "loop_exit"}

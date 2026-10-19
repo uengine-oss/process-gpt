@@ -110,7 +110,11 @@ class _Builder:
         self.activities.append(activity)
         return aid
 
-    def add_gateway(self, kind: str, name: str) -> str:
+    def add_gateway(self, kind: str, name: str, role: str = "") -> str:
+        """role 은 도출 구조에서 이 게이트웨이가 맡은 자리(choice · join · skip · loop_entry · loop_exit).
+
+        화면과 실행 전환이 이름으로 짐작하지 않고 구조를 읽게 properties 에 남긴다.
+        """
         gid = self._gw_id("exclusive" if kind == XOR else "parallel")
         self.gateways.append(
             {
@@ -120,7 +124,7 @@ class _Builder:
                 "type": "exclusiveGateway" if kind == XOR else "parallelGateway",
                 "process": "",
                 "conditionData": [],
-                "properties": "{}",
+                "properties": json.dumps({"minedRole": role}) if role else "{}",
                 "description": "",
             }
         )
@@ -135,7 +139,7 @@ def _emit(node: Node, b: _Builder) -> tuple[str, str]:
 
     if node.kind == TAU:
         # 보이지 않는 단계는 게이트웨이 사이를 잇는 통과점으로 표현한다
-        gid = b.add_gateway(XOR, "")
+        gid = b.add_gateway(XOR, "", "skip")
         return gid, gid
 
     if node.kind == SEQ:
@@ -150,8 +154,8 @@ def _emit(node: Node, b: _Builder) -> tuple[str, str]:
         return first_in, last_out
 
     if node.kind in (XOR, AND):
-        split = b.add_gateway(node.kind, "분기" if node.kind == XOR else "병렬 분기")
-        join = b.add_gateway(node.kind, "합류" if node.kind == XOR else "병렬 합류")
+        split = b.add_gateway(node.kind, "분기" if node.kind == XOR else "병렬 분기", "choice" if node.kind == XOR else "fork")
+        join = b.add_gateway(node.kind, "합류" if node.kind == XOR else "병렬 합류", "join")
         for i, child in enumerate(node.children):
             cin, cout = _emit(child, b)
             # 배타 분기는 각 갈래에 조건 자리를 남긴다(LLM 보강 단계에서 채운다)
@@ -163,8 +167,8 @@ def _emit(node: Node, b: _Builder) -> tuple[str, str]:
     if node.kind == LOOP:
         body = node.children[0]
         redo = node.children[1] if len(node.children) > 1 else None
-        entry = b.add_gateway(XOR, "반복 진입")
-        exit_gw = b.add_gateway(XOR, "반복 판정")
+        entry = b.add_gateway(XOR, "반복 진입", "loop_entry")
+        exit_gw = b.add_gateway(XOR, "반복 판정", "loop_exit")
         if body.kind == TAU:
             # 순서 없는 반복 ⟲(τ, …): 본체가 비어 있으니 진입에서 판정으로 바로 잇는다
             b.connect(entry, exit_gw)
