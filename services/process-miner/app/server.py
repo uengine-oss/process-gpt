@@ -10,7 +10,8 @@ handover_events 를 읽기만 하고, 제안은 proc_def_version(draft) + PR 로
   GET  /network          핸드오버 네트워크(리소스 간 이관 매트릭스)
   GET  /organization     조직 마이닝 — 역할 클러스터·활동별 자격·네트워크
   GET  /eligibility      특정 활동을 수행할 자격이 있는 사람(근거 건수 포함)
-  GET  /discovered       도출된 프로세스(정의 JSON 포함) — BPMN 모델러가 그대로 렌더
+  GET  /processes        업무 묶음 목록 — 서로 다른 업무를 갈라 묶음마다 도출한다
+  GET  /discovered       도출된 프로세스(정의 JSON 포함) — BPMN 모델러가 그대로 렌더. process_key 로 묶음 지정
   POST /mine             마이닝 실행(PR 생성). dry_run=true 면 제안만 계산
 """
 from __future__ import annotations
@@ -24,7 +25,7 @@ from fastapi import Depends, FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-from . import db, eventlog, miner, organizational
+from . import db, eventlog, grouping, miner, organizational
 
 
 @asynccontextmanager
@@ -119,9 +120,26 @@ def _thread_steps(rows: list[dict]) -> list[dict]:
 
 @app.get("/threads")
 def threads(tenant: str = Depends(tenant_scope), limit: int = 50):
-    """인계 스레드 묶음. 한 업무가 여러 방·담당자를 거쳐도 origin_room_id 로 한 줄기."""
+    """인계 스레드 묶음. 한 업무가 여러 방·담당자를 거쳐도 origin_room_id 로 한 줄기.
+
+    스레드마다 업무 묶음(process_key)을 붙인다. 끝난 스레드는 속한 묶음, 진행 중 스레드는 가장
+    가까운 묶음(표시용). 어디에도 가깝지 않으면 null.
+    """
+    rows = db.fetch_handover_events(tenant)
+    groups = miner.processes(rows, tenant)["processes"]
+    key_of: dict[str, str] = {}
+    for p in groups:
+        for c in p["cases"]:
+            key_of[c] = p["process_key"]
+    # 진행 중 스레드는 거친 단계가 가장 많이 겹치는 업무에 붙여 보인다(도출에는 넣지 않는다)
+    open_traces = eventlog.to_traces(eventlog.build_events(rows))
+    for c, t in open_traces.items():
+        if c not in key_of and t:
+            k = grouping.closest(t, groups)
+            if k:
+                key_of[c] = k
     grouped: dict[str, list[dict]] = defaultdict(list)
-    for r in db.fetch_handover_events(tenant):
+    for r in rows:
         key = r.get("origin_room_id") or r.get("case_id")
         if key:
             grouped[key].append(r)
@@ -129,7 +147,13 @@ def threads(tenant: str = Depends(tenant_scope), limit: int = 50):
     for k, rs in grouped.items():
         steps = _thread_steps(rs)
         out.append(
-            {"origin_room_id": k, "step_count": len(steps), "finished": eventlog.thread_finished(rs), "steps": steps}
+            {
+                "origin_room_id": k,
+                "step_count": len(steps),
+                "finished": eventlog.thread_finished(rs),
+                "process_key": key_of.get(k),
+                "steps": steps,
+            }
         )
     out.sort(key=lambda t: (-t["step_count"], t["origin_room_id"]))
     return {"count": len(out), "threads": out[:limit]}
@@ -178,15 +202,27 @@ def eligibility(activity: str = Query(...), tenant: str = Depends(tenant_scope))
     return {"activity": activity, "required_capability": activity, "observations": 0, "candidates": []}
 
 
+@app.get("/processes")
+def processes(tenant: str = Depends(tenant_scope)):
+    """업무 묶음 목록. 끝난 스레드를 거친 단계가 겹치는 것끼리 묶는다(grouping)."""
+    out = miner.processes(db.fetch_handover_events(tenant), tenant)
+    for p in out["processes"]:
+        p.pop("cases", None)
+    return out
+
+
 @app.get("/discovered")
 def discovered(
     tenant: str = Depends(tenant_scope),
     process_id: Optional[str] = Query(default=None),
     name: Optional[str] = Query(default=None),
+    process_key: Optional[str] = Query(default=None),
     min_freq: int = 1,
 ):
     """도출된 프로세스. definition 은 ProcessGPT 표준 형식이라 BPMN 모델러가 그대로 렌더한다."""
-    result = miner.run(tenant_id=tenant, process_id=process_id, process_name=name, min_freq=min_freq, dry_run=True)
+    result = miner.run(
+        tenant_id=tenant, process_id=process_id, process_name=name, min_freq=min_freq, dry_run=True, process_key=process_key
+    )
     if not result.get("ok"):
         raise HTTPException(status_code=422, detail=result.get("reason", "도출 실패"))
     return {
@@ -202,6 +238,7 @@ class MineRequest(BaseModel):
     name: Optional[str] = None
     min_freq: int = 1
     dry_run: bool = False
+    process_key: Optional[str] = None
 
 
 @app.post("/mine")
@@ -214,6 +251,7 @@ def mine(req: MineRequest, request: Request, tenant: str = Depends(tenant_scope)
         min_freq=req.min_freq,
         dry_run=req.dry_run,
         requester_id=getattr(request.state, "user_id", "") or None,
+        process_key=req.process_key,
     )
     if not result.get("ok"):
         raise HTTPException(status_code=422, detail=result.get("reason", "도출 실패"))
