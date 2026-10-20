@@ -20,7 +20,11 @@ MIN_CASE_LEN = 2
 
 
 def analyze(rows: list[dict], min_freq: int = 1) -> dict:
-    """이벤트 행들에서 프로세스를 도출한다(DB 쓰기 없음)."""
+    """이벤트 행들에서 프로세스를 도출한다(DB 쓰기 없음).
+
+    진행 중인 스레드는 뺀다. 넣으면 아직 하지 않은 뒤 단계가 '건너뛸 수 있는 단계' 로 읽힌다.
+    """
+    rows, open_cases = eventlog.finished_rows(rows)
     events = eventlog.build_events(rows)
     flow_events = eventlog.control_flow_events(events)
     traces_by_case = eventlog.to_traces(events)
@@ -30,6 +34,7 @@ def analyze(rows: list[dict], min_freq: int = 1) -> dict:
     variants = Counter(tuple(t) for t in traces)
     stats = {
         "dropped_short_cases": dropped,
+        "in_progress_cases": open_cases,
         "event_count": len(flow_events),
         "delegation_count": sum(1 for e in events if e.kind == eventlog.DELEGATION),
         "case_count": len(traces),

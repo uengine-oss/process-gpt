@@ -128,7 +128,9 @@ def threads(tenant: str = Depends(tenant_scope), limit: int = 50):
     out = []
     for k, rs in grouped.items():
         steps = _thread_steps(rs)
-        out.append({"origin_room_id": k, "step_count": len(steps), "steps": steps})
+        out.append(
+            {"origin_room_id": k, "step_count": len(steps), "finished": eventlog.thread_finished(rs), "steps": steps}
+        )
     out.sort(key=lambda t: (-t["step_count"], t["origin_room_id"]))
     return {"count": len(out), "threads": out[:limit]}
 

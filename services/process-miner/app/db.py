@@ -69,18 +69,24 @@ def query(sql: str, params: dict | tuple | None = None) -> list[dict]:
 
 
 def fetch_handover_events(tenant_id: str, limit: int = 5000) -> list[dict]:
-    """한 테넌트의 인계 기록. 테넌트 없이 부르면 거부한다(다른 테넌트 기록이 섞이지 않게)."""
+    """한 테넌트의 인계 기록. 테넌트 없이 부르면 거부한다(다른 테넌트 기록이 섞이지 않게).
+
+    받은 사람의 할 일 상태(to_task_status)를 함께 읽는다. 스레드가 끝났는지는
+    마지막으로 받은 할 일이 완료됐는지로 판단한다(eventlog.thread_finished).
+    """
     if not tenant_id or not str(tenant_id).strip():
         raise ValueError("tenant_id 가 필요합니다")
     sql = """
-        select id, tenant_id, case_id, origin_room_id, source, is_explicit,
-               from_user_id, from_user_name, from_is_agent,
-               to_user_id, to_user_name, to_is_agent, agent_orch,
-               activity_label, next_activity_label, norm_activity_label,
-               from_room_id, to_room_id, occurred_at, returned_at
-        from public.handover_events
-        where tenant_id = %(tenant)s::text
-        order by origin_room_id, occurred_at
+        select e.id, e.tenant_id, e.case_id, e.origin_room_id, e.source, e.is_explicit,
+               e.from_user_id, e.from_user_name, e.from_is_agent,
+               e.to_user_id, e.to_user_name, e.to_is_agent, e.agent_orch,
+               e.activity_label, e.next_activity_label, e.norm_activity_label,
+               e.from_room_id, e.to_room_id, e.to_task_id, e.occurred_at, e.returned_at,
+               e.closed_at, t.status as to_task_status
+        from public.handover_events e
+        left join public.todolist t on t.id = e.to_task_id
+        where e.tenant_id = %(tenant)s::text
+        order by e.origin_room_id, e.occurred_at
         limit %(limit)s
     """
     return query(sql, {"tenant": tenant_id, "limit": limit})

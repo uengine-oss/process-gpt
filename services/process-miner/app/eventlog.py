@@ -86,6 +86,53 @@ def pick_label(row: dict) -> str:
     return ""
 
 
+# 받은 할 일이 끝났다고 보는 상태. 에이전트는 SUBMITTED, 사람은 DONE 으로 끝낸다.
+DONE_STATUSES = {"DONE", "COMPLETED", "SUBMITTED"}
+
+
+def case_key(row: dict) -> str:
+    return row.get("origin_room_id") or row.get("case_id") or ""
+
+
+def thread_finished(rows: list[dict]) -> bool:
+    """한 스레드가 끝났는가.
+
+    마지막으로 받은 할 일이 완료돼야 끝난 건이다. 마지막 담당자는 더 넘기지 않으므로
+    '다음 인계가 없다' 로는 끝을 알 수 없다.
+
+    에이전트가 받은 할 일은 에이전트가 마치면 자동으로 완료되지만, 넘긴 사람이 그 방에
+    남아 결과를 다음 사람에게 이어 줄 수 있다. 그래서 마지막 인계가 에이전트에게 간
+    경우는 넘긴 사람이 '업무 종료' 를 눌러야(closed_at) 끝난 건이다.
+    명시적 인계가 없는 스레드(위임만 있는 방)는 기다릴 할 일이 없어 끝난 것으로 본다.
+    """
+    handovers = [r for r in rows if (r.get("source") or "") == "chat_handover"]
+    if not handovers:
+        return True
+    last = max(handovers, key=lambda r: str(r.get("occurred_at")))
+    if last.get("closed_at"):
+        return True
+    if last.get("to_is_agent"):
+        return False
+    return str(last.get("to_task_status") or "").upper() in DONE_STATUSES
+
+
+def finished_rows(rows: list[dict]) -> tuple[list[dict], int]:
+    """끝난 스레드의 행만 남긴다. (남긴 행, 진행 중이라 뺀 스레드 수)"""
+    by_case: dict[str, list[dict]] = defaultdict(list)
+    for r in rows:
+        key = case_key(r)
+        if key:
+            by_case[key].append(r)
+    kept: list[dict] = []
+    open_cases = 0
+    for case_rows in by_case.values():
+        if thread_finished(case_rows):
+            kept.extend(case_rows)
+        else:
+            open_cases += 1
+    return kept, open_cases
+
+
 # 첫 단계로 쓸 '지금까지 한 일' 을 믿을 수 있는 출처.
 # agent_delegation 의 activity_label 은 대화 원문이라 제외한다.
 _START_LABEL_SOURCES = {"chat_handover", "todolist"}

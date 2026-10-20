@@ -96,7 +96,8 @@ def _quote_threads(n=3, with_delegation=False, returned=False):
         rid, day = f"room{c}", f"2026-10-0{c + 1}"
         rows.append(dict(origin_room_id=rid, source="chat_handover", is_explicit=True,
                          from_user_id="kim", from_user_name="김주임", to_user_id="lee", to_user_name="이팀장",
-                         activity_label="견적서 작성", next_activity_label="견적 검토", occurred_at=f"{day}T09:00"))
+                         activity_label="견적서 작성", next_activity_label="견적 검토", occurred_at=f"{day}T09:00",
+                         to_task_status="DONE"))
         if with_delegation:
             rows.append(dict(origin_room_id=rid, source="agent_delegation", is_explicit=False,
                              from_user_id="lee", from_user_name="이팀장", to_user_id="legal-agent",
@@ -105,7 +106,8 @@ def _quote_threads(n=3, with_delegation=False, returned=False):
                              returned_at=f"{day}T10:05" if returned else None))
         rows.append(dict(origin_room_id=rid, source="chat_handover", is_explicit=True,
                          from_user_id="lee", from_user_name="이팀장", to_user_id="park", to_user_name="박대리",
-                         activity_label="견적 검토", next_activity_label="고객 발송", occurred_at=f"{day}T11:00"))
+                         activity_label="견적 검토", next_activity_label="고객 발송", occurred_at=f"{day}T11:00",
+                         to_task_status="DONE"))
     return rows
 
 
@@ -148,7 +150,8 @@ def test_delegation_before_the_first_handover_belongs_to_the_starting_step():
                          activity_label="견적서 초안 만들어줘", occurred_at=f"{day}T08:00"))
         rows.append(dict(origin_room_id=rid, source="chat_handover", from_user_id="kim", from_user_name="김주임",
                          to_user_id="lee", to_user_name="이팀장", activity_label="견적서 작성",
-                         next_activity_label="견적 검토", occurred_at=f"{day}T09:00"))
+                         next_activity_label="견적 검토", occurred_at=f"{day}T09:00",
+                         to_task_status="DONE"))
     r = miner.analyze(rows)
     assert r["stats"]["variants"] == [{"trace": ["견적서 작성", "견적 검토"], "count": 3}]
     el = {e["activity"]: e for e in organizational.activity_eligibility(eventlog.build_events(rows))}
