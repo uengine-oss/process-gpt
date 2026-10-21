@@ -12,7 +12,7 @@ handover_events 를 읽기만 하고, 제안은 proc_def_version(draft) + PR 로
   GET  /eligibility      특정 활동을 수행할 자격이 있는 사람(근거 건수 포함)
   GET  /processes        업무 묶음 목록 — 서로 다른 업무를 갈라 묶음마다 도출한다
   GET  /discovered       도출된 프로세스(정의 JSON 포함) — BPMN 모델러가 그대로 렌더. process_key 로 묶음 지정
-  POST /mine             마이닝 실행(PR 생성). dry_run=true 면 제안만 계산
+  POST /mine             도출 결과(dry_run=true 만). 제안은 식별 화면이 버전 저장 → 병합 요청으로 만든다
 """
 from __future__ import annotations
 
@@ -220,9 +220,7 @@ def discovered(
     min_freq: int = 1,
 ):
     """도출된 프로세스. definition 은 ProcessGPT 표준 형식이라 BPMN 모델러가 그대로 렌더한다."""
-    result = miner.run(
-        tenant_id=tenant, process_id=process_id, process_name=name, min_freq=min_freq, dry_run=True, process_key=process_key
-    )
+    result = miner.run(tenant_id=tenant, process_id=process_id, process_name=name, min_freq=min_freq, process_key=process_key)
     if not result.get("ok"):
         raise HTTPException(status_code=422, detail=result.get("reason", "도출 실패"))
     return {
@@ -237,20 +235,29 @@ class MineRequest(BaseModel):
     process_id: Optional[str] = None
     name: Optional[str] = None
     min_freq: int = 1
-    dry_run: bool = False
+    # 도출만 한다. false 로 보내면 거절한다(제안은 식별 화면이 만든다)
+    dry_run: bool = True
     process_key: Optional[str] = None
 
 
 @app.post("/mine")
-def mine(req: MineRequest, request: Request, tenant: str = Depends(tenant_scope)):
-    """마이닝 실행. dry_run=false 면 draft 버전 + PR 을 만든다(살아있는 proc_def 는 안 건드림)."""
+def mine(req: MineRequest, tenant: str = Depends(tenant_scope)):
+    """도출만 돌려준다. 제안을 직접 쓰는 요청(dry_run=false)은 거절한다.
+
+    제안은 식별 화면이 프로세스 편집기와 같은 "버전 저장 → 병합 요청" 경로로 만든다
+    (BPMN 스냅샷 · v0.x 브랜치 · 담당자 소유). 여기서 쓰면 병합함에서 검토·병합할 수 없는
+    다른 모양이 된다.
+    """
+    if not req.dry_run:
+        raise HTTPException(
+            status_code=410,
+            detail="제안은 프로세스 식별 화면의 '새 프로세스로 제안'에서 만듭니다(버전 저장 → 병합 요청).",
+        )
     result = miner.run(
         tenant_id=tenant,
         process_id=req.process_id,
         process_name=req.name,
         min_freq=req.min_freq,
-        dry_run=req.dry_run,
-        requester_id=getattr(request.state, "user_id", "") or None,
         process_key=req.process_key,
     )
     if not result.get("ok"):

@@ -1,13 +1,13 @@
 """마이닝 파이프라인 오케스트레이션.
 
-handover_events → 이벤트 로그 → DFG → 프로세스 트리 → proc_def JSON → PR.
+handover_events → 이벤트 로그 → DFG → 프로세스 트리 → proc_def JSON. 제안(PR)은 식별 화면이 만든다.
 LLM 은 쓰지 않는다(결정론적). 활동명 정규화·게이트웨이 조건 보강은 후속 단계의 몫.
 """
 from __future__ import annotations
 
 from collections import Counter
 
-from . import db, eventlog, grouping, proposal
+from . import db, eventlog, grouping
 from .discovery.inductive import discover_from_traces
 from .discovery.to_procdef import to_process_definition, validate_definition
 
@@ -117,11 +117,14 @@ def run(
     process_id: str | None = None,
     process_name: str | None = None,
     min_freq: int = 1,
-    dry_run: bool = False,
-    requester_id: str | None = None,
     process_key: str | None = None,
 ) -> dict:
-    """전체 파이프라인. dry_run 이면 PR 을 만들지 않는다."""
+    """도출 파이프라인. DB 에 쓰지 않는다.
+
+    제안(새 프로세스 정의 · 버전 · 병합 요청)은 식별 화면이 프로세스 편집기와 같은
+    "버전 저장 → 병합 요청" 경로로 만든다. 마이너가 따로 쓰면 BPMN 스냅샷 · 버전 이름 ·
+    소유자가 빠진 다른 모양이 되어 병합함·변경사항·병합이 동작하지 않았다.
+    """
     rows = db.fetch_handover_events(tenant_id)
     result = analyze(rows, min_freq=min_freq, process_key=process_key, tenant_id=tenant_id)
     if not result["ok"]:
@@ -133,18 +136,4 @@ def run(
     defn, problems = build_definition(result, process_id=process_id, process_name=process_name)
     if problems:
         return {"ok": False, "reason": "도출된 정의가 계약 검증에 실패했습니다", "problems": problems, "stats": result["stats"]}
-
-    out = {"ok": True, "stats": result["stats"], "definition": defn, "tree": result["tree"]}
-    if dry_run:
-        out["pr"] = None
-        return out
-
-    out["pr"] = proposal.open_process_pr(
-        defn=defn,
-        tenant_id=tenant_id,
-        proc_def_id=process_id,
-        proc_def_name=process_name,
-        stats=result["stats"],
-        requester_id=requester_id,
-    )
-    return out
+    return {"ok": True, "stats": result["stats"], "definition": defn, "tree": result["tree"]}

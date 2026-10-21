@@ -111,3 +111,11 @@ def test_failed_query_does_not_poison_the_next_request():
     assert db.query("select 1 as ok") == [{"ok": 1}]
     conn = db.connect()
     assert conn.info.transaction_status == psycopg.pq.TransactionStatus.IDLE
+
+
+def test_mine_does_not_write_proposals(monkeypatch, fetched):
+    """제안은 식별 화면이 버전 저장 → 병합 요청으로 만든다. 마이너가 쓰면 병합함에서 다룰 수 없는 모양이 된다."""
+    monkeypatch.setenv("MINER_AUTH", "off")
+    res = TestClient(server.app).post("/mine", json={"tenant_id": "acme", "dry_run": False})
+    assert res.status_code == 410
+    assert "새 프로세스로 제안" in res.json()["detail"]

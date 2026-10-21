@@ -3,8 +3,8 @@
 실행:
   cd services/process-miner
   ./.venv/bin/python scripts/run_mining.py --tenant localhost \
-      [--process-id mined_quote_process --name "견적 처리 프로세스"] [--dry-run] [--out result.json]
-  id·이름을 주지 않으면 도출 결과에서 정한다.
+      [--process-id mined_quote_process --name "견적 처리 프로세스"] [--process-key mined_xxx] [--out result.json]
+  id·이름을 주지 않으면 도출 결과에서 정한다. 도출만 한다 — 제안은 식별 화면에서 만든다.
 """
 from __future__ import annotations
 
@@ -24,7 +24,7 @@ def main() -> int:
     ap.add_argument("--process-id", default=None)
     ap.add_argument("--name", default=None)
     ap.add_argument("--min-freq", type=int, default=1)
-    ap.add_argument("--dry-run", action="store_true")
+    ap.add_argument("--process-key", default=None)
     ap.add_argument("--out", default=None)
     args = ap.parse_args()
 
@@ -33,7 +33,7 @@ def main() -> int:
         process_id=args.process_id,
         process_name=args.name,
         min_freq=args.min_freq,
-        dry_run=args.dry_run,
+        process_key=args.process_key,
     )
 
     if not result.get("ok"):
@@ -55,10 +55,6 @@ def main() -> int:
     for a in defn["activities"]:
         tag = f"  [{a['agent']} · {a['orchestration']} · {a['agentMode']}]" if a.get("agent") else ""
         print(f"  - {a['name']}  (역할: {a['role']}){tag}")
-
-    if result.get("pr"):
-        pr = result["pr"]
-        print(f"\nPR 생성됨: {pr['title']}  (id={pr['pr_id']}, version={pr['version']})")
 
     if args.out:
         payload = {k: v for k, v in result.items() if k != "tree_node"}

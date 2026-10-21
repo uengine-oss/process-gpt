@@ -1,8 +1,7 @@
 """ProcessGPT 공유 DB(supabase-db) 직접 접속.
 
 instance-classifier 의 접속 패턴을 따른다. 이 서비스는 handover_events / todolist 를
-읽고, proc_def_version(draft) 과 resource_pull_requests 에 제안을 쓴다.
-살아 있는 proc_def 는 절대 건드리지 않는다 — 승인은 사람의 몫이다.
+읽기만 한다. 제안(정의 · 버전 · 병합 요청)은 식별 화면이 만든다.
 """
 from __future__ import annotations
 
@@ -90,20 +89,3 @@ def fetch_handover_events(tenant_id: str, limit: int = 5000) -> list[dict]:
         limit %(limit)s
     """
     return query(sql, {"tenant": tenant_id, "limit": limit})
-
-
-def next_mined_version(proc_def_id: str, tenant_id: str, cur=None) -> str:
-    """이미 있는 마이닝 제안 다음 번호. 개수가 아니라 가장 큰 번호 다음을 쓴다."""
-    sql = "select version from public.proc_def_version where proc_def_id = %s and tenant_id = %s"
-    if cur is not None:
-        cur.execute(sql, (proc_def_id, tenant_id))
-        rows = cur.fetchall()
-    else:
-        rows = query(sql, (proc_def_id, tenant_id))
-    highest = 0
-    for r in rows:
-        v = str(r.get("version") or "")
-        major, _, minor = v.partition(".")
-        if major == "0" and minor.isdigit():
-            highest = max(highest, int(minor))
-    return f"0.{highest + 1}"
