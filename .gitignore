@@ -52,3 +52,6 @@ _private/
 demo-recordings/
 docker-infra/volumes/db/data/
 __pycache__/
+
+# docker-infra 로컬 Supabase 데이터 (컨테이너가 만든다)
+docker-infra/volumes/db/data/
