@@ -67,3 +67,6 @@
 [submodule "services/sample-app-wms"]
 	path = services/sample-app-wms
 	url = https://github.com/uengine-oss/process-gpt-sample-app-wms.git
+[submodule "services/office-host"]
+	path = services/office-host
+	url = https://github.com/uengine-oss/process-gpt-office-host.git

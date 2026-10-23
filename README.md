@@ -126,6 +126,7 @@ Maintained by **uEngine Solutions** · learning@uengine.org
 * **bpmn-extractor** (ProcessGPT BPMN extractor from PDFs): [GitHub](https://github.com/uengine-oss/process-gpt-bpmn-extractor)
 * **computer-use**: [GitHub](https://github.com/uengine-oss/process-gpt-computer-use)
 * **office-mcp**: [GitHub](https://github.com/uengine-oss/process-gpt-office-mcp)
+* **office-host** (Document editor backend — IeumOffice editors for HWP/Word/Excel/PowerPoint/PDF in original format, editing MCP for agents): [GitHub](https://github.com/uengine-oss/process-gpt-office-host)
 * **analytic** [GitHub](https://github.com/uengine-oss/process-gpt-analytic)
 * **strategy** [GitHub](https://github.com/uengine-oss/process-gpt-strategy)
 * **instance-classifier** [GitHub](https://github.com/uengine-oss/process-gpt-instance-classifier)
@@ -213,6 +214,7 @@ process-gpt/
     ├── deep-research/
     ├── openai-deep-research/
     ├── office-mcp/
+    ├── office-host/               # process-gpt-office-host (document editor backend)
     ├── analytic/
     ├── instance-classifier/
     ├── strategy/
