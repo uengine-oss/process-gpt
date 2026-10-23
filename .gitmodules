@@ -76,3 +76,6 @@
 [submodule "services/cli-agent"]
 	path = services/cli-agent
 	url = https://github.com/uengine-oss/process-gpt-cli-agent.git
+[submodule "services/office-host"]
+	path = services/office-host
+	url = https://github.com/uengine-oss/process-gpt-office-host.git
