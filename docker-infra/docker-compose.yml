@@ -23,12 +23,16 @@ services:
       - "${LITELLM_PORT:-4000}:4000"
     volumes:
       - ./litellm_config.yaml:/app/config.yaml
+      - ./litellm/callbacks:/app/callbacks:ro
     command: [ "--config", "/app/config.yaml", "--port", "4000", "--num_workers", "${LITELLM_NUM_WORKERS:-1}" ]
     env_file: .env
     environment:
       DATABASE_URL: postgresql://litellm:${LITELLM_DB_PASSWORD:-litellm}@litellm-db:5432/litellm
       EMBEDDING_BASE_URL: https://openrouter.ai/api/v1
       OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      # 관측 콜백이 상관키를 실어 보낼 곳
+      PYTHONPATH: /app
+      MCP_HUB_URL: http://mcp-hub:8500
     depends_on:
       litellm-db:
         condition: service_healthy
@@ -39,6 +43,37 @@ services:
       timeout: 10s
       retries: 3
       start_period: 20s
+
+  # ── MCP 허브 ──────────────────────────────────────────────────
+  # MCP 서버 등록·버전·권한·헬스·관측을 소유한다. 엔진(completion,
+  # deepagents, cli-agent)은 /agents/{id}/tools 단일 게이트로만 툴을 받고,
+  # LiteLLM 콜백은 /ingest/llm-calls 로 LLM 스팬을 보낸다.
+  mcp-hub:
+    build:
+      context: ../services/mcp-hub
+    ports:
+      - "${MCP_HUB_PORT:-8500}:8500"
+    environment:
+      PROCESSGPT_DB_URL: postgresql://postgres:${POSTGRES_PASSWORD}@${POSTGRES_HOST:-db}:5432/${POSTGRES_DB:-postgres}
+      MCP_VALIDATOR_URL: http://mcp-validator:8000
+      MCP_HEALTH_INTERVAL_SEC: ${MCP_HEALTH_INTERVAL_SEC:-300}
+      MCP_REGISTRY_URL: ${MCP_REGISTRY_URL:-https://registry.modelcontextprotocol.io}
+    depends_on:
+      db:
+        condition: service_healthy
+      mcp-validator:
+        condition: service_started
+    restart: unless-stopped
+
+  # 연결 검증과 tools/list 를 담당한다. stdio MCP 서버를 spawn 하는 쪽을
+  # 이 컨테이너에 가둬 허브를 깨끗하게 유지한다.
+  mcp-validator:
+    build:
+      context: ../services/mcp-validator
+      dockerfile: ../../docker-infra/mcp-validator/Dockerfile
+    expose:
+      - "8000"
+    restart: unless-stopped
 
   age-postgres:
     # strategy(온톨로지 그래프)와 bpmn-extractor(pdf2bpmn 프로세스 그래프)가
@@ -370,6 +405,48 @@ services:
       - neo4j-import:/var/lib/neo4j/import
       - neo4j-plugins:/plugins
 
+  # The n8n backend, upstream and unmodified: it owns workflow storage, the
+  # credential vault and the editor. ProcessGPT reads workflows from it and
+  # runs them itself (services/n8n-agent), so a busy editor never competes
+  # with work item execution.
+  n8n:
+    container_name: n8n
+    image: ${N8N_IMAGE:-n8nio/n8n:1.14.1}
+    restart: unless-stopped
+    ports:
+      - "${N8N_PORT:-5678}:5678"
+    environment:
+      # Served under the gateway prefix the browser uses, so the editor builds
+      # its own asset and websocket URLs correctly behind the proxy.
+      N8N_PATH: /process-gpt-n8n/
+      N8N_PORT: 5678
+      N8N_HOST: ${N8N_HOST:-localhost}
+      WEBHOOK_URL: ${N8N_WEBHOOK_URL:-http://localhost/process-gpt-n8n/}
+      GENERIC_TIMEZONE: ${GENERIC_TIMEZONE:-Asia/Seoul}
+      N8N_ENCRYPTION_KEY: ${N8N_ENCRYPTION_KEY:-processgpt-dev-key}
+      # ProcessGPT is the authentication boundary; a second login in front of
+      # an embedded canvas is a dead end for the user, not a protection.
+      N8N_BASIC_AUTH_ACTIVE: "false"
+      # No second login in front of an embedded canvas: the user already
+      # authenticated to ProcessGPT, and n8n's own sign-in would be a dead end
+      # inside the studio iframe. Reachable only through the gateway, which
+      # enforces ProcessGPT's session.
+      N8N_USER_MANAGEMENT_DISABLED: "true"
+      N8N_DIAGNOSTICS_ENABLED: "false"
+      N8N_PUBLIC_API_DISABLED: "false"
+      # Shares the Supabase Postgres, in its own schema.
+      DB_TYPE: postgresdb
+      DB_POSTGRESDB_HOST: db
+      DB_POSTGRESDB_PORT: 5432
+      DB_POSTGRESDB_DATABASE: ${POSTGRES_DB}
+      DB_POSTGRESDB_USER: ${POSTGRES_USER:-postgres}
+      DB_POSTGRESDB_PASSWORD: ${POSTGRES_PASSWORD}
+      DB_POSTGRESDB_SCHEMA: n8n
+    depends_on:
+      - db
+    volumes:
+      - n8n-data:/home/node/.n8n
+
 volumes:
   litellm-db-data:
   db-config:
@@ -379,3 +456,4 @@ volumes:
   neo4j-logs:
   neo4j-import:
   neo4j-plugins:
+  n8n-data:

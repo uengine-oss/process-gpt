@@ -37,6 +37,11 @@ model_list: []
 litellm_settings:
   drop_params: true
   set_verbose: false
+  # Process GPT 관측 콜백. 모든 LLM 호출이 이 프록시를 지나므로,
+  # 여기서 상관키(trace_id/proc_inst_id/todo_id)를 뽑아 mcp-hub 로 넘기면
+  # MCP 스팬과 LLM 스팬이 한 줄로 이어진다.
+  # 끄려면 이 줄을 주석 처리한다.
+  callbacks: callbacks.processgpt_callback.processgpt_handler
   # Upstream가 순간적으로 `Connection refused`를 주는 경우
   # completion 호출 자체를 더 자주 재시도해서 500을 줄입니다.
   num_retries: 6

@@ -2636,3 +2636,1059 @@ CREATE INDEX IF NOT EXISTS idx_events_proc_inst_id ON public.events (proc_inst_i
 CREATE INDEX IF NOT EXISTS idx_events_todo_id ON public.events (todo_id);
 CREATE INDEX IF NOT EXISTS idx_events_tenant_id ON public.events (tenant_id);
 CREATE INDEX IF NOT EXISTS idx_events_event_type ON public.events (event_type);
+
+
+-- ============================================================================
+-- 핸드오버 이벤트 로그 (2026-08-12)
+-- 상세 주석은 services/frontend/supabase/migrations/20260812_handover_events.sql 참고
+-- ============================================================================
+-- ============================================================================
+-- 핸드오버 이벤트 로그
+--
+-- 채팅방(/chat)과 워크아이템에서 발생하는 "업무 이관" 을 구조화된 이벤트로
+-- 축적한다. process-miner 서비스가 이 로그로부터 핸드오버 네트워크(조직 마이닝)와
+-- 프로세스 정의(제어 흐름 마이닝)를 도출한다.
+--
+-- 사람과 AI 에이전트는 모두 public.users 한 테이블에 있으므로(is_agent 플래그로만
+-- 구분) 이 로그도 둘을 구분하지 않는다. from_is_agent / to_is_agent 는 분석 편의를
+-- 위한 비정규화 스냅샷일 뿐이며, 네트워크는 하나로 계산된다.
+--
+-- source
+--   chat_handover    : 사용자가 채팅방에서 '인계하기' 버튼을 눌러 명시적으로 넘김
+--   agent_delegation : 채팅방에서 에이전트에게 암묵적으로 위임됨(초대/라우팅)
+--   todolist         : 기존 BPMN 인스턴스 실행 이력에서 역산된 이관
+-- ============================================================================
+
+create table if not exists public.handover_events (
+    id                    uuid        not null default gen_random_uuid(),
+    tenant_id             text        not null default public.tenant_id(),
+
+    -- 핸드오버 체인 = 하나의 업무 케이스(프로세스 마이닝의 Case ID)
+    case_id               text        not null,
+    source                text        not null,
+    is_explicit           boolean     not null default true,
+
+    -- 이관 전/후 컨텍스트
+    from_room_id          text        null,
+    to_room_id            text        null,
+    from_task_id          uuid        null,
+    to_task_id            uuid        null,
+
+    -- 리소스(사람 또는 에이전트)
+    from_user_id          text        null,
+    from_user_name        text        null,
+    from_role             text        null,
+    from_is_agent         boolean     not null default false,
+    to_user_id            text        not null,
+    to_user_name          text        null,
+    to_role               text        null,
+    to_is_agent           boolean     not null default false,
+    agent_orch            text        null,
+
+    -- 활동 라벨
+    activity_label        text        null,  -- 넘기는 사람이 적은 "지금까지 한 일"
+    next_activity_label   text        null,  -- 넘기는 사람이 적은 "다음에 할 일"
+    norm_activity_label   text        null,  -- process-miner 가 채우는 정규화 라벨
+    instruction           text        null,
+    reason                text        null,
+
+    -- 산출물 / 참여 에이전트
+    artifact_refs         jsonb       not null default '[]'::jsonb,
+    participant_agents    jsonb       not null default '[]'::jsonb,
+    trigger_message_uuid  text        null,
+
+    proc_def_id           text        null,
+
+    -- 타이밍
+    occurred_at           timestamptz not null default now(),
+    returned_at           timestamptz null,   -- 에이전트가 결과를 돌려준 시각
+    handover_latency_sec  integer     null,   -- 직전 이벤트로부터의 이관 지연
+
+    created_at            timestamptz not null default now(),
+    updated_at            timestamptz not null default now(),
+
+    constraint handover_events_pkey primary key (id),
+    constraint handover_events_source_check check (
+        source in ('chat_handover', 'agent_delegation', 'todolist')
+    ),
+    constraint handover_events_tenant_id_fkey foreign key (tenant_id)
+        references public.tenants (id) on update cascade on delete cascade
+) tablespace pg_default;
+
+create index if not exists idx_handover_events_case
+    on public.handover_events (tenant_id, case_id, occurred_at);
+create index if not exists idx_handover_events_from_user
+    on public.handover_events (tenant_id, from_user_id);
+create index if not exists idx_handover_events_to_user
+    on public.handover_events (tenant_id, to_user_id);
+create index if not exists idx_handover_events_from_room
+    on public.handover_events (tenant_id, from_room_id);
+create index if not exists idx_handover_events_to_room
+    on public.handover_events (tenant_id, to_room_id);
+-- process-miner 의 미처리 행 스캔용
+create index if not exists idx_handover_events_unlabeled
+    on public.handover_events (tenant_id, occurred_at)
+    where norm_activity_label is null;
+
+-- todolist 실행 이력 역산 시 같은 워크아이템이 두 번 들어오지 않도록
+create unique index if not exists uq_handover_events_todolist
+    on public.handover_events (source, to_task_id)
+    where to_task_id is not null;
+
+-- 암묵 위임 중복 방지: 같은 방·같은 에이전트·같은 트리거 메시지는 1건
+-- (새로고침 후 스트림 재접속 시 중복 삽입 차단)
+--
+-- WHERE 절 없는 전체 인덱스여야 한다. 부분 인덱스로 만들면 PostgREST 의
+-- upsert(onConflict=...) 가 술어를 지정할 수 없어 "no unique or exclusion
+-- constraint matching the ON CONFLICT specification" 로 실패한다.
+-- trigger_message_uuid 는 암묵 위임에만 채워지고 나머지 source 는 NULL 인데,
+-- Postgres 기본값(NULLS DISTINCT)에서 NULL 은 서로 충돌하지 않으므로
+-- chat_handover / todolist 행에는 아무 제약도 걸리지 않는다.
+create unique index if not exists uq_handover_events_agent_delegation
+    on public.handover_events (from_room_id, to_user_id, trigger_message_uuid);
+
+drop trigger if exists handover_events_updated_at on public.handover_events;
+create trigger handover_events_updated_at
+    before update on public.handover_events
+    for each row execute function public.update_updated_at_column();
+
+-- RLS (resource_pull_requests 패턴과 동일)
+alter table public.handover_events enable row level security;
+
+DROP POLICY IF EXISTS handover_events_insert_policy ON public.handover_events;
+create policy handover_events_insert_policy on public.handover_events
+    for insert to authenticated with check (tenant_id = public.tenant_id());
+DROP POLICY IF EXISTS handover_events_select_policy ON public.handover_events;
+create policy handover_events_select_policy on public.handover_events
+    for select to authenticated using (tenant_id = public.tenant_id());
+DROP POLICY IF EXISTS handover_events_update_policy ON public.handover_events;
+create policy handover_events_update_policy on public.handover_events
+    for update to authenticated using (tenant_id = public.tenant_id());
+DROP POLICY IF EXISTS handover_events_delete_policy ON public.handover_events;
+create policy handover_events_delete_policy on public.handover_events
+    for delete to authenticated using (tenant_id = public.tenant_id());
+
+
+-- ============================================================================
+-- 핸드오버 스레드 상관키(origin_room_id)
+--
+-- 이메일 스레드가 References/In-Reply-To 로 루트 Message-ID 를 앞으로 끌고 가듯,
+-- 인계도 "이 업무가 최초로 시작된 방" 을 인계받는 방으로 계속 전파한다.
+-- 그래야 A→B→C→D 로 이어진 인계가 Gmail 의 forward 묶음처럼 한 스레드로 모인다.
+--
+-- case_id 와의 관계:
+--   origin_room_id — 구조적 상관키. 항상 채워지며 스레드 묶음의 기준.
+--   case_id        — 분석용 케이스 키. 지금은 origin_room_id 와 같은 값이지만,
+--                    나중에 업무 키(견적번호 등)나 케이스 분할이 도입되면 갈라진다.
+-- 둘을 분리해 두어야 나중에 case 를 쪼개도 스레드 표시는 깨지지 않는다.
+-- ============================================================================
+
+alter table public.handover_events
+    add column if not exists origin_room_id text;
+
+-- 기존 행 백필: 지금까지는 case_id 가 곧 루트 방 id 였다.
+update public.handover_events
+set origin_room_id = case_id
+where origin_room_id is null;
+
+create index if not exists idx_handover_events_origin_room
+    on public.handover_events (tenant_id, origin_room_id, occurred_at);
+
+comment on column public.handover_events.origin_room_id is
+    '이 업무가 최초로 시작된 채팅방 id. 인계받는 방으로 계속 전파되어 스레드 묶음의 기준이 된다.';
+comment on column public.handover_events.case_id is
+    '프로세스 마이닝의 Case ID. 기본값은 origin_room_id 이며 업무 키 도입 시 분리될 수 있다.';
+
+
+-- ============================================================================
+-- 역량(capability) 기반 조직 모델
+--
+-- 지금까지 조직도에는 "누가 어느 팀인가"만 있었고, "이 일을 하려면 어떤 역량이
+-- 필요한가 / 누가 그 일을 맡을 자격이 있는가" 를 표현할 방법이 없었다.
+-- 그래서 프로세스의 다음 단계 담당자를 사람 이름으로만 지정할 수밖에 없었고,
+-- 인계 기록에서 조직 구조를 도출해도 붙일 자리가 없었다.
+--
+-- 세 층으로 나눈다:
+--   org_capabilities        역량 사전 (예: 견적 산출, 계약 검토, 승인 권한)
+--   user_capabilities       누가 어떤 역량을 가졌나 (관측 근거와 함께)
+--   activity_eligibility    어떤 활동을 하려면 어떤 역량/역할/부서여야 하나
+--
+-- user_capabilities 는 사람이 직접 등록할 수도 있고(source='declared'),
+-- 인계 기록에서 도출할 수도 있다(source='observed'). 도출된 것은 근거 건수를
+-- 함께 남겨 "왜 이 사람이 후보인가" 를 설명할 수 있게 한다.
+-- ============================================================================
+
+create table if not exists public.org_capabilities (
+    id           uuid        not null default gen_random_uuid(),
+    tenant_id    text        not null default public.tenant_id(),
+    name         text        not null,
+    description  text        null,
+    -- 이 역량이 처음 어떻게 생겼는지: 사람이 정의 / 인계 기록에서 도출
+    origin       text        not null default 'declared',
+    created_at   timestamptz not null default now(),
+    constraint org_capabilities_pkey primary key (id),
+    constraint org_capabilities_origin_check check (origin in ('declared', 'observed')),
+    constraint org_capabilities_tenant_fkey foreign key (tenant_id)
+        references public.tenants (id) on update cascade on delete cascade
+);
+create unique index if not exists uq_org_capabilities_name
+    on public.org_capabilities (tenant_id, name);
+
+create table if not exists public.user_capabilities (
+    id             uuid        not null default gen_random_uuid(),
+    tenant_id      text        not null default public.tenant_id(),
+    user_id        text        not null,          -- users.id (사람 또는 에이전트)
+    capability_id  uuid        not null,
+    -- declared: 관리자가 등록 / observed: 인계 기록에서 도출
+    source         text        not null default 'declared',
+    -- 도출 근거 건수. 왜 후보로 떴는지 설명하는 데 쓴다.
+    evidence_count integer     not null default 0,
+    proficiency    text        null,              -- 예: primary / backup
+    created_at     timestamptz not null default now(),
+    updated_at     timestamptz not null default now(),
+    constraint user_capabilities_pkey primary key (id),
+    constraint user_capabilities_source_check check (source in ('declared', 'observed')),
+    constraint user_capabilities_capability_fkey foreign key (capability_id)
+        references public.org_capabilities (id) on update cascade on delete cascade,
+    constraint user_capabilities_tenant_fkey foreign key (tenant_id)
+        references public.tenants (id) on update cascade on delete cascade
+);
+create unique index if not exists uq_user_capabilities
+    on public.user_capabilities (tenant_id, user_id, capability_id);
+
+-- 활동 → 자격 요건. 담당자를 사람 이름으로 못 박지 않고
+-- "이 역량을 가진 사람 / 이 역할 / 이 부서" 로 풀 수 있게 한다.
+create table if not exists public.activity_eligibility (
+    id                   uuid        not null default gen_random_uuid(),
+    tenant_id            text        not null default public.tenant_id(),
+    proc_def_id          text        null,        -- 아직 제안 단계면 비어 있을 수 있다
+    activity_name        text        not null,
+    required_capability  uuid        null,
+    required_role        text        null,
+    required_department  text        null,
+    -- 이 요건이 어떻게 정해졌는지
+    origin               text        not null default 'observed',
+    evidence_count       integer     not null default 0,
+    created_at           timestamptz not null default now(),
+    constraint activity_eligibility_pkey primary key (id),
+    constraint activity_eligibility_origin_check check (origin in ('declared', 'observed')),
+    constraint activity_eligibility_capability_fkey foreign key (required_capability)
+        references public.org_capabilities (id) on update cascade on delete set null,
+    constraint activity_eligibility_tenant_fkey foreign key (tenant_id)
+        references public.tenants (id) on update cascade on delete cascade
+);
+create index if not exists idx_activity_eligibility_lookup
+    on public.activity_eligibility (tenant_id, activity_name);
+
+drop trigger if exists user_capabilities_updated_at on public.user_capabilities;
+create trigger user_capabilities_updated_at
+    before update on public.user_capabilities
+    for each row execute function public.update_updated_at_column();
+
+-- RLS (resource_pull_requests 패턴과 동일)
+alter table public.org_capabilities enable row level security;
+alter table public.user_capabilities enable row level security;
+alter table public.activity_eligibility enable row level security;
+
+DO $$
+DECLARE t text;
+BEGIN
+  FOREACH t IN ARRAY ARRAY['org_capabilities','user_capabilities','activity_eligibility'] LOOP
+    EXECUTE format('DROP POLICY IF EXISTS %I_insert_policy ON public.%I', t, t);
+    EXECUTE format('CREATE POLICY %I_insert_policy ON public.%I FOR INSERT TO authenticated WITH CHECK (tenant_id = public.tenant_id())', t, t);
+    EXECUTE format('DROP POLICY IF EXISTS %I_select_policy ON public.%I', t, t);
+    EXECUTE format('CREATE POLICY %I_select_policy ON public.%I FOR SELECT TO authenticated USING (tenant_id = public.tenant_id())', t, t);
+    EXECUTE format('DROP POLICY IF EXISTS %I_update_policy ON public.%I', t, t);
+    EXECUTE format('CREATE POLICY %I_update_policy ON public.%I FOR UPDATE TO authenticated USING (tenant_id = public.tenant_id())', t, t);
+    EXECUTE format('DROP POLICY IF EXISTS %I_delete_policy ON public.%I', t, t);
+    EXECUTE format('CREATE POLICY %I_delete_policy ON public.%I FOR DELETE TO authenticated USING (tenant_id = public.tenant_id())', t, t);
+  END LOOP;
+END $$;
+
+comment on table public.org_capabilities is '역량 사전. 프로세스 단계가 요구하는 능력을 이름으로 다룬다.';
+comment on table public.user_capabilities is '누가 어떤 역량을 가졌나. observed 는 인계 기록에서 도출된 것이며 evidence_count 가 근거 건수다.';
+comment on table public.activity_eligibility is '활동 수행 자격. 담당자를 이름이 아니라 역량/역할/부서로 풀 수 있게 한다.';
+
+
+-- ============================================================
+-- MCP / LLM 관측용 이벤트 타입
+-- ------------------------------------------------------------
+-- tool_usage_started / tool_usage_finished 는 이미 n8n-agent,
+-- deep-research, bpmn-extractor 등 8개 서비스가 "일반 진행 메시지"로
+-- 쓰고 있어 MCP 전용으로 재해석할 수 없다. 그래서 별도 타입을 만든다.
+--
+-- ALTER TYPE ... ADD VALUE 는 함수/DO 블록 안에서 실행할 수 없으므로
+-- 반드시 최상위 문으로 둔다.
+-- ============================================================
+
+ALTER TYPE event_type_enum ADD VALUE IF NOT EXISTS 'mcp_call_started';
+ALTER TYPE event_type_enum ADD VALUE IF NOT EXISTS 'mcp_call_finished';
+ALTER TYPE event_type_enum ADD VALUE IF NOT EXISTS 'mcp_call_failed';
+ALTER TYPE event_type_enum ADD VALUE IF NOT EXISTS 'mcp_tools_loaded';
+ALTER TYPE event_type_enum ADD VALUE IF NOT EXISTS 'mcp_server_health_changed';
+ALTER TYPE event_type_enum ADD VALUE IF NOT EXISTS 'llm_call_finished';
+
+-- ============================================================
+-- MCP Hub : 서버 등록 / 버전 / 툴 카탈로그 / 권한 / 헬스 / 관측
+-- ------------------------------------------------------------
+-- 정본은 아래 테이블이고, 레거시 public.tenants.mcp jsonb 는
+-- public.sync_tenants_mcp() 트리거가 재생성하는 파생 미러로 강등된다.
+-- 덕분에 기존 소비자(deepagents/core/llm/mcp.py, completion 의
+-- mcp_processor.py, cli-agent/core/bridge.py, AgentField.vue)는
+-- 코드 수정 없이 계속 동작한다.
+-- ============================================================
+
+-- ---------- enum ----------
+DO $$ BEGIN
+  CREATE TYPE mcp_transport_enum AS ENUM ('stdio','http','sse','streamable-http');
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+DO $$ BEGIN
+  CREATE TYPE mcp_server_status_enum AS ENUM ('draft','active','deprecated','disabled');
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+DO $$ BEGIN
+  CREATE TYPE mcp_health_state_enum AS ENUM ('unknown','healthy','degraded','unhealthy');
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+DO $$ BEGIN
+  CREATE TYPE mcp_source_enum AS ENUM ('manual','gallery','registry','imported-jsonb');
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+DO $$ BEGIN
+  CREATE TYPE mcp_principal_enum AS ENUM ('tenant','department','role','user','agent');
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+DO $$ BEGIN
+  CREATE TYPE mcp_permission_enum AS ENUM ('none','use','manage');
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+-- ---------- 공용 트리거 함수 ----------
+create or replace function public.mcp_touch_updated_at()
+returns trigger language plpgsql as $$
+begin
+  new.updated_at := now();
+  return new;
+end $$;
+
+-- ---------- 1) 서버 ----------
+create table if not exists public.mcp_server (
+    id uuid not null default gen_random_uuid(),
+    tenant_id text not null default public.tenant_id(),
+    name text not null,
+    display_name text null,
+    description text null,
+    category text null,
+    tags text[] null default '{}',
+    department_id text null,
+    owner_email text null,
+    doc_url text null,
+    status mcp_server_status_enum not null default 'draft',
+    is_default boolean not null default false,
+    enabled boolean not null default true,
+    current_version_id uuid null,
+    source mcp_source_enum not null default 'manual',
+    source_ref text null,
+    created_at timestamp with time zone not null default now(),
+    created_by text null,
+    updated_at timestamp with time zone not null default now(),
+    updated_by text null,
+    is_deleted boolean not null default false,
+    deleted_at timestamp with time zone null,
+    constraint mcp_server_pkey primary key (id),
+    constraint mcp_server_uk unique (tenant_id, name),
+    constraint mcp_server_tenant_fkey foreign key (tenant_id)
+        references public.tenants (id) on update cascade on delete cascade
+) tablespace pg_default;
+
+create index if not exists idx_mcp_server_tenant on public.mcp_server (tenant_id) where is_deleted = false;
+create index if not exists idx_mcp_server_department on public.mcp_server (tenant_id, department_id);
+
+drop trigger if exists mcp_server_updated_at on public.mcp_server;
+create trigger mcp_server_updated_at
+    before update on public.mcp_server
+    for each row execute function public.mcp_touch_updated_at();
+
+-- ---------- 2) 버전 (연결정보 불변 스냅샷) ----------
+create table if not exists public.mcp_server_version (
+    id uuid not null default gen_random_uuid(),
+    server_id uuid not null references public.mcp_server (id) on delete cascade,
+    tenant_id text not null default public.tenant_id(),
+    version integer not null,
+    semver text null,
+    transport mcp_transport_enum not null,
+    command text null,
+    args jsonb null default '[]'::jsonb,
+    url text null,
+    headers jsonb null default '{}'::jsonb,
+    env jsonb null default '{}'::jsonb,
+    timeout_ms integer not null default 30000,
+    config_hash text not null,
+    change_note text null,
+    validated_at timestamp with time zone null,
+    validation_result jsonb null,
+    created_at timestamp with time zone not null default now(),
+    created_by text null,
+    constraint mcp_server_version_pkey primary key (id),
+    constraint mcp_server_version_uk unique (server_id, version)
+) tablespace pg_default;
+
+create index if not exists idx_mcp_server_version_server on public.mcp_server_version (server_id, version desc);
+
+DO $$ BEGIN
+  ALTER TABLE public.mcp_server
+    ADD CONSTRAINT mcp_server_current_version_fkey
+    FOREIGN KEY (current_version_id) REFERENCES public.mcp_server_version (id)
+    ON DELETE SET NULL DEFERRABLE INITIALLY DEFERRED;
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+-- ---------- 3) 툴 카탈로그 캐시 ----------
+create table if not exists public.mcp_tool (
+    id uuid not null default gen_random_uuid(),
+    server_id uuid not null references public.mcp_server (id) on delete cascade,
+    version_id uuid null references public.mcp_server_version (id) on delete set null,
+    tenant_id text not null default public.tenant_id(),
+    tool_name text not null,
+    sanitized_name text not null,
+    description text null,
+    input_schema jsonb null,
+    output_schema jsonb null,
+    annotations jsonb null,
+    is_available boolean not null default true,
+    first_seen_at timestamp with time zone not null default now(),
+    last_seen_at timestamp with time zone not null default now(),
+    constraint mcp_tool_pkey primary key (id),
+    constraint mcp_tool_uk unique (server_id, tool_name)
+) tablespace pg_default;
+
+create index if not exists idx_mcp_tool_tenant on public.mcp_tool (tenant_id) where is_available = true;
+create index if not exists idx_mcp_tool_name on public.mcp_tool (tenant_id, tool_name);
+
+-- ---------- 4) 접근 권한 ----------
+create table if not exists public.mcp_server_permission (
+    id uuid not null default gen_random_uuid(),
+    server_id uuid not null references public.mcp_server (id) on delete cascade,
+    tenant_id text not null default public.tenant_id(),
+    principal_type mcp_principal_enum not null,
+    principal_id text null,
+    permission mcp_permission_enum not null default 'use',
+    allowed_tools text[] null,
+    denied_tools text[] null default '{}',
+    created_at timestamp with time zone not null default now(),
+    created_by text null,
+    constraint mcp_server_permission_pkey primary key (id)
+) tablespace pg_default;
+
+-- principal_id 가 null 인 tenant 스코프도 유일해야 하므로 표현식 인덱스로 대체
+create unique index if not exists mcp_server_permission_uk
+    on public.mcp_server_permission (server_id, principal_type, coalesce(principal_id, '*'));
+
+-- ---------- 5) 에이전트 바인딩 ----------
+create table if not exists public.mcp_agent_binding (
+    id uuid not null default gen_random_uuid(),
+    tenant_id text not null default public.tenant_id(),
+    agent_id text not null,
+    server_id uuid not null references public.mcp_server (id) on delete cascade,
+    allowed_tools text[] null,
+    enabled boolean not null default true,
+    created_at timestamp with time zone not null default now(),
+    constraint mcp_agent_binding_pkey primary key (id),
+    constraint mcp_agent_binding_uk unique (agent_id, server_id)
+) tablespace pg_default;
+
+create index if not exists idx_mcp_agent_binding_agent on public.mcp_agent_binding (tenant_id, agent_id);
+
+-- ---------- 6) 헬스 ----------
+create table if not exists public.mcp_server_health (
+    id bigserial primary key,
+    server_id uuid not null references public.mcp_server (id) on delete cascade,
+    tenant_id text not null default public.tenant_id(),
+    checked_at timestamp with time zone not null default now(),
+    state mcp_health_state_enum not null default 'unknown',
+    latency_ms integer null,
+    tool_count integer null,
+    protocol_version text null,
+    server_info jsonb null,
+    error_code text null,
+    error_message text null,
+    checker text null default 'mcp-hub'
+) tablespace pg_default;
+
+create index if not exists idx_mcp_server_health_server on public.mcp_server_health (server_id, checked_at desc);
+
+create table if not exists public.mcp_server_health_current (
+    server_id uuid not null references public.mcp_server (id) on delete cascade,
+    tenant_id text not null default public.tenant_id(),
+    state mcp_health_state_enum not null default 'unknown',
+    checked_at timestamp with time zone not null default now(),
+    latency_ms integer null,
+    tool_count integer null,
+    consecutive_failures integer not null default 0,
+    availability_24h numeric(5,2) null,
+    error_message text null,
+    constraint mcp_server_health_current_pkey primary key (server_id)
+) tablespace pg_default;
+
+create index if not exists idx_mcp_health_current_tenant on public.mcp_server_health_current (tenant_id, state);
+
+-- ---------- 7) MCP 호출 로그 (관측 정본) ----------
+create table if not exists public.mcp_call_log (
+    id uuid not null default gen_random_uuid(),
+    tenant_id text not null default public.tenant_id(),
+    server_id uuid null references public.mcp_server (id) on delete set null,
+    server_name text not null,
+    tool_name text not null,
+    trace_id text null,
+    span_id text null,
+    parent_span_id text null,
+    proc_inst_id text null,
+    todo_id text null,
+    job_id text null,
+    agent_id text null,
+    user_id text null,
+    engine text null,
+    started_at timestamp with time zone not null default now(),
+    finished_at timestamp with time zone null,
+    duration_ms integer null,
+    status text not null default 'running',
+    error_type text null,
+    error_message text null,
+    input_bytes integer null,
+    output_bytes integer null,
+    input_preview jsonb null,
+    output_preview jsonb null,
+    constraint mcp_call_log_pkey primary key (id)
+) tablespace pg_default;
+
+create index if not exists idx_mcp_call_log_tenant_time on public.mcp_call_log (tenant_id, started_at desc);
+create index if not exists idx_mcp_call_log_server_time on public.mcp_call_log (server_id, started_at desc);
+create index if not exists idx_mcp_call_log_proc on public.mcp_call_log (proc_inst_id);
+create index if not exists idx_mcp_call_log_todo on public.mcp_call_log (todo_id);
+create index if not exists idx_mcp_call_log_trace on public.mcp_call_log (trace_id);
+
+-- ---------- 8) LLM 호출 로그 (LiteLLM 콜백 수신) ----------
+create table if not exists public.llm_call_log (
+    id uuid not null default gen_random_uuid(),
+    tenant_id text null default public.tenant_id(),
+    trace_id text null,
+    span_id text null,
+    parent_span_id text null,
+    proc_inst_id text null,
+    todo_id text null,
+    job_id text null,
+    agent_id text null,
+    engine text null,
+    call_type text null,
+    model text null,
+    provider text null,
+    litellm_call_id text null,
+    started_at timestamp with time zone null,
+    finished_at timestamp with time zone null,
+    duration_ms integer null,
+    status text not null default 'success',
+    prompt_tokens integer null,
+    completion_tokens integer null,
+    total_tokens integer null,
+    cache_read_tokens integer null,
+    cost_usd numeric(14,8) null,
+    error_type text null,
+    error_message text null,
+    tool_calls_count integer null,
+    raw jsonb null,
+    constraint llm_call_log_pkey primary key (id)
+) tablespace pg_default;
+
+create index if not exists idx_llm_call_log_tenant_time on public.llm_call_log (tenant_id, started_at desc);
+create index if not exists idx_llm_call_log_proc on public.llm_call_log (proc_inst_id);
+create index if not exists idx_llm_call_log_trace on public.llm_call_log (trace_id);
+
+-- ---------- 9) 갤러리 / 레지스트리 카탈로그 ----------
+create table if not exists public.mcp_catalog_entry (
+    id uuid not null default gen_random_uuid(),
+    source mcp_source_enum not null,
+    slug text not null,
+    name text not null,
+    description text null,
+    category text null,
+    tags text[] null default '{}',
+    publisher text null,
+    homepage_url text null,
+    icon_url text null,
+    install_template jsonb not null,
+    required_env jsonb null default '[]'::jsonb,
+    registry_payload jsonb null,
+    updated_at timestamp with time zone not null default now(),
+    constraint mcp_catalog_entry_pkey primary key (id),
+    constraint mcp_catalog_entry_uk unique (source, slug)
+) tablespace pg_default;
+
+-- ============================================================
+-- 권한 판정
+-- department_id / role 은 users 스키마에 부서 컬럼이 없으므로
+-- 호출자(mcp-hub)가 알고 있는 값을 인자로 넘긴다.
+-- ============================================================
+create or replace function public.mcp_can_use(
+    p_server_id uuid,
+    p_agent_id text,
+    p_department_id text default null
+) returns boolean language sql stable as $$
+  select case
+    -- 권한 행이 하나도 없으면 테넌트 전체 허용(기존 동작 유지)
+    when not exists (select 1 from public.mcp_server_permission p where p.server_id = p_server_id)
+      then true
+    else coalesce(bool_or(p.permission in ('use','manage')), false)
+  end
+  from public.mcp_server_permission p
+  where p.server_id = p_server_id
+    and (
+         p.principal_type = 'tenant'
+      or (p.principal_type = 'agent' and p.principal_id = p_agent_id)
+      or (p.principal_type = 'user'  and p.principal_id = p_agent_id)
+      or (p.principal_type = 'department' and p_department_id is not null
+          and p.principal_id = p_department_id)
+      or (p.principal_type = 'role' and p.principal_id in
+            (select u.role from public.users u where u.id::text = p_agent_id))
+    );
+$$;
+
+-- ============================================================
+-- 레거시 호환: 정본 테이블 -> tenants.mcp jsonb 투영
+-- ============================================================
+create or replace function public.mcp_servers_jsonb(p_tenant text)
+returns jsonb language sql stable as $$
+  select jsonb_build_object(
+    'mcpServers',
+    coalesce(jsonb_object_agg(s.name, c.cfg), '{}'::jsonb)
+  )
+  from public.mcp_server s
+  join public.mcp_server_version v on v.id = s.current_version_id
+  cross join lateral (
+    select jsonb_strip_nulls(
+      case when v.transport = 'stdio' then
+        jsonb_build_object(
+          'command', v.command,
+          'args',    nullif(v.args, '[]'::jsonb),
+          'env',     nullif(v.env, '{}'::jsonb)
+        )
+      else
+        jsonb_build_object(
+          'type',    v.transport::text,
+          'url',     v.url,
+          'headers', nullif(v.headers, '{}'::jsonb)
+        )
+      end
+      || jsonb_build_object('enabled', s.enabled, 'is_default', s.is_default)
+    ) as cfg
+  ) c
+  where s.tenant_id = p_tenant
+    and s.is_deleted = false;
+$$;
+
+create or replace function public.sync_tenants_mcp()
+returns trigger language plpgsql security definer as $$
+declare
+  t text;
+begin
+  t := coalesce(new.tenant_id, old.tenant_id);
+  if t is null then
+    return null;
+  end if;
+  update public.tenants
+     set mcp = public.mcp_servers_jsonb(t)
+   where id = t;
+  return null;
+end $$;
+
+drop trigger if exists trg_mcp_server_sync on public.mcp_server;
+create trigger trg_mcp_server_sync
+    after insert or update or delete on public.mcp_server
+    for each row execute function public.sync_tenants_mcp();
+
+drop trigger if exists trg_mcp_server_version_sync on public.mcp_server_version;
+create trigger trg_mcp_server_version_sync
+    after insert or update on public.mcp_server_version
+    for each row execute function public.sync_tenants_mcp();
+
+-- ============================================================
+-- RLS
+-- ============================================================
+alter table public.mcp_server              enable row level security;
+alter table public.mcp_server_version      enable row level security;
+alter table public.mcp_tool                enable row level security;
+alter table public.mcp_server_permission   enable row level security;
+alter table public.mcp_agent_binding       enable row level security;
+alter table public.mcp_server_health       enable row level security;
+alter table public.mcp_server_health_current enable row level security;
+alter table public.mcp_call_log            enable row level security;
+alter table public.llm_call_log            enable row level security;
+alter table public.mcp_catalog_entry       enable row level security;
+
+DO $$
+DECLARE t text;
+BEGIN
+  FOREACH t IN ARRAY ARRAY[
+    'mcp_server','mcp_server_version','mcp_tool','mcp_server_permission',
+    'mcp_agent_binding','mcp_server_health','mcp_server_health_current',
+    'mcp_call_log','llm_call_log'
+  ] LOOP
+    EXECUTE format('DROP POLICY IF EXISTS %I_select_policy ON public.%I', t, t);
+    EXECUTE format('CREATE POLICY %I_select_policy ON public.%I FOR SELECT TO authenticated USING (tenant_id = public.tenant_id())', t, t);
+    EXECUTE format('DROP POLICY IF EXISTS %I_insert_policy ON public.%I', t, t);
+    EXECUTE format('CREATE POLICY %I_insert_policy ON public.%I FOR INSERT TO authenticated WITH CHECK (tenant_id = public.tenant_id())', t, t);
+    EXECUTE format('DROP POLICY IF EXISTS %I_update_policy ON public.%I', t, t);
+    EXECUTE format('CREATE POLICY %I_update_policy ON public.%I FOR UPDATE TO authenticated USING (tenant_id = public.tenant_id())', t, t);
+    EXECUTE format('DROP POLICY IF EXISTS %I_delete_policy ON public.%I', t, t);
+    EXECUTE format('CREATE POLICY %I_delete_policy ON public.%I FOR DELETE TO authenticated USING (tenant_id = public.tenant_id())', t, t);
+  END LOOP;
+END $$;
+
+-- 카탈로그는 테넌트 무관 전역 읽기, 쓰기는 service_role 만
+DROP POLICY IF EXISTS mcp_catalog_entry_select_policy ON public.mcp_catalog_entry;
+CREATE POLICY mcp_catalog_entry_select_policy ON public.mcp_catalog_entry
+    FOR SELECT TO authenticated USING (true);
+
+-- ============================================================
+-- 백필 : tenants.mcp jsonb -> mcp_server + mcp_server_version(v1)
+-- 여러 번 실행해도 안전하다 (이미 있는 name 은 건너뛴다).
+-- ============================================================
+create or replace function public.mcp_backfill_from_tenants()
+returns integer language plpgsql security definer as $$
+declare
+  r          record;
+  v_srv_id   uuid;
+  v_ver_id   uuid;
+  v_transport mcp_transport_enum;
+  v_count    integer := 0;
+begin
+  for r in
+    select t.id as tenant_id, e.key as name, e.value as cfg
+      from public.tenants t
+      cross join lateral jsonb_each(coalesce(t.mcp -> 'mcpServers', '{}'::jsonb)) e
+  loop
+    -- 이미 등록된 서버는 건너뛴다
+    if exists (select 1 from public.mcp_server s
+                where s.tenant_id = r.tenant_id and s.name = r.name) then
+      continue;
+    end if;
+
+    v_transport := case
+      when coalesce(r.cfg ->> 'command', '') <> '' then 'stdio'
+      when coalesce(r.cfg ->> 'type', '') in ('http','streamable_http','streamable-http') then 'streamable-http'
+      when coalesce(r.cfg ->> 'type', '') = 'sse' then 'sse'
+      when coalesce(r.cfg ->> 'url', '') <> '' then 'streamable-http'
+      else 'stdio'
+    end;
+
+    insert into public.mcp_server (
+      tenant_id, name, description, status, enabled, is_default, source
+    ) values (
+      r.tenant_id,
+      r.name,
+      r.cfg ->> 'description',
+      'active',
+      coalesce((r.cfg ->> 'enabled')::boolean, true),
+      coalesce((r.cfg ->> 'is_default')::boolean, false),
+      'imported-jsonb'
+    ) returning id into v_srv_id;
+
+    insert into public.mcp_server_version (
+      server_id, tenant_id, version, transport,
+      command, args, url, headers, env, config_hash, change_note
+    ) values (
+      v_srv_id, r.tenant_id, 1, v_transport,
+      r.cfg ->> 'command',
+      coalesce(r.cfg -> 'args',    '[]'::jsonb),
+      r.cfg ->> 'url',
+      coalesce(r.cfg -> 'headers', '{}'::jsonb),
+      coalesce(r.cfg -> 'env',     '{}'::jsonb),
+      encode(sha256((r.cfg #- '{enabled}' #- '{is_default}')::text::bytea), 'hex'),
+      'tenants.mcp 에서 자동 이관'
+    ) returning id into v_ver_id;
+
+    update public.mcp_server set current_version_id = v_ver_id where id = v_srv_id;
+    v_count := v_count + 1;
+  end loop;
+
+  -- users.tools CSV -> mcp_agent_binding
+  insert into public.mcp_agent_binding (tenant_id, agent_id, server_id)
+  select u.tenant_id, u.id::text, s.id
+    from public.users u
+    cross join lateral unnest(string_to_array(coalesce(u.tools, ''), ',')) tool_name
+    join public.mcp_server s
+      on s.tenant_id = u.tenant_id and s.name = btrim(tool_name)
+   where u.is_agent = true
+     and btrim(tool_name) <> ''
+  on conflict (agent_id, server_id) do nothing;
+
+  return v_count;
+end $$;
+
+select public.mcp_backfill_from_tenants();
+
+comment on table public.mcp_server is 'MCP 서버 정본. tenants.mcp jsonb 는 sync_tenants_mcp() 트리거가 만드는 파생 미러다.';
+comment on table public.mcp_server_version is '연결정보 불변 스냅샷. 수정은 새 버전 생성으로만 이뤄진다.';
+comment on table public.mcp_call_log is 'MCP 툴 호출 관측 정본. events 는 UI 스트림용 요약만 담는다.';
+comment on table public.llm_call_log is 'LiteLLM 프록시 콜백이 적재하는 LLM 호출 로그. trace_id 로 mcp_call_log 와 조인된다.';
+comment on function public.mcp_servers_jsonb(text) is '정본 테이블을 레거시 {"mcpServers":{...}} 형태로 투영한다.';
+
+
+-- ============================================================
+-- 실행 프로파일링용 페이로드 사이드카
+-- ------------------------------------------------------------
+-- llm_call_log / mcp_call_log 는 관측 대시보드가 풀스캔 집계하는
+-- 핫 테이블이라 큰 텍스트를 넣으면 안 된다. 프롬프트·응답·툴 인자
+-- 원문은 여기에 따로 두고 보존기간을 짧게 가져간다.
+-- ============================================================
+
+create table if not exists public.trace_payload (
+    id bigserial primary key,
+    tenant_id text not null default public.tenant_id(),
+    trace_id text null,
+    span_id text not null,
+    span_kind text not null,            -- 'llm' | 'mcp'
+    proc_inst_id text null,
+    todo_id text null,
+    job_id text null,
+    created_at timestamp with time zone not null default now(),
+    -- LLM
+    messages jsonb null,                -- 마스킹된 프롬프트 배열
+    completion jsonb null,              -- {content, tool_calls, finish_reason}
+    model_params jsonb null,            -- temperature/max_tokens/tool_choice/tools(이름만)
+    -- MCP / tool
+    tool_input jsonb null,
+    tool_output jsonb null,
+    -- 공통
+    truncated boolean not null default false,
+    orig_bytes integer null
+) tablespace pg_default;
+
+-- 같은 스팬이 재전송돼도 한 행만 남게 한다 (업서트 키)
+create unique index if not exists trace_payload_span_uk
+    on public.trace_payload (span_id, span_kind);
+create index if not exists idx_trace_payload_tenant_time
+    on public.trace_payload (tenant_id, created_at desc);
+create index if not exists idx_trace_payload_todo on public.trace_payload (todo_id);
+create index if not exists idx_trace_payload_job on public.trace_payload (job_id);
+create index if not exists idx_trace_payload_trace on public.trace_payload (trace_id);
+
+alter table public.trace_payload enable row level security;
+
+DO $$
+BEGIN
+  EXECUTE 'DROP POLICY IF EXISTS trace_payload_select_policy ON public.trace_payload';
+  EXECUTE 'CREATE POLICY trace_payload_select_policy ON public.trace_payload
+             FOR SELECT TO authenticated USING (tenant_id = public.tenant_id())';
+  EXECUTE 'DROP POLICY IF EXISTS trace_payload_insert_policy ON public.trace_payload';
+  EXECUTE 'CREATE POLICY trace_payload_insert_policy ON public.trace_payload
+             FOR INSERT TO authenticated WITH CHECK (tenant_id = public.tenant_id())';
+  EXECUTE 'DROP POLICY IF EXISTS trace_payload_delete_policy ON public.trace_payload';
+  EXECUTE 'CREATE POLICY trace_payload_delete_policy ON public.trace_payload
+             FOR DELETE TO authenticated USING (tenant_id = public.tenant_id())';
+END $$;
+
+-- ------------------------------------------------------------
+-- llm_call_log: 집계·필터에 쓰이는 스칼라만 본 테이블에 추가.
+-- 프롬프트·응답 본문은 위 사이드카로 간다.
+-- ------------------------------------------------------------
+alter table public.llm_call_log add column if not exists finish_reason text;
+alter table public.llm_call_log add column if not exists model_actual text;
+alter table public.llm_call_log add column if not exists user_id text;
+alter table public.llm_call_log add column if not exists cache_creation_tokens integer;
+alter table public.llm_call_log add column if not exists request_id text;
+alter table public.llm_call_log add column if not exists api_base text;
+
+comment on table public.trace_payload is
+  '실행 프로파일링용 원문(프롬프트·응답·툴 인자). 마스킹 후 짧은 보존기간으로 유지한다.';
+
+
+-- ============================================================
+-- todolist 상태전이 이력 — 리드타임 분해용
+--
+-- 왜 필요한가:
+--   완료된 사람 태스크 124건 중 task_started 이벤트는 6건뿐이다.
+--   task_started/task_completed 는 에이전트 executor 만 방출하므로
+--   사람이 언제 착수해서 언제 제출했는지가 어디에도 남지 않는다.
+--   그 결과 정작 병목인 HITL 태스크가 워터폴에서 0초로 찍힌다.
+--
+--   todolist 는 현재 상태만 들고 있고 updated_at 은 이후 쓰기에 계속
+--   덮인다(사람 행 중앙값 29일). task_execution_properties 는 행을
+--   덮어쓰며 비종료 상태를 전부 'STARTED' 로 뭉갠다. 그래서 전이를
+--   append-only 로 쌓는 테이블이 따로 필요하다.
+-- ============================================================
+
+create table if not exists public.todolist_status_history (
+    id              bigserial primary key,
+    tenant_id       text not null default public.tenant_id(),
+
+    todo_id         uuid not null,
+    proc_inst_id    text,
+    activity_id     text,
+
+    from_status     todo_status,          -- INSERT 시 null (=배정)
+    to_status       todo_status not null,
+    changed_at      timestamptz not null default now(),
+
+    changed_by      text,                 -- todolist.user_id
+    changed_by_is_agent boolean not null default false,
+
+    -- 같은 todo_id 에서 IN_PROGRESS 재진입 횟수. 0 = 최초 수행, 1+ = 재작업.
+    -- 같은 todo_id 가 여러 번 실행되므로(로컬 데이터의 전 태스크가 2세션)
+    -- 이 값 없이 min/max 로 묶으면 태스크 길이가 며칠로 부푼다.
+    rework_seq      int not null default 0,
+
+    draft_status    draft_status,
+    feedback_status text,
+
+    -- 트리거가 남긴 실측이 아니라 과거 데이터에서 역산한 추정치인지.
+    -- actual_start_date 는 COALESCE(start_date, updated_at) 로 백필된
+    -- 행이 있어 대기가 0 으로 나온다. 구분하지 않으면 "대기 없음" 이라는
+    -- 거짓 결론이 나온다.
+    is_estimated    boolean not null default false
+);
+
+create index if not exists idx_tsh_todo      on public.todolist_status_history (todo_id, changed_at);
+create index if not exists idx_tsh_inst      on public.todolist_status_history (proc_inst_id, changed_at);
+create index if not exists idx_tsh_tenant    on public.todolist_status_history (tenant_id, changed_at desc);
+
+comment on table  public.todolist_status_history is '워크아이템 상태전이 append-only 이력. 리드타임을 큐대기/사람판단/에이전트수행으로 분해하는 근거.';
+comment on column public.todolist_status_history.is_estimated is '과거 데이터 백필로 역산한 추정치(실측 아님)';
+comment on column public.todolist_status_history.rework_seq is 'IN_PROGRESS 재진입 횟수. 0=최초, 1+=재작업 세션';
+
+-- ------------------------------------------------------------
+-- 전이 적재 트리거
+-- ------------------------------------------------------------
+create or replace function public.record_todolist_status_change()
+returns trigger as $$
+declare
+    v_from  todo_status;
+    v_seq   int;
+begin
+    if TG_OP = 'UPDATE' then
+        -- status 가 실제로 바뀐 경우만. UPDATE OF status 는 값이 같아도 발화한다.
+        if NEW.status is not distinct from OLD.status then
+            return NEW;
+        end if;
+        v_from := OLD.status;
+    else
+        v_from := null;   -- 배정
+    end if;
+
+    -- IN_PROGRESS 로 들어갈 때마다 세션 번호를 올린다.
+    if NEW.status = 'IN_PROGRESS' then
+        select count(*) into v_seq
+          from public.todolist_status_history
+         where todo_id = NEW.id and to_status = 'IN_PROGRESS';
+    else
+        select coalesce(max(rework_seq), 0) into v_seq
+          from public.todolist_status_history
+         where todo_id = NEW.id;
+    end if;
+
+    insert into public.todolist_status_history (
+        tenant_id, todo_id, proc_inst_id, activity_id,
+        from_status, to_status, changed_at,
+        changed_by, changed_by_is_agent, rework_seq,
+        draft_status, feedback_status, is_estimated
+    ) values (
+        coalesce(NEW.tenant_id, public.tenant_id()),
+        NEW.id, NEW.proc_inst_id, NEW.activity_id,
+        v_from, NEW.status, now(),
+        NEW.user_id, (NEW.agent_mode is not null), v_seq,
+        NEW.draft_status, NEW.feedback_status, false
+    );
+
+    return NEW;
+end;
+$$ language plpgsql;
+
+drop trigger if exists trg_record_todolist_status_change on public.todolist;
+create trigger trg_record_todolist_status_change
+    after insert or update of status on public.todolist
+    for each row
+    execute function public.record_todolist_status_change();
+
+-- ------------------------------------------------------------
+-- 과거 데이터 백필 (1회)
+--
+-- 트리거는 소급되지 않는다. 기존 행에서 배정/착수/완료를 역산하되
+-- 전부 is_estimated=true 로 표시한다. 근거:
+--   * start_date 는 naive 이고 계획일이 들어간 행이 있다
+--     (실행 09-01 인데 값이 09-13).
+--   * actual_start_date 는 20260128 마이그레이션이
+--     COALESCE(start_date, updated_at) 로 백필해 둔 행이 섞여 있어
+--     그런 행의 대기시간은 0 이 되는데 이는 실측이 아니다.
+--   * end_date 는 규칙이 깨져 있다. KST-naive 로 봐도 182건 중 140건,
+--     UTC-naive 로 봐도 90건이 착수시각보다 이르다. 완료시각으로 쓰지 않는다.
+-- 완료시각은 events 의 마지막 타임스탬프만 인정한다. updated_at 은 이후
+-- 쓰기에 계속 덮이므로(사람 행 중앙값 29일) 완료시각으로 쓰면 사람 작업시간이
+-- 29일로 찍힌다. 근거가 없으면 완료 행을 만들지 않아 "모름" 으로 남긴다 —
+-- 없는 값을 지어내는 것보다 낫다. 앞으로는 트리거가 실측을 남긴다.
+-- ------------------------------------------------------------
+insert into public.todolist_status_history (
+    tenant_id, todo_id, proc_inst_id, activity_id,
+    from_status, to_status, changed_at,
+    changed_by, changed_by_is_agent, rework_seq,
+    draft_status, feedback_status, is_estimated
+)
+select * from (
+    with last_evt as (
+        select todo_id, max(timestamp) as ts
+          from public.events
+         where todo_id is not null
+         group by todo_id
+    ),
+    base as (
+        select t.*,
+               -- 배정시각: naive start_date 를 UTC 로 보되, 계획일이라
+               -- 착수보다 늦으면 착수시각으로 눌러 음수 대기를 만들지 않는다.
+               least(
+                   coalesce(t.start_date at time zone 'UTC', t.actual_start_date, t.updated_at),
+                   coalesce(t.actual_start_date, t.updated_at)
+               ) as assigned_at,
+               t.actual_start_date as started_at,
+               e.ts as finished_at   -- 이벤트 근거가 없으면 null → 완료 행 생략
+          from public.todolist t
+          left join last_evt e on e.todo_id = t.id::text
+    )
+    -- 배정
+    select b.tenant_id, b.id, b.proc_inst_id, b.activity_id,
+           null::todo_status, 'TODO'::todo_status, b.assigned_at,
+           b.user_id, (b.agent_mode is not null), 0,
+           b.draft_status, b.feedback_status, true
+      from base b
+     where b.assigned_at is not null
+
+    union all
+    -- 착수
+    select b.tenant_id, b.id, b.proc_inst_id, b.activity_id,
+           'TODO'::todo_status, 'IN_PROGRESS'::todo_status, b.started_at,
+           b.user_id, (b.agent_mode is not null), 0,
+           b.draft_status, b.feedback_status, true
+      from base b
+     where b.started_at is not null
+
+    union all
+    -- 완료 (종료 상태인 행만)
+    select b.tenant_id, b.id, b.proc_inst_id, b.activity_id,
+           'IN_PROGRESS'::todo_status, b.status, b.finished_at,
+           b.user_id, (b.agent_mode is not null), 0,
+           b.draft_status, b.feedback_status, true
+      from base b
+     where b.status in ('DONE','CANCELLED')
+       and b.finished_at is not null
+       and b.finished_at >= coalesce(b.started_at, b.assigned_at)
+) s
+where not exists (select 1 from public.todolist_status_history);
+
+-- ------------------------------------------------------------
+-- RLS (mcp_hub 마이그레이션과 동일 패턴)
+-- ------------------------------------------------------------
+alter table public.todolist_status_history enable row level security;
+
+drop policy if exists todolist_status_history_select_policy on public.todolist_status_history;
+create policy todolist_status_history_select_policy on public.todolist_status_history
+    for select to authenticated using (tenant_id = public.tenant_id());
+
+drop policy if exists todolist_status_history_insert_policy on public.todolist_status_history;
+create policy todolist_status_history_insert_policy on public.todolist_status_history
+    for insert to authenticated with check (tenant_id = public.tenant_id());
