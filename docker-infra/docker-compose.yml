@@ -387,6 +387,8 @@ services:
       - ./volumes/db/logs.sql:/docker-entrypoint-initdb.d/migrations/99-logs.sql:Z
       - ./volumes/db/pooler.sql:/docker-entrypoint-initdb.d/migrations/99-pooler.sql:Z
       - ./volumes/db/init.sql:/docker-entrypoint-initdb.d/init-scripts/100-init.sql:Z
+      # 시연 스키마 보정 — 시연을 녹화한 DB 와 init.sql 의 차이(테이블·함수·열·트리거·정책). init-scripts 중 마지막에 돈다
+      - ./volumes/db/demo-parity.sql:/docker-entrypoint-initdb.d/init-scripts/zz-demo-parity.sql:Z
       - db-config:/etc/postgresql-custom
 
   neo4j:

@@ -4405,6 +4405,9 @@ comment on table public.trace_payload is
 --   append-only 로 쌓는 테이블이 따로 필요하다.
 -- ============================================================
 
+-- 실제 착수 시각 (20260128 마이그레이션). 아래 백필 질의가 쓴다 — 새 볼륨에는 이 열이 없다
+alter table public.todolist add column if not exists actual_start_date timestamptz;
+
 create table if not exists public.todolist_status_history (
     id              bigserial primary key,
     tenant_id       text not null default public.tenant_id(),
