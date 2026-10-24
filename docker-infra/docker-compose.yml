@@ -40,6 +40,37 @@ services:
       retries: 3
       start_period: 20s
 
+  # ── MCP 허브 ──────────────────────────────────────────────────
+  # MCP 서버 등록·버전·권한·헬스·관측을 소유한다. 엔진(completion,
+  # deepagents, cli-agent)은 /agents/{id}/tools 단일 게이트로만 툴을 받고,
+  # LiteLLM 콜백은 /ingest/llm-calls 로 LLM 스팬을 보낸다.
+  mcp-hub:
+    build:
+      context: ../services/mcp-hub
+    ports:
+      - "${MCP_HUB_PORT:-8500}:8500"
+    environment:
+      PROCESSGPT_DB_URL: postgresql://postgres:${POSTGRES_PASSWORD}@${POSTGRES_HOST:-db}:5432/${POSTGRES_DB:-postgres}
+      MCP_VALIDATOR_URL: http://mcp-validator:8000
+      MCP_HEALTH_INTERVAL_SEC: ${MCP_HEALTH_INTERVAL_SEC:-300}
+      MCP_REGISTRY_URL: ${MCP_REGISTRY_URL:-https://registry.modelcontextprotocol.io}
+    depends_on:
+      db:
+        condition: service_healthy
+      mcp-validator:
+        condition: service_started
+    restart: unless-stopped
+
+  # 연결 검증과 tools/list 를 담당한다. stdio MCP 서버를 spawn 하는 쪽을
+  # 이 컨테이너에 가둬 허브를 깨끗하게 유지한다.
+  mcp-validator:
+    build:
+      context: ../services/mcp-validator
+      dockerfile: ../../docker-infra/mcp-validator/Dockerfile
+    expose:
+      - "8000"
+    restart: unless-stopped
+
   age-postgres:
     # strategy(온톨로지 그래프)와 bpmn-extractor(pdf2bpmn 프로세스 그래프)가
     # 공유하는 Apache AGE 전용 Postgres. Supabase의 postgres 이미지엔 AGE가

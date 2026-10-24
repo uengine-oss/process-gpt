@@ -1,0 +1,33 @@
+{
+  "contexts": [
+    {"conversation_id": "yt", "kind": "conversation", "title": "경제사냥꾼 유튜브 채널 영상 확인", "summary": "최근 영상 3개 제목을 물었고, '11월만 되면 주식이 더 오르는 이유' 영상의 일정 정리를 받음"},
+    {"conversation_id": "trip", "kind": "conversation", "title": "부산 출장 준비", "summary": "10/28~30 부산 출장. 숙소와 교통편 추천을 요청함"},
+    {"conversation_id": "podcast", "kind": "task", "active": true, "title": "X 핫한 AI 논문으로 팟캐스트 제작", "summary": "브라우저 에이전트가 NotebookLM 에 기사를 넣어 한국어 팟캐스트를 만드는 중"},
+    {"conversation_id": "sns", "kind": "instance", "title": "SNS 트렌드 데일리 대응 프로세스", "summary": "크루온 RMF 게시물 벤치마킹 → 제품 개선 구현 브랜치 → 구현 시연 영상"},
+    {"conversation_id": "vat", "kind": "conversation", "title": "10월 부가세 납부", "summary": "부가세 12,480,000원을 26일까지 납부하라는 리마인드"}
+  ],
+  "cases": [
+    {"message": "그 채널 두 번째 영상 자막도 요약해줘", "expect": "yt"},
+    {"message": "숙소는 해운대 쪽이면 좋겠어", "expect": "trip"},
+    {"message": "자, 이 작업을 매일 아침 주기적으로 돌려줘", "expect": "podcast"},
+    {"message": "원달러 환율 지금 얼마야?", "expect": "__new__"},
+    {"message": "KTX 말고 비행기면 몇 시 편이 있어?", "expect": "trip"},
+    {"message": "시연 영상 다시 보여줘", "expect": "sns"},
+    {"message": "부가세 납부했어, 리마인드 꺼줘", "expect": "vat"},
+    {"message": "다음 영상 올라오면 알려줘", "expect": "yt"},
+    {"message": "팟캐스트 다 됐어?", "expect": "podcast"},
+    {"message": "구현 브랜치 머지해도 되는지 검토해줘", "expect": "sns"},
+    {"message": "오늘 점심 메뉴 추천해줘", "expect": "__new__"},
+    {"message": "출장비 정산은 어떻게 해?", "expect": "trip"},
+    {"message": "그 논문 원문 링크도 같이 줘", "expect": "podcast"},
+    {"message": "크루온 쪽에 보낼 연락 초안 좀 다듬어줘", "expect": "sns"},
+    {"message": "세금계산서 발행 기한도 같이 확인해줘", "expect": "vat"},
+    {"message": "그 유튜버 구독자 수는 얼마나 돼?", "expect": "yt"},
+    {"message": "체크아웃은 30일 오전이야", "expect": "trip"},
+    {"message": "NotebookLM 로그인 다시 해야 해?", "expect": "podcast"},
+    {"message": "RMF 프로세스 템플릿 테스트 결과 보여줘", "expect": "sns"},
+    {"message": "엑셀 피벗 테이블 만드는 법 알려줘", "expect": "__new__"},
+    {"message": "새 노트북 사려는데 맥북 에어랑 프로 중 뭐가 나아?", "expect": "__new__"},
+    {"message": "그거 취소해", "expect": "ambiguous"}
+  ]
+}

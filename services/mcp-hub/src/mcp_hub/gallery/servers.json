@@ -1,0 +1,128 @@
+{
+  "version": 1,
+  "note": "내장 큐레이션 갤러리. 네트워크가 없는 폐쇄망에서도 동작하도록 레포에 포함한다. 새 항목은 이 파일에 PR 로 추가한다.",
+  "entries": [
+    {
+      "slug": "process-gpt-mcp",
+      "name": "Process GPT",
+      "description": "프로세스 정의·인스턴스·워크아이템을 조회하고 조작한다. 사용자 JWT 와 RLS 로 동작한다.",
+      "category": "사내 업무시스템",
+      "tags": ["process", "bpm", "internal"],
+      "publisher": "uEngine",
+      "install_template": {
+        "transport": "stdio",
+        "command": "uvx",
+        "args": ["process-gpt-mcp"]
+      },
+      "required_env": [
+        {"key": "SUPABASE_URL", "label": "Supabase URL", "secret": false},
+        {"key": "SUPABASE_ANON_KEY", "label": "Anon Key", "secret": true},
+        {"key": "JWT_SECRET", "label": "JWT Secret", "secret": true}
+      ]
+    },
+    {
+      "slug": "office-mcp",
+      "name": "Office 문서",
+      "description": "docx·xlsx·pptx 문서를 생성하고 편집한다.",
+      "category": "문서",
+      "tags": ["document", "office"],
+      "publisher": "uEngine",
+      "install_template": {
+        "transport": "streamable-http",
+        "url": "http://office-mcp:8000/mcp"
+      },
+      "required_env": []
+    },
+    {
+      "slug": "ontology-studio-search",
+      "name": "온톨로지 검색",
+      "description": "온톨로지 스튜디오의 클래스·인스턴스·관계를 검색한다.",
+      "category": "지식",
+      "tags": ["ontology", "search", "knowledge"],
+      "publisher": "uEngine",
+      "install_template": {
+        "transport": "streamable-http",
+        "url": "http://ontology-studio:8100/mcp"
+      },
+      "required_env": []
+    },
+    {
+      "slug": "postgres-mcp",
+      "name": "PostgreSQL",
+      "description": "관계형 DB 를 조회한다. 운영계에는 읽기 전용 계정으로 연결할 것.",
+      "category": "데이터",
+      "tags": ["database", "sql"],
+      "publisher": "crystaldba",
+      "homepage_url": "https://github.com/crystaldba/postgres-mcp",
+      "install_template": {
+        "transport": "stdio",
+        "command": "uvx",
+        "args": ["--python", "3.12", "postgres-mcp", "--access-mode=restricted"]
+      },
+      "required_env": [
+        {"key": "DATABASE_URI", "label": "접속 문자열", "secret": true,
+         "help": "postgresql://user:password@host:5432/dbname"}
+      ]
+    },
+    {
+      "slug": "filesystem",
+      "name": "파일시스템",
+      "description": "지정한 디렉터리 안의 파일을 읽고 쓴다.",
+      "category": "파일",
+      "tags": ["file", "local"],
+      "publisher": "Anthropic",
+      "homepage_url": "https://github.com/modelcontextprotocol/servers",
+      "install_template": {
+        "transport": "stdio",
+        "command": "npx",
+        "args": ["-y", "@modelcontextprotocol/server-filesystem", "/data"]
+      },
+      "required_env": []
+    },
+    {
+      "slug": "fetch",
+      "name": "웹 페이지 가져오기",
+      "description": "URL 을 가져와 마크다운으로 변환한다.",
+      "category": "검색",
+      "tags": ["web", "http"],
+      "publisher": "Anthropic",
+      "homepage_url": "https://github.com/modelcontextprotocol/servers",
+      "install_template": {
+        "transport": "stdio",
+        "command": "uvx",
+        "args": ["mcp-server-fetch"]
+      },
+      "required_env": []
+    },
+    {
+      "slug": "github",
+      "name": "GitHub",
+      "description": "이슈·PR·저장소를 조회하고 다룬다.",
+      "category": "개발",
+      "tags": ["git", "devops"],
+      "publisher": "GitHub",
+      "homepage_url": "https://github.com/github/github-mcp-server",
+      "install_template": {
+        "transport": "streamable-http",
+        "url": "https://api.githubcopilot.com/mcp/",
+        "headers": {"Authorization": "Bearer ${SECRET:GITHUB_TOKEN}"}
+      },
+      "required_env": [
+        {"key": "GITHUB_TOKEN", "label": "Personal Access Token", "secret": true}
+      ]
+    },
+    {
+      "slug": "wms",
+      "name": "창고관리(WMS)",
+      "description": "샘플 업무시스템. 재고·입출고를 조회한다. 사내 시스템의 MCP 구현 예시로도 쓰인다.",
+      "category": "사내 업무시스템",
+      "tags": ["wms", "sample", "internal"],
+      "publisher": "uEngine",
+      "install_template": {
+        "transport": "streamable-http",
+        "url": "http://wms-mcp:8199/mcp"
+      },
+      "required_env": []
+    }
+  ]
+}

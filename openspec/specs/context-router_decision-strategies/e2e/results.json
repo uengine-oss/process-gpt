@@ -1,0 +1,2145 @@
+[
+ {
+  "summary": {
+   "label": "judge · so1 · Qwen3-4B-Instruct (local)",
+   "accuracy": 0.762,
+   "p50_ms": 522,
+   "conf_right": 0.973,
+   "conf_wrong": 0.668,
+   "ambiguous_conf": 0.969,
+   "wrong_held_back": 3,
+   "wrong": 5,
+   "decided_by": {
+    "judge": 22
+   },
+   "escalated": 0
+  },
+  "rows": [
+   {
+    "message": "그 채널 두 번째 영상 자막도 요약해줘",
+    "expect": "yt",
+    "choice": "yt",
+    "confidence": 0.999,
+    "ms": 777,
+    "calibrated": true,
+    "strategy": "judge",
+    "escalated": false
+   },
+   {
+    "message": "숙소는 해운대 쪽이면 좋겠어",
+    "expect": "trip",
+    "choice": "trip",
+    "confidence": 1.0,
+    "ms": 516,
+    "calibrated": true,
+    "strategy": "judge",
+    "escalated": false
+   },
+   {
+    "message": "자, 이 작업을 매일 아침 주기적으로 돌려줘",
+    "expect": "podcast",
+    "choice": "podcast",
+    "confidence": 0.865,
+    "ms": 516,
+    "calibrated": true,
+    "strategy": "judge",
+    "escalated": false
+   },
+   {
+    "message": "원달러 환율 지금 얼마야?",
+    "expect": "__new__",
+    "choice": "yt",
+    "confidence": 0.5,
+    "ms": 513,
+    "calibrated": true,
+    "strategy": "judge",
+    "escalated": false
+   },
+   {
+    "message": "KTX 말고 비행기면 몇 시 편이 있어?",
+    "expect": "trip",
+    "choice": "trip",
+    "confidence": 1.0,
+    "ms": 514,
+    "calibrated": true,
+    "strategy": "judge",
+    "escalated": false
+   },
+   {
+    "message": "시연 영상 다시 보여줘",
+    "expect": "sns",
+    "choice": "sns",
+    "confidence": 1.0,
+    "ms": 513,
+    "calibrated": true,
+    "strategy": "judge",
+    "escalated": false
+   },
+   {
+    "message": "부가세 납부했어, 리마인드 꺼줘",
+    "expect": "vat",
+    "choice": "vat",
+    "confidence": 1.0,
+    "ms": 515,
+    "calibrated": true,
+    "strategy": "judge",
+    "escalated": false
+   },
+   {
+    "message": "다음 영상 올라오면 알려줘",
+    "expect": "yt",
+    "choice": "yt",
+    "confidence": 0.78,
+    "ms": 513,
+    "calibrated": true,
+    "strategy": "judge",
+    "escalated": false
+   },
+   {
+    "message": "팟캐스트 다 됐어?",
+    "expect": "podcast",
+    "choice": "podcast",
+    "confidence": 1.0,
+    "ms": 513,
+    "calibrated": true,
+    "strategy": "judge",
+    "escalated": false
+   },
+   {
+    "message": "구현 브랜치 머지해도 되는지 검토해줘",
+    "expect": "sns",
+    "choice": "sns",
+    "confidence": 1.0,
+    "ms": 520,
+    "calibrated": true,
+    "strategy": "judge",
+    "escalated": false
+   },
+   {
+    "message": "오늘 점심 메뉴 추천해줘",
+    "expect": "__new__",
+    "choice": "trip",
+    "confidence": 0.888,
+    "ms": 518,
+    "calibrated": true,
+    "strategy": "judge",
+    "escalated": false
+   },
+   {
+    "message": "출장비 정산은 어떻게 해?",
+    "expect": "trip",
+    "choice": "trip",
+    "confidence": 1.0,
+    "ms": 521,
+    "calibrated": true,
+    "strategy": "judge",
+    "escalated": false
+   },
+   {
+    "message": "그 논문 원문 링크도 같이 줘",
+    "expect": "podcast",
+    "choice": "podcast",
+    "confidence": 1.0,
+    "ms": 523,
+    "calibrated": true,
+    "strategy": "judge",
+    "escalated": false
+   },
+   {
+    "message": "크루온 쪽에 보낼 연락 초안 좀 다듬어줘",
+    "expect": "sns",
+    "choice": "sns",
+    "confidence": 1.0,
+    "ms": 527,
+    "calibrated": true,
+    "strategy": "judge",
+    "escalated": false
+   },
+   {
+    "message": "세금계산서 발행 기한도 같이 확인해줘",
+    "expect": "vat",
+    "choice": "vat",
+    "confidence": 0.925,
+    "ms": 531,
+    "calibrated": true,
+    "strategy": "judge",
+    "escalated": false
+   },
+   {
+    "message": "그 유튜버 구독자 수는 얼마나 돼?",
+    "expect": "yt",
+    "choice": "yt",
+    "confidence": 1.0,
+    "ms": 554,
+    "calibrated": true,
+    "strategy": "judge",
+    "escalated": false
+   },
+   {
+    "message": "체크아웃은 30일 오전이야",
+    "expect": "trip",
+    "choice": "podcast",
+    "confidence": 0.449,
+    "ms": 547,
+    "calibrated": true,
+    "strategy": "judge",
+    "escalated": false
+   },
+   {
+    "message": "NotebookLM 로그인 다시 해야 해?",
+    "expect": "podcast",
+    "choice": "podcast",
+    "confidence": 1.0,
+    "ms": 542,
+    "calibrated": true,
+    "strategy": "judge",
+    "escalated": false
+   },
+   {
+    "message": "RMF 프로세스 템플릿 테스트 결과 보여줘",
+    "expect": "sns",
+    "choice": "sns",
+    "confidence": 1.0,
+    "ms": 540,
+    "calibrated": true,
+    "strategy": "judge",
+    "escalated": false
+   },
+   {
+    "message": "엑셀 피벗 테이블 만드는 법 알려줘",
+    "expect": "__new__",
+    "choice": "podcast",
+    "confidence": 0.504,
+    "ms": 536,
+    "calibrated": true,
+    "strategy": "judge",
+    "escalated": false
+   },
+   {
+    "message": "새 노트북 사려는데 맥북 에어랑 프로 중 뭐가 나아?",
+    "expect": "__new__",
+    "choice": "podcast",
+    "confidence": 1.0,
+    "ms": 542,
+    "calibrated": true,
+    "strategy": "judge",
+    "escalated": false
+   },
+   {
+    "message": "그거 취소해",
+    "expect": "ambiguous",
+    "choice": "podcast",
+    "confidence": 0.969,
+    "ms": 532,
+    "calibrated": true,
+    "strategy": "judge",
+    "escalated": false
+   }
+  ]
+ },
+ {
+  "summary": {
+   "label": "logprob · frentis",
+   "accuracy": 1.0,
+   "p50_ms": 150,
+   "conf_right": 0.965,
+   "conf_wrong": null,
+   "ambiguous_conf": 0.795,
+   "wrong_held_back": 0,
+   "wrong": 0,
+   "decided_by": {
+    "logprob": 22
+   },
+   "escalated": 0
+  },
+  "rows": [
+   {
+    "message": "그 채널 두 번째 영상 자막도 요약해줘",
+    "expect": "yt",
+    "choice": "yt",
+    "confidence": 1.0,
+    "ms": 345,
+    "calibrated": true,
+    "strategy": "logprob",
+    "escalated": false
+   },
+   {
+    "message": "숙소는 해운대 쪽이면 좋겠어",
+    "expect": "trip",
+    "choice": "trip",
+    "confidence": 1.0,
+    "ms": 138,
+    "calibrated": true,
+    "strategy": "logprob",
+    "escalated": false
+   },
+   {
+    "message": "자, 이 작업을 매일 아침 주기적으로 돌려줘",
+    "expect": "podcast",
+    "choice": "podcast",
+    "confidence": 0.613,
+    "ms": 160,
+    "calibrated": true,
+    "strategy": "logprob",
+    "escalated": false
+   },
+   {
+    "message": "원달러 환율 지금 얼마야?",
+    "expect": "__new__",
+    "choice": "__new__",
+    "confidence": 0.847,
+    "ms": 170,
+    "calibrated": true,
+    "strategy": "logprob",
+    "escalated": false
+   },
+   {
+    "message": "KTX 말고 비행기면 몇 시 편이 있어?",
+    "expect": "trip",
+    "choice": "trip",
+    "confidence": 1.0,
+    "ms": 149,
+    "calibrated": true,
+    "strategy": "logprob",
+    "escalated": false
+   },
+   {
+    "message": "시연 영상 다시 보여줘",
+    "expect": "sns",
+    "choice": "sns",
+    "confidence": 0.984,
+    "ms": 150,
+    "calibrated": true,
+    "strategy": "logprob",
+    "escalated": false
+   },
+   {
+    "message": "부가세 납부했어, 리마인드 꺼줘",
+    "expect": "vat",
+    "choice": "vat",
+    "confidence": 0.997,
+    "ms": 170,
+    "calibrated": true,
+    "strategy": "logprob",
+    "escalated": false
+   },
+   {
+    "message": "다음 영상 올라오면 알려줘",
+    "expect": "yt",
+    "choice": "yt",
+    "confidence": 0.943,
+    "ms": 149,
+    "calibrated": true,
+    "strategy": "logprob",
+    "escalated": false
+   },
+   {
+    "message": "팟캐스트 다 됐어?",
+    "expect": "podcast",
+    "choice": "podcast",
+    "confidence": 1.0,
+    "ms": 170,
+    "calibrated": true,
+    "strategy": "logprob",
+    "escalated": false
+   },
+   {
+    "message": "구현 브랜치 머지해도 되는지 검토해줘",
+    "expect": "sns",
+    "choice": "sns",
+    "confidence": 0.985,
+    "ms": 149,
+    "calibrated": true,
+    "strategy": "logprob",
+    "escalated": false
+   },
+   {
+    "message": "오늘 점심 메뉴 추천해줘",
+    "expect": "__new__",
+    "choice": "__new__",
+    "confidence": 0.997,
+    "ms": 149,
+    "calibrated": true,
+    "strategy": "logprob",
+    "escalated": false
+   },
+   {
+    "message": "출장비 정산은 어떻게 해?",
+    "expect": "trip",
+    "choice": "trip",
+    "confidence": 0.997,
+    "ms": 150,
+    "calibrated": true,
+    "strategy": "logprob",
+    "escalated": false
+   },
+   {
+    "message": "그 논문 원문 링크도 같이 줘",
+    "expect": "podcast",
+    "choice": "podcast",
+    "confidence": 0.996,
+    "ms": 151,
+    "calibrated": true,
+    "strategy": "logprob",
+    "escalated": false
+   },
+   {
+    "message": "크루온 쪽에 보낼 연락 초안 좀 다듬어줘",
+    "expect": "sns",
+    "choice": "sns",
+    "confidence": 0.949,
+    "ms": 158,
+    "calibrated": true,
+    "strategy": "logprob",
+    "escalated": false
+   },
+   {
+    "message": "세금계산서 발행 기한도 같이 확인해줘",
+    "expect": "vat",
+    "choice": "vat",
+    "confidence": 0.996,
+    "ms": 170,
+    "calibrated": true,
+    "strategy": "logprob",
+    "escalated": false
+   },
+   {
+    "message": "그 유튜버 구독자 수는 얼마나 돼?",
+    "expect": "yt",
+    "choice": "yt",
+    "confidence": 0.999,
+    "ms": 149,
+    "calibrated": true,
+    "strategy": "logprob",
+    "escalated": false
+   },
+   {
+    "message": "체크아웃은 30일 오전이야",
+    "expect": "trip",
+    "choice": "trip",
+    "confidence": 0.992,
+    "ms": 150,
+    "calibrated": true,
+    "strategy": "logprob",
+    "escalated": false
+   },
+   {
+    "message": "NotebookLM 로그인 다시 해야 해?",
+    "expect": "podcast",
+    "choice": "podcast",
+    "confidence": 1.0,
+    "ms": 221,
+    "calibrated": true,
+    "strategy": "logprob",
+    "escalated": false
+   },
+   {
+    "message": "RMF 프로세스 템플릿 테스트 결과 보여줘",
+    "expect": "sns",
+    "choice": "sns",
+    "confidence": 0.978,
+    "ms": 149,
+    "calibrated": true,
+    "strategy": "logprob",
+    "escalated": false
+   },
+   {
+    "message": "엑셀 피벗 테이블 만드는 법 알려줘",
+    "expect": "__new__",
+    "choice": "__new__",
+    "confidence": 0.995,
+    "ms": 149,
+    "calibrated": true,
+    "strategy": "logprob",
+    "escalated": false
+   },
+   {
+    "message": "새 노트북 사려는데 맥북 에어랑 프로 중 뭐가 나아?",
+    "expect": "__new__",
+    "choice": "__new__",
+    "confidence": 0.997,
+    "ms": 150,
+    "calibrated": true,
+    "strategy": "logprob",
+    "escalated": false
+   },
+   {
+    "message": "그거 취소해",
+    "expect": "ambiguous",
+    "choice": "podcast",
+    "confidence": 0.795,
+    "ms": 149,
+    "calibrated": true,
+    "strategy": "logprob",
+    "escalated": false
+   }
+  ]
+ },
+ {
+  "summary": {
+   "label": "json · frentis",
+   "accuracy": 0.952,
+   "p50_ms": 230,
+   "conf_right": 0.962,
+   "conf_wrong": 0.95,
+   "ambiguous_conf": 0.95,
+   "wrong_held_back": 0,
+   "wrong": 1,
+   "decided_by": {
+    "json": 22
+   },
+   "escalated": 0
+  },
+  "rows": [
+   {
+    "message": "그 채널 두 번째 영상 자막도 요약해줘",
+    "expect": "yt",
+    "choice": "yt",
+    "confidence": 0.95,
+    "ms": 220,
+    "calibrated": false,
+    "strategy": "json",
+    "escalated": false
+   },
+   {
+    "message": "숙소는 해운대 쪽이면 좋겠어",
+    "expect": "trip",
+    "choice": "trip",
+    "confidence": 0.98,
+    "ms": 259,
+    "calibrated": false,
+    "strategy": "json",
+    "escalated": false
+   },
+   {
+    "message": "자, 이 작업을 매일 아침 주기적으로 돌려줘",
+    "expect": "podcast",
+    "choice": "__new__",
+    "confidence": 0.95,
+    "ms": 269,
+    "calibrated": false,
+    "strategy": "json",
+    "escalated": false
+   },
+   {
+    "message": "원달러 환율 지금 얼마야?",
+    "expect": "__new__",
+    "choice": "__new__",
+    "confidence": 0.95,
+    "ms": 260,
+    "calibrated": false,
+    "strategy": "json",
+    "escalated": false
+   },
+   {
+    "message": "KTX 말고 비행기면 몇 시 편이 있어?",
+    "expect": "trip",
+    "choice": "trip",
+    "confidence": 0.95,
+    "ms": 250,
+    "calibrated": false,
+    "strategy": "json",
+    "escalated": false
+   },
+   {
+    "message": "시연 영상 다시 보여줘",
+    "expect": "sns",
+    "choice": "sns",
+    "confidence": 0.95,
+    "ms": 199,
+    "calibrated": false,
+    "strategy": "json",
+    "escalated": false
+   },
+   {
+    "message": "부가세 납부했어, 리마인드 꺼줘",
+    "expect": "vat",
+    "choice": "vat",
+    "confidence": 0.98,
+    "ms": 260,
+    "calibrated": false,
+    "strategy": "json",
+    "escalated": false
+   },
+   {
+    "message": "다음 영상 올라오면 알려줘",
+    "expect": "yt",
+    "choice": "yt",
+    "confidence": 0.95,
+    "ms": 209,
+    "calibrated": false,
+    "strategy": "json",
+    "escalated": false
+   },
+   {
+    "message": "팟캐스트 다 됐어?",
+    "expect": "podcast",
+    "choice": "podcast",
+    "confidence": 0.98,
+    "ms": 239,
+    "calibrated": false,
+    "strategy": "json",
+    "escalated": false
+   },
+   {
+    "message": "구현 브랜치 머지해도 되는지 검토해줘",
+    "expect": "sns",
+    "choice": "sns",
+    "confidence": 0.95,
+    "ms": 259,
+    "calibrated": false,
+    "strategy": "json",
+    "escalated": false
+   },
+   {
+    "message": "오늘 점심 메뉴 추천해줘",
+    "expect": "__new__",
+    "choice": "__new__",
+    "confidence": 1.0,
+    "ms": 210,
+    "calibrated": false,
+    "strategy": "json",
+    "escalated": false
+   },
+   {
+    "message": "출장비 정산은 어떻게 해?",
+    "expect": "trip",
+    "choice": "trip",
+    "confidence": 0.95,
+    "ms": 259,
+    "calibrated": false,
+    "strategy": "json",
+    "escalated": false
+   },
+   {
+    "message": "그 논문 원문 링크도 같이 줘",
+    "expect": "podcast",
+    "choice": "podcast",
+    "confidence": 0.95,
+    "ms": 229,
+    "calibrated": false,
+    "strategy": "json",
+    "escalated": false
+   },
+   {
+    "message": "크루온 쪽에 보낼 연락 초안 좀 다듬어줘",
+    "expect": "sns",
+    "choice": "sns",
+    "confidence": 0.95,
+    "ms": 230,
+    "calibrated": false,
+    "strategy": "json",
+    "escalated": false
+   },
+   {
+    "message": "세금계산서 발행 기한도 같이 확인해줘",
+    "expect": "vat",
+    "choice": "vat",
+    "confidence": 0.95,
+    "ms": 229,
+    "calibrated": false,
+    "strategy": "json",
+    "escalated": false
+   },
+   {
+    "message": "그 유튜버 구독자 수는 얼마나 돼?",
+    "expect": "yt",
+    "choice": "yt",
+    "confidence": 0.95,
+    "ms": 210,
+    "calibrated": false,
+    "strategy": "json",
+    "escalated": false
+   },
+   {
+    "message": "체크아웃은 30일 오전이야",
+    "expect": "trip",
+    "choice": "trip",
+    "confidence": 0.95,
+    "ms": 210,
+    "calibrated": false,
+    "strategy": "json",
+    "escalated": false
+   },
+   {
+    "message": "NotebookLM 로그인 다시 해야 해?",
+    "expect": "podcast",
+    "choice": "podcast",
+    "confidence": 0.98,
+    "ms": 209,
+    "calibrated": false,
+    "strategy": "json",
+    "escalated": false
+   },
+   {
+    "message": "RMF 프로세스 템플릿 테스트 결과 보여줘",
+    "expect": "sns",
+    "choice": "sns",
+    "confidence": 0.95,
+    "ms": 219,
+    "calibrated": false,
+    "strategy": "json",
+    "escalated": false
+   },
+   {
+    "message": "엑셀 피벗 테이블 만드는 법 알려줘",
+    "expect": "__new__",
+    "choice": "__new__",
+    "confidence": 0.98,
+    "ms": 290,
+    "calibrated": false,
+    "strategy": "json",
+    "escalated": false
+   },
+   {
+    "message": "새 노트북 사려는데 맥북 에어랑 프로 중 뭐가 나아?",
+    "expect": "__new__",
+    "choice": "__new__",
+    "confidence": 1.0,
+    "ms": 230,
+    "calibrated": false,
+    "strategy": "json",
+    "escalated": false
+   },
+   {
+    "message": "그거 취소해",
+    "expect": "ambiguous",
+    "choice": "podcast",
+    "confidence": 0.95,
+    "ms": 310,
+    "calibrated": false,
+    "strategy": "json",
+    "escalated": false
+   }
+  ]
+ },
+ {
+  "summary": {
+   "label": "logprob · gpt-4o-mini",
+   "accuracy": 0.952,
+   "p50_ms": 745,
+   "conf_right": 0.97,
+   "conf_wrong": 0.73,
+   "ambiguous_conf": 0.709,
+   "wrong_held_back": 0,
+   "wrong": 1,
+   "decided_by": {
+    "logprob": 22
+   },
+   "escalated": 0
+  },
+  "rows": [
+   {
+    "message": "그 채널 두 번째 영상 자막도 요약해줘",
+    "expect": "yt",
+    "choice": "yt",
+    "confidence": 1.0,
+    "ms": 621,
+    "calibrated": true,
+    "strategy": "logprob",
+    "escalated": false
+   },
+   {
+    "message": "숙소는 해운대 쪽이면 좋겠어",
+    "expect": "trip",
+    "choice": "trip",
+    "confidence": 1.0,
+    "ms": 869,
+    "calibrated": true,
+    "strategy": "logprob",
+    "escalated": false
+   },
+   {
+    "message": "자, 이 작업을 매일 아침 주기적으로 돌려줘",
+    "expect": "podcast",
+    "choice": "__new__",
+    "confidence": 0.73,
+    "ms": 668,
+    "calibrated": true,
+    "strategy": "logprob",
+    "escalated": false
+   },
+   {
+    "message": "원달러 환율 지금 얼마야?",
+    "expect": "__new__",
+    "choice": "__new__",
+    "confidence": 0.905,
+    "ms": 869,
+    "calibrated": true,
+    "strategy": "logprob",
+    "escalated": false
+   },
+   {
+    "message": "KTX 말고 비행기면 몇 시 편이 있어?",
+    "expect": "trip",
+    "choice": "trip",
+    "confidence": 1.0,
+    "ms": 619,
+    "calibrated": true,
+    "strategy": "logprob",
+    "escalated": false
+   },
+   {
+    "message": "시연 영상 다시 보여줘",
+    "expect": "sns",
+    "choice": "sns",
+    "confidence": 0.609,
+    "ms": 829,
+    "calibrated": true,
+    "strategy": "logprob",
+    "escalated": false
+   },
+   {
+    "message": "부가세 납부했어, 리마인드 꺼줘",
+    "expect": "vat",
+    "choice": "vat",
+    "confidence": 1.0,
+    "ms": 620,
+    "calibrated": true,
+    "strategy": "logprob",
+    "escalated": false
+   },
+   {
+    "message": "다음 영상 올라오면 알려줘",
+    "expect": "yt",
+    "choice": "yt",
+    "confidence": 1.0,
+    "ms": 701,
+    "calibrated": true,
+    "strategy": "logprob",
+    "escalated": false
+   },
+   {
+    "message": "팟캐스트 다 됐어?",
+    "expect": "podcast",
+    "choice": "podcast",
+    "confidence": 1.0,
+    "ms": 730,
+    "calibrated": true,
+    "strategy": "logprob",
+    "escalated": false
+   },
+   {
+    "message": "구현 브랜치 머지해도 되는지 검토해줘",
+    "expect": "sns",
+    "choice": "sns",
+    "confidence": 1.0,
+    "ms": 810,
+    "calibrated": true,
+    "strategy": "logprob",
+    "escalated": false
+   },
+   {
+    "message": "오늘 점심 메뉴 추천해줘",
+    "expect": "__new__",
+    "choice": "__new__",
+    "confidence": 1.0,
+    "ms": 928,
+    "calibrated": true,
+    "strategy": "logprob",
+    "escalated": false
+   },
+   {
+    "message": "출장비 정산은 어떻게 해?",
+    "expect": "trip",
+    "choice": "trip",
+    "confidence": 1.0,
+    "ms": 811,
+    "calibrated": true,
+    "strategy": "logprob",
+    "escalated": false
+   },
+   {
+    "message": "그 논문 원문 링크도 같이 줘",
+    "expect": "podcast",
+    "choice": "podcast",
+    "confidence": 1.0,
+    "ms": 778,
+    "calibrated": true,
+    "strategy": "logprob",
+    "escalated": false
+   },
+   {
+    "message": "크루온 쪽에 보낼 연락 초안 좀 다듬어줘",
+    "expect": "sns",
+    "choice": "sns",
+    "confidence": 1.0,
+    "ms": 821,
+    "calibrated": true,
+    "strategy": "logprob",
+    "escalated": false
+   },
+   {
+    "message": "세금계산서 발행 기한도 같이 확인해줘",
+    "expect": "vat",
+    "choice": "vat",
+    "confidence": 1.0,
+    "ms": 670,
+    "calibrated": true,
+    "strategy": "logprob",
+    "escalated": false
+   },
+   {
+    "message": "그 유튜버 구독자 수는 얼마나 돼?",
+    "expect": "yt",
+    "choice": "yt",
+    "confidence": 0.881,
+    "ms": 1100,
+    "calibrated": true,
+    "strategy": "logprob",
+    "escalated": false
+   },
+   {
+    "message": "체크아웃은 30일 오전이야",
+    "expect": "trip",
+    "choice": "trip",
+    "confidence": 1.0,
+    "ms": 559,
+    "calibrated": true,
+    "strategy": "logprob",
+    "escalated": false
+   },
+   {
+    "message": "NotebookLM 로그인 다시 해야 해?",
+    "expect": "podcast",
+    "choice": "podcast",
+    "confidence": 1.0,
+    "ms": 670,
+    "calibrated": true,
+    "strategy": "logprob",
+    "escalated": false
+   },
+   {
+    "message": "RMF 프로세스 템플릿 테스트 결과 보여줘",
+    "expect": "sns",
+    "choice": "sns",
+    "confidence": 1.0,
+    "ms": 608,
+    "calibrated": true,
+    "strategy": "logprob",
+    "escalated": false
+   },
+   {
+    "message": "엑셀 피벗 테이블 만드는 법 알려줘",
+    "expect": "__new__",
+    "choice": "__new__",
+    "confidence": 1.0,
+    "ms": 761,
+    "calibrated": true,
+    "strategy": "logprob",
+    "escalated": false
+   },
+   {
+    "message": "새 노트북 사려는데 맥북 에어랑 프로 중 뭐가 나아?",
+    "expect": "__new__",
+    "choice": "__new__",
+    "confidence": 1.0,
+    "ms": 558,
+    "calibrated": true,
+    "strategy": "logprob",
+    "escalated": false
+   },
+   {
+    "message": "그거 취소해",
+    "expect": "ambiguous",
+    "choice": "__new__",
+    "confidence": 0.709,
+    "ms": 802,
+    "calibrated": true,
+    "strategy": "logprob",
+    "escalated": false
+   }
+  ]
+ },
+ {
+  "summary": {
+   "label": "json · gpt-4o-mini",
+   "accuracy": 0.905,
+   "p50_ms": 855,
+   "conf_right": 0.916,
+   "conf_wrong": 0.85,
+   "ambiguous_conf": 0.9,
+   "wrong_held_back": 0,
+   "wrong": 2,
+   "decided_by": {
+    "json": 22
+   },
+   "escalated": 0
+  },
+  "rows": [
+   {
+    "message": "그 채널 두 번째 영상 자막도 요약해줘",
+    "expect": "yt",
+    "choice": "yt",
+    "confidence": 0.9,
+    "ms": 759,
+    "calibrated": false,
+    "strategy": "json",
+    "escalated": false
+   },
+   {
+    "message": "숙소는 해운대 쪽이면 좋겠어",
+    "expect": "trip",
+    "choice": "trip",
+    "confidence": 0.9,
+    "ms": 760,
+    "calibrated": false,
+    "strategy": "json",
+    "escalated": false
+   },
+   {
+    "message": "자, 이 작업을 매일 아침 주기적으로 돌려줘",
+    "expect": "podcast",
+    "choice": "__new__",
+    "confidence": 0.9,
+    "ms": 818,
+    "calibrated": false,
+    "strategy": "json",
+    "escalated": false
+   },
+   {
+    "message": "원달러 환율 지금 얼마야?",
+    "expect": "__new__",
+    "choice": "yt",
+    "confidence": 0.8,
+    "ms": 851,
+    "calibrated": false,
+    "strategy": "json",
+    "escalated": false
+   },
+   {
+    "message": "KTX 말고 비행기면 몇 시 편이 있어?",
+    "expect": "trip",
+    "choice": "trip",
+    "confidence": 0.9,
+    "ms": 849,
+    "calibrated": false,
+    "strategy": "json",
+    "escalated": false
+   },
+   {
+    "message": "시연 영상 다시 보여줘",
+    "expect": "sns",
+    "choice": "sns",
+    "confidence": 0.9,
+    "ms": 1419,
+    "calibrated": false,
+    "strategy": "json",
+    "escalated": false
+   },
+   {
+    "message": "부가세 납부했어, 리마인드 꺼줘",
+    "expect": "vat",
+    "choice": "vat",
+    "confidence": 1.0,
+    "ms": 668,
+    "calibrated": false,
+    "strategy": "json",
+    "escalated": false
+   },
+   {
+    "message": "다음 영상 올라오면 알려줘",
+    "expect": "yt",
+    "choice": "yt",
+    "confidence": 0.9,
+    "ms": 741,
+    "calibrated": false,
+    "strategy": "json",
+    "escalated": false
+   },
+   {
+    "message": "팟캐스트 다 됐어?",
+    "expect": "podcast",
+    "choice": "podcast",
+    "confidence": 0.9,
+    "ms": 910,
+    "calibrated": false,
+    "strategy": "json",
+    "escalated": false
+   },
+   {
+    "message": "구현 브랜치 머지해도 되는지 검토해줘",
+    "expect": "sns",
+    "choice": "sns",
+    "confidence": 0.9,
+    "ms": 758,
+    "calibrated": false,
+    "strategy": "json",
+    "escalated": false
+   },
+   {
+    "message": "오늘 점심 메뉴 추천해줘",
+    "expect": "__new__",
+    "choice": "__new__",
+    "confidence": 1.0,
+    "ms": 859,
+    "calibrated": false,
+    "strategy": "json",
+    "escalated": false
+   },
+   {
+    "message": "출장비 정산은 어떻게 해?",
+    "expect": "trip",
+    "choice": "trip",
+    "confidence": 0.9,
+    "ms": 880,
+    "calibrated": false,
+    "strategy": "json",
+    "escalated": false
+   },
+   {
+    "message": "그 논문 원문 링크도 같이 줘",
+    "expect": "podcast",
+    "choice": "podcast",
+    "confidence": 0.9,
+    "ms": 1112,
+    "calibrated": false,
+    "strategy": "json",
+    "escalated": false
+   },
+   {
+    "message": "크루온 쪽에 보낼 연락 초안 좀 다듬어줘",
+    "expect": "sns",
+    "choice": "sns",
+    "confidence": 0.9,
+    "ms": 1009,
+    "calibrated": false,
+    "strategy": "json",
+    "escalated": false
+   },
+   {
+    "message": "세금계산서 발행 기한도 같이 확인해줘",
+    "expect": "vat",
+    "choice": "vat",
+    "confidence": 0.9,
+    "ms": 938,
+    "calibrated": false,
+    "strategy": "json",
+    "escalated": false
+   },
+   {
+    "message": "그 유튜버 구독자 수는 얼마나 돼?",
+    "expect": "yt",
+    "choice": "yt",
+    "confidence": 0.9,
+    "ms": 1009,
+    "calibrated": false,
+    "strategy": "json",
+    "escalated": false
+   },
+   {
+    "message": "체크아웃은 30일 오전이야",
+    "expect": "trip",
+    "choice": "trip",
+    "confidence": 0.9,
+    "ms": 841,
+    "calibrated": false,
+    "strategy": "json",
+    "escalated": false
+   },
+   {
+    "message": "NotebookLM 로그인 다시 해야 해?",
+    "expect": "podcast",
+    "choice": "podcast",
+    "confidence": 0.9,
+    "ms": 708,
+    "calibrated": false,
+    "strategy": "json",
+    "escalated": false
+   },
+   {
+    "message": "RMF 프로세스 템플릿 테스트 결과 보여줘",
+    "expect": "sns",
+    "choice": "sns",
+    "confidence": 0.9,
+    "ms": 689,
+    "calibrated": false,
+    "strategy": "json",
+    "escalated": false
+   },
+   {
+    "message": "엑셀 피벗 테이블 만드는 법 알려줘",
+    "expect": "__new__",
+    "choice": "__new__",
+    "confidence": 0.9,
+    "ms": 1001,
+    "calibrated": false,
+    "strategy": "json",
+    "escalated": false
+   },
+   {
+    "message": "새 노트북 사려는데 맥북 에어랑 프로 중 뭐가 나아?",
+    "expect": "__new__",
+    "choice": "__new__",
+    "confidence": 1.0,
+    "ms": 898,
+    "calibrated": false,
+    "strategy": "json",
+    "escalated": false
+   },
+   {
+    "message": "그거 취소해",
+    "expect": "ambiguous",
+    "choice": "__new__",
+    "confidence": 0.9,
+    "ms": 971,
+    "calibrated": false,
+    "strategy": "json",
+    "escalated": false
+   }
+  ]
+ },
+ {
+  "summary": {
+   "label": "logprob · gpt-4.1-nano",
+   "accuracy": 0.476,
+   "p50_ms": 613,
+   "conf_right": 0.95,
+   "conf_wrong": 0.933,
+   "ambiguous_conf": 1.0,
+   "wrong_held_back": 0,
+   "wrong": 11,
+   "decided_by": {
+    "logprob": 22
+   },
+   "escalated": 0
+  },
+  "rows": [
+   {
+    "message": "그 채널 두 번째 영상 자막도 요약해줘",
+    "expect": "yt",
+    "choice": "yt",
+    "confidence": 0.98,
+    "ms": 518,
+    "calibrated": true,
+    "strategy": "logprob",
+    "escalated": false
+   },
+   {
+    "message": "숙소는 해운대 쪽이면 좋겠어",
+    "expect": "trip",
+    "choice": "trip",
+    "confidence": 1.0,
+    "ms": 600,
+    "calibrated": true,
+    "strategy": "logprob",
+    "escalated": false
+   },
+   {
+    "message": "자, 이 작업을 매일 아침 주기적으로 돌려줘",
+    "expect": "podcast",
+    "choice": "__new__",
+    "confidence": 1.0,
+    "ms": 469,
+    "calibrated": true,
+    "strategy": "logprob",
+    "escalated": false
+   },
+   {
+    "message": "원달러 환율 지금 얼마야?",
+    "expect": "__new__",
+    "choice": "__new__",
+    "confidence": 1.0,
+    "ms": 789,
+    "calibrated": true,
+    "strategy": "logprob",
+    "escalated": false
+   },
+   {
+    "message": "KTX 말고 비행기면 몇 시 편이 있어?",
+    "expect": "trip",
+    "choice": "__new__",
+    "confidence": 1.0,
+    "ms": 651,
+    "calibrated": true,
+    "strategy": "logprob",
+    "escalated": false
+   },
+   {
+    "message": "시연 영상 다시 보여줘",
+    "expect": "sns",
+    "choice": "yt",
+    "confidence": 0.724,
+    "ms": 539,
+    "calibrated": true,
+    "strategy": "logprob",
+    "escalated": false
+   },
+   {
+    "message": "부가세 납부했어, 리마인드 꺼줘",
+    "expect": "vat",
+    "choice": "vat",
+    "confidence": 1.0,
+    "ms": 528,
+    "calibrated": true,
+    "strategy": "logprob",
+    "escalated": false
+   },
+   {
+    "message": "다음 영상 올라오면 알려줘",
+    "expect": "yt",
+    "choice": "__new__",
+    "confidence": 1.0,
+    "ms": 659,
+    "calibrated": true,
+    "strategy": "logprob",
+    "escalated": false
+   },
+   {
+    "message": "팟캐스트 다 됐어?",
+    "expect": "podcast",
+    "choice": "podcast",
+    "confidence": 1.0,
+    "ms": 871,
+    "calibrated": true,
+    "strategy": "logprob",
+    "escalated": false
+   },
+   {
+    "message": "구현 브랜치 머지해도 되는지 검토해줘",
+    "expect": "sns",
+    "choice": "sns",
+    "confidence": 0.816,
+    "ms": 608,
+    "calibrated": true,
+    "strategy": "logprob",
+    "escalated": false
+   },
+   {
+    "message": "오늘 점심 메뉴 추천해줘",
+    "expect": "__new__",
+    "choice": "__new__",
+    "confidence": 1.0,
+    "ms": 622,
+    "calibrated": true,
+    "strategy": "logprob",
+    "escalated": false
+   },
+   {
+    "message": "출장비 정산은 어떻게 해?",
+    "expect": "trip",
+    "choice": "__new__",
+    "confidence": 0.966,
+    "ms": 599,
+    "calibrated": true,
+    "strategy": "logprob",
+    "escalated": false
+   },
+   {
+    "message": "그 논문 원문 링크도 같이 줘",
+    "expect": "podcast",
+    "choice": "__new__",
+    "confidence": 0.88,
+    "ms": 648,
+    "calibrated": true,
+    "strategy": "logprob",
+    "escalated": false
+   },
+   {
+    "message": "크루온 쪽에 보낼 연락 초안 좀 다듬어줘",
+    "expect": "sns",
+    "choice": "__new__",
+    "confidence": 0.995,
+    "ms": 549,
+    "calibrated": true,
+    "strategy": "logprob",
+    "escalated": false
+   },
+   {
+    "message": "세금계산서 발행 기한도 같이 확인해줘",
+    "expect": "vat",
+    "choice": "__new__",
+    "confidence": 0.955,
+    "ms": 499,
+    "calibrated": true,
+    "strategy": "logprob",
+    "escalated": false
+   },
+   {
+    "message": "그 유튜버 구독자 수는 얼마나 돼?",
+    "expect": "yt",
+    "choice": "__new__",
+    "confidence": 0.962,
+    "ms": 651,
+    "calibrated": true,
+    "strategy": "logprob",
+    "escalated": false
+   },
+   {
+    "message": "체크아웃은 30일 오전이야",
+    "expect": "trip",
+    "choice": "__new__",
+    "confidence": 0.982,
+    "ms": 638,
+    "calibrated": true,
+    "strategy": "logprob",
+    "escalated": false
+   },
+   {
+    "message": "NotebookLM 로그인 다시 해야 해?",
+    "expect": "podcast",
+    "choice": "podcast",
+    "confidence": 0.706,
+    "ms": 621,
+    "calibrated": true,
+    "strategy": "logprob",
+    "escalated": false
+   },
+   {
+    "message": "RMF 프로세스 템플릿 테스트 결과 보여줘",
+    "expect": "sns",
+    "choice": "__new__",
+    "confidence": 0.796,
+    "ms": 619,
+    "calibrated": true,
+    "strategy": "logprob",
+    "escalated": false
+   },
+   {
+    "message": "엑셀 피벗 테이블 만드는 법 알려줘",
+    "expect": "__new__",
+    "choice": "__new__",
+    "confidence": 1.0,
+    "ms": 548,
+    "calibrated": true,
+    "strategy": "logprob",
+    "escalated": false
+   },
+   {
+    "message": "새 노트북 사려는데 맥북 에어랑 프로 중 뭐가 나아?",
+    "expect": "__new__",
+    "choice": "__new__",
+    "confidence": 1.0,
+    "ms": 541,
+    "calibrated": true,
+    "strategy": "logprob",
+    "escalated": false
+   },
+   {
+    "message": "그거 취소해",
+    "expect": "ambiguous",
+    "choice": "__new__",
+    "confidence": 1.0,
+    "ms": 628,
+    "calibrated": true,
+    "strategy": "logprob",
+    "escalated": false
+   }
+  ]
+ },
+ {
+  "summary": {
+   "label": "policy · judge→logprob(frentis)→json, escalate<0.9",
+   "accuracy": 0.952,
+   "p50_ms": 538,
+   "conf_right": 0.96,
+   "conf_wrong": 1.0,
+   "ambiguous_conf": 0.969,
+   "wrong_held_back": 0,
+   "wrong": 1,
+   "decided_by": {
+    "judge": 16,
+    "logprob": 6
+   },
+   "escalated": 6
+  },
+  "rows": [
+   {
+    "message": "그 채널 두 번째 영상 자막도 요약해줘",
+    "expect": "yt",
+    "choice": "yt",
+    "confidence": 0.999,
+    "ms": 724,
+    "calibrated": true,
+    "strategy": "judge",
+    "escalated": false
+   },
+   {
+    "message": "숙소는 해운대 쪽이면 좋겠어",
+    "expect": "trip",
+    "choice": "trip",
+    "confidence": 1.0,
+    "ms": 516,
+    "calibrated": true,
+    "strategy": "judge",
+    "escalated": false
+   },
+   {
+    "message": "자, 이 작업을 매일 아침 주기적으로 돌려줘",
+    "expect": "podcast",
+    "choice": "podcast",
+    "confidence": 0.531,
+    "ms": 649,
+    "calibrated": true,
+    "strategy": "logprob",
+    "escalated": true
+   },
+   {
+    "message": "원달러 환율 지금 얼마야?",
+    "expect": "__new__",
+    "choice": "__new__",
+    "confidence": 0.813,
+    "ms": 628,
+    "calibrated": true,
+    "strategy": "logprob",
+    "escalated": true
+   },
+   {
+    "message": "KTX 말고 비행기면 몇 시 편이 있어?",
+    "expect": "trip",
+    "choice": "trip",
+    "confidence": 1.0,
+    "ms": 515,
+    "calibrated": true,
+    "strategy": "judge",
+    "escalated": false
+   },
+   {
+    "message": "시연 영상 다시 보여줘",
+    "expect": "sns",
+    "choice": "sns",
+    "confidence": 1.0,
+    "ms": 514,
+    "calibrated": true,
+    "strategy": "judge",
+    "escalated": false
+   },
+   {
+    "message": "부가세 납부했어, 리마인드 꺼줘",
+    "expect": "vat",
+    "choice": "vat",
+    "confidence": 1.0,
+    "ms": 518,
+    "calibrated": true,
+    "strategy": "judge",
+    "escalated": false
+   },
+   {
+    "message": "다음 영상 올라오면 알려줘",
+    "expect": "yt",
+    "choice": "yt",
+    "confidence": 0.951,
+    "ms": 651,
+    "calibrated": true,
+    "strategy": "logprob",
+    "escalated": true
+   },
+   {
+    "message": "팟캐스트 다 됐어?",
+    "expect": "podcast",
+    "choice": "podcast",
+    "confidence": 1.0,
+    "ms": 515,
+    "calibrated": true,
+    "strategy": "judge",
+    "escalated": false
+   },
+   {
+    "message": "구현 브랜치 머지해도 되는지 검토해줘",
+    "expect": "sns",
+    "choice": "sns",
+    "confidence": 1.0,
+    "ms": 521,
+    "calibrated": true,
+    "strategy": "judge",
+    "escalated": false
+   },
+   {
+    "message": "오늘 점심 메뉴 추천해줘",
+    "expect": "__new__",
+    "choice": "__new__",
+    "confidence": 0.997,
+    "ms": 642,
+    "calibrated": true,
+    "strategy": "logprob",
+    "escalated": true
+   },
+   {
+    "message": "출장비 정산은 어떻게 해?",
+    "expect": "trip",
+    "choice": "trip",
+    "confidence": 1.0,
+    "ms": 517,
+    "calibrated": true,
+    "strategy": "judge",
+    "escalated": false
+   },
+   {
+    "message": "그 논문 원문 링크도 같이 줘",
+    "expect": "podcast",
+    "choice": "podcast",
+    "confidence": 1.0,
+    "ms": 525,
+    "calibrated": true,
+    "strategy": "judge",
+    "escalated": false
+   },
+   {
+    "message": "크루온 쪽에 보낼 연락 초안 좀 다듬어줘",
+    "expect": "sns",
+    "choice": "sns",
+    "confidence": 1.0,
+    "ms": 537,
+    "calibrated": true,
+    "strategy": "judge",
+    "escalated": false
+   },
+   {
+    "message": "세금계산서 발행 기한도 같이 확인해줘",
+    "expect": "vat",
+    "choice": "vat",
+    "confidence": 0.925,
+    "ms": 539,
+    "calibrated": true,
+    "strategy": "judge",
+    "escalated": false
+   },
+   {
+    "message": "그 유튜버 구독자 수는 얼마나 돼?",
+    "expect": "yt",
+    "choice": "yt",
+    "confidence": 1.0,
+    "ms": 539,
+    "calibrated": true,
+    "strategy": "judge",
+    "escalated": false
+   },
+   {
+    "message": "체크아웃은 30일 오전이야",
+    "expect": "trip",
+    "choice": "trip",
+    "confidence": 0.992,
+    "ms": 670,
+    "calibrated": true,
+    "strategy": "logprob",
+    "escalated": true
+   },
+   {
+    "message": "NotebookLM 로그인 다시 해야 해?",
+    "expect": "podcast",
+    "choice": "podcast",
+    "confidence": 1.0,
+    "ms": 517,
+    "calibrated": true,
+    "strategy": "judge",
+    "escalated": false
+   },
+   {
+    "message": "RMF 프로세스 템플릿 테스트 결과 보여줘",
+    "expect": "sns",
+    "choice": "sns",
+    "confidence": 1.0,
+    "ms": 535,
+    "calibrated": true,
+    "strategy": "judge",
+    "escalated": false
+   },
+   {
+    "message": "엑셀 피벗 테이블 만드는 법 알려줘",
+    "expect": "__new__",
+    "choice": "__new__",
+    "confidence": 0.998,
+    "ms": 666,
+    "calibrated": true,
+    "strategy": "logprob",
+    "escalated": true
+   },
+   {
+    "message": "새 노트북 사려는데 맥북 에어랑 프로 중 뭐가 나아?",
+    "expect": "__new__",
+    "choice": "podcast",
+    "confidence": 1.0,
+    "ms": 549,
+    "calibrated": true,
+    "strategy": "judge",
+    "escalated": false
+   },
+   {
+    "message": "그거 취소해",
+    "expect": "ambiguous",
+    "choice": "podcast",
+    "confidence": 0.969,
+    "ms": 563,
+    "calibrated": true,
+    "strategy": "judge",
+    "escalated": false
+   }
+  ]
+ },
+ {
+  "summary": {
+   "label": "policy · judge DOWN→logprob(frentis)→json",
+   "accuracy": 1.0,
+   "p50_ms": 128,
+   "conf_right": 0.96,
+   "conf_wrong": null,
+   "ambiguous_conf": 0.815,
+   "wrong_held_back": 0,
+   "wrong": 0,
+   "decided_by": {
+    "logprob": 22
+   },
+   "escalated": 0
+  },
+  "rows": [
+   {
+    "message": "그 채널 두 번째 영상 자막도 요약해줘",
+    "expect": "yt",
+    "choice": "yt",
+    "confidence": 1.0,
+    "ms": 137,
+    "calibrated": true,
+    "strategy": "logprob",
+    "escalated": false
+   },
+   {
+    "message": "숙소는 해운대 쪽이면 좋겠어",
+    "expect": "trip",
+    "choice": "trip",
+    "confidence": 1.0,
+    "ms": 119,
+    "calibrated": true,
+    "strategy": "logprob",
+    "escalated": false
+   },
+   {
+    "message": "자, 이 작업을 매일 아침 주기적으로 돌려줘",
+    "expect": "podcast",
+    "choice": "podcast",
+    "confidence": 0.531,
+    "ms": 131,
+    "calibrated": true,
+    "strategy": "logprob",
+    "escalated": false
+   },
+   {
+    "message": "원달러 환율 지금 얼마야?",
+    "expect": "__new__",
+    "choice": "__new__",
+    "confidence": 0.813,
+    "ms": 129,
+    "calibrated": true,
+    "strategy": "logprob",
+    "escalated": false
+   },
+   {
+    "message": "KTX 말고 비행기면 몇 시 편이 있어?",
+    "expect": "trip",
+    "choice": "trip",
+    "confidence": 1.0,
+    "ms": 129,
+    "calibrated": true,
+    "strategy": "logprob",
+    "escalated": false
+   },
+   {
+    "message": "시연 영상 다시 보여줘",
+    "expect": "sns",
+    "choice": "sns",
+    "confidence": 0.984,
+    "ms": 130,
+    "calibrated": true,
+    "strategy": "logprob",
+    "escalated": false
+   },
+   {
+    "message": "부가세 납부했어, 리마인드 꺼줘",
+    "expect": "vat",
+    "choice": "vat",
+    "confidence": 0.995,
+    "ms": 109,
+    "calibrated": true,
+    "strategy": "logprob",
+    "escalated": false
+   },
+   {
+    "message": "다음 영상 올라오면 알려줘",
+    "expect": "yt",
+    "choice": "yt",
+    "confidence": 0.951,
+    "ms": 119,
+    "calibrated": true,
+    "strategy": "logprob",
+    "escalated": false
+   },
+   {
+    "message": "팟캐스트 다 됐어?",
+    "expect": "podcast",
+    "choice": "podcast",
+    "confidence": 1.0,
+    "ms": 110,
+    "calibrated": true,
+    "strategy": "logprob",
+    "escalated": false
+   },
+   {
+    "message": "구현 브랜치 머지해도 되는지 검토해줘",
+    "expect": "sns",
+    "choice": "sns",
+    "confidence": 0.991,
+    "ms": 129,
+    "calibrated": true,
+    "strategy": "logprob",
+    "escalated": false
+   },
+   {
+    "message": "오늘 점심 메뉴 추천해줘",
+    "expect": "__new__",
+    "choice": "__new__",
+    "confidence": 0.997,
+    "ms": 109,
+    "calibrated": true,
+    "strategy": "logprob",
+    "escalated": false
+   },
+   {
+    "message": "출장비 정산은 어떻게 해?",
+    "expect": "trip",
+    "choice": "trip",
+    "confidence": 0.995,
+    "ms": 100,
+    "calibrated": true,
+    "strategy": "logprob",
+    "escalated": false
+   },
+   {
+    "message": "그 논문 원문 링크도 같이 줘",
+    "expect": "podcast",
+    "choice": "podcast",
+    "confidence": 0.995,
+    "ms": 109,
+    "calibrated": true,
+    "strategy": "logprob",
+    "escalated": false
+   },
+   {
+    "message": "크루온 쪽에 보낼 연락 초안 좀 다듬어줘",
+    "expect": "sns",
+    "choice": "sns",
+    "confidence": 0.948,
+    "ms": 100,
+    "calibrated": true,
+    "strategy": "logprob",
+    "escalated": false
+   },
+   {
+    "message": "세금계산서 발행 기한도 같이 확인해줘",
+    "expect": "vat",
+    "choice": "vat",
+    "confidence": 0.995,
+    "ms": 111,
+    "calibrated": true,
+    "strategy": "logprob",
+    "escalated": false
+   },
+   {
+    "message": "그 유튜버 구독자 수는 얼마나 돼?",
+    "expect": "yt",
+    "choice": "yt",
+    "confidence": 0.999,
+    "ms": 128,
+    "calibrated": true,
+    "strategy": "logprob",
+    "escalated": false
+   },
+   {
+    "message": "체크아웃은 30일 오전이야",
+    "expect": "trip",
+    "choice": "trip",
+    "confidence": 0.992,
+    "ms": 129,
+    "calibrated": true,
+    "strategy": "logprob",
+    "escalated": false
+   },
+   {
+    "message": "NotebookLM 로그인 다시 해야 해?",
+    "expect": "podcast",
+    "choice": "podcast",
+    "confidence": 1.0,
+    "ms": 120,
+    "calibrated": true,
+    "strategy": "logprob",
+    "escalated": false
+   },
+   {
+    "message": "RMF 프로세스 템플릿 테스트 결과 보여줘",
+    "expect": "sns",
+    "choice": "sns",
+    "confidence": 0.98,
+    "ms": 129,
+    "calibrated": true,
+    "strategy": "logprob",
+    "escalated": false
+   },
+   {
+    "message": "엑셀 피벗 테이블 만드는 법 알려줘",
+    "expect": "__new__",
+    "choice": "__new__",
+    "confidence": 0.998,
+    "ms": 131,
+    "calibrated": true,
+    "strategy": "logprob",
+    "escalated": false
+   },
+   {
+    "message": "새 노트북 사려는데 맥북 에어랑 프로 중 뭐가 나아?",
+    "expect": "__new__",
+    "choice": "__new__",
+    "confidence": 0.997,
+    "ms": 128,
+    "calibrated": true,
+    "strategy": "logprob",
+    "escalated": false
+   },
+   {
+    "message": "그거 취소해",
+    "expect": "ambiguous",
+    "choice": "podcast",
+    "confidence": 0.815,
+    "ms": 129,
+    "calibrated": true,
+    "strategy": "logprob",
+    "escalated": false
+   }
+  ]
+ },
+ {
+  "summary": {
+   "label": "policy · judge DOWN→logprob(o4-mini: none)→json(o4-mini)",
+   "accuracy": 0.952,
+   "p50_ms": 2840,
+   "conf_right": 0.913,
+   "conf_wrong": 0.87,
+   "ambiguous_conf": 0.72,
+   "wrong_held_back": 0,
+   "wrong": 1,
+   "decided_by": {
+    "json": 22
+   },
+   "escalated": 0
+  },
+  "rows": [
+   {
+    "message": "그 채널 두 번째 영상 자막도 요약해줘",
+    "expect": "yt",
+    "choice": "yt",
+    "confidence": 0.9,
+    "ms": 3849,
+    "calibrated": false,
+    "strategy": "json",
+    "escalated": false
+   },
+   {
+    "message": "숙소는 해운대 쪽이면 좋겠어",
+    "expect": "trip",
+    "choice": "trip",
+    "confidence": 0.9,
+    "ms": 2291,
+    "calibrated": false,
+    "strategy": "json",
+    "escalated": false
+   },
+   {
+    "message": "자, 이 작업을 매일 아침 주기적으로 돌려줘",
+    "expect": "podcast",
+    "choice": "sns",
+    "confidence": 0.87,
+    "ms": 6788,
+    "calibrated": false,
+    "strategy": "json",
+    "escalated": false
+   },
+   {
+    "message": "원달러 환율 지금 얼마야?",
+    "expect": "__new__",
+    "choice": "__new__",
+    "confidence": 0.85,
+    "ms": 2539,
+    "calibrated": false,
+    "strategy": "json",
+    "escalated": false
+   },
+   {
+    "message": "KTX 말고 비행기면 몇 시 편이 있어?",
+    "expect": "trip",
+    "choice": "trip",
+    "confidence": 0.87,
+    "ms": 2110,
+    "calibrated": false,
+    "strategy": "json",
+    "escalated": false
+   },
+   {
+    "message": "시연 영상 다시 보여줘",
+    "expect": "sns",
+    "choice": "sns",
+    "confidence": 0.95,
+    "ms": 3999,
+    "calibrated": false,
+    "strategy": "json",
+    "escalated": false
+   },
+   {
+    "message": "부가세 납부했어, 리마인드 꺼줘",
+    "expect": "vat",
+    "choice": "vat",
+    "confidence": 0.92,
+    "ms": 2131,
+    "calibrated": false,
+    "strategy": "json",
+    "escalated": false
+   },
+   {
+    "message": "다음 영상 올라오면 알려줘",
+    "expect": "yt",
+    "choice": "yt",
+    "confidence": 0.95,
+    "ms": 3169,
+    "calibrated": false,
+    "strategy": "json",
+    "escalated": false
+   },
+   {
+    "message": "팟캐스트 다 됐어?",
+    "expect": "podcast",
+    "choice": "podcast",
+    "confidence": 0.92,
+    "ms": 3308,
+    "calibrated": false,
+    "strategy": "json",
+    "escalated": false
+   },
+   {
+    "message": "구현 브랜치 머지해도 되는지 검토해줘",
+    "expect": "sns",
+    "choice": "sns",
+    "confidence": 0.86,
+    "ms": 3189,
+    "calibrated": false,
+    "strategy": "json",
+    "escalated": false
+   },
+   {
+    "message": "오늘 점심 메뉴 추천해줘",
+    "expect": "__new__",
+    "choice": "__new__",
+    "confidence": 0.92,
+    "ms": 2129,
+    "calibrated": false,
+    "strategy": "json",
+    "escalated": false
+   },
+   {
+    "message": "출장비 정산은 어떻게 해?",
+    "expect": "trip",
+    "choice": "trip",
+    "confidence": 0.92,
+    "ms": 2500,
+    "calibrated": false,
+    "strategy": "json",
+    "escalated": false
+   },
+   {
+    "message": "그 논문 원문 링크도 같이 줘",
+    "expect": "podcast",
+    "choice": "podcast",
+    "confidence": 0.9,
+    "ms": 3649,
+    "calibrated": false,
+    "strategy": "json",
+    "escalated": false
+   },
+   {
+    "message": "크루온 쪽에 보낼 연락 초안 좀 다듬어줘",
+    "expect": "sns",
+    "choice": "sns",
+    "confidence": 0.91,
+    "ms": 3170,
+    "calibrated": false,
+    "strategy": "json",
+    "escalated": false
+   },
+   {
+    "message": "세금계산서 발행 기한도 같이 확인해줘",
+    "expect": "vat",
+    "choice": "vat",
+    "confidence": 0.89,
+    "ms": 2791,
+    "calibrated": false,
+    "strategy": "json",
+    "escalated": false
+   },
+   {
+    "message": "그 유튜버 구독자 수는 얼마나 돼?",
+    "expect": "yt",
+    "choice": "yt",
+    "confidence": 0.92,
+    "ms": 2278,
+    "calibrated": false,
+    "strategy": "json",
+    "escalated": false
+   },
+   {
+    "message": "체크아웃은 30일 오전이야",
+    "expect": "trip",
+    "choice": "trip",
+    "confidence": 0.95,
+    "ms": 2629,
+    "calibrated": false,
+    "strategy": "json",
+    "escalated": false
+   },
+   {
+    "message": "NotebookLM 로그인 다시 해야 해?",
+    "expect": "podcast",
+    "choice": "podcast",
+    "confidence": 0.92,
+    "ms": 1979,
+    "calibrated": false,
+    "strategy": "json",
+    "escalated": false
+   },
+   {
+    "message": "RMF 프로세스 템플릿 테스트 결과 보여줘",
+    "expect": "sns",
+    "choice": "sns",
+    "confidence": 0.98,
+    "ms": 3520,
+    "calibrated": false,
+    "strategy": "json",
+    "escalated": false
+   },
+   {
+    "message": "엑셀 피벗 테이블 만드는 법 알려줘",
+    "expect": "__new__",
+    "choice": "__new__",
+    "confidence": 0.95,
+    "ms": 2339,
+    "calibrated": false,
+    "strategy": "json",
+    "escalated": false
+   },
+   {
+    "message": "새 노트북 사려는데 맥북 에어랑 프로 중 뭐가 나아?",
+    "expect": "__new__",
+    "choice": "__new__",
+    "confidence": 0.88,
+    "ms": 2889,
+    "calibrated": false,
+    "strategy": "json",
+    "escalated": false
+   },
+   {
+    "message": "그거 취소해",
+    "expect": "ambiguous",
+    "choice": "yt",
+    "confidence": 0.72,
+    "ms": 5100,
+    "calibrated": false,
+    "strategy": "json",
+    "escalated": false
+   }
+  ]
+ }
+]

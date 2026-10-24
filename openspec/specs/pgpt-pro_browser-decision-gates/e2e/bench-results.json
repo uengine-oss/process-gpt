@@ -1,0 +1,622 @@
+[
+ {
+  "task": "books-travel",
+  "run": 0,
+  "gates": false,
+  "state": "done",
+  "correct": true,
+  "hit": "6/6",
+  "turns": 8,
+  "llm": 9,
+  "gate_calls": 0,
+  "gate_ms": 0,
+  "waits": 0,
+  "hints": 0,
+  "early_finish": false,
+  "decisions": [],
+  "ms": 26302,
+  "summary": "books.toscrape.com 의 Travel 카테고리에서 처음 세 권의 제목과 가격은 다음과 같습니다:\n\n1. **It's Only the Himalayas** — £45.17\n2. **Full Moon over Noah's Ark: An Odyssey to Mount Ararat and Beyond** — £49.43\n3. **See America: A Celebration of Our National Parks & Treasured Sites** — £48.87\n\n(참고: 이 사이트는 웹 스크레이핑 연습용 데모 사이트로, "
+ },
+ {
+  "task": "books-travel",
+  "run": 0,
+  "gates": true,
+  "state": "done",
+  "correct": true,
+  "hit": "6/6",
+  "turns": 7,
+  "llm": 9,
+  "gate_calls": 8,
+  "gate_ms": 7808,
+  "waits": 0,
+  "hints": 0,
+  "early_finish": true,
+  "decisions": [
+   {
+    "q": "이 웹 페이지의 지금 상태는?",
+    "choice": "content",
+    "confidence": 0.9999,
+    "strategy": "logprob",
+    "calibrated": true
+   },
+   {
+    "q": "이 웹 페이지의 지금 상태는?",
+    "choice": "content",
+    "confidence": 1,
+    "strategy": "logprob",
+    "calibrated": true
+   },
+   {
+    "q": "이 웹 페이지의 지금 상태는?",
+    "choice": "content",
+    "confidence": 0.9999,
+    "strategy": "logprob",
+    "calibrated": true
+   },
+   {
+    "q": "이 웹 페이지의 지금 상태는?",
+    "choice": "content",
+    "confidence": 0.9999,
+    "strategy": "logprob",
+    "calibrated": true
+   },
+   {
+    "q": "이 웹 페이지의 지금 상태는?",
+    "choice": "content",
+    "confidence": 0.9999,
+    "strategy": "logprob",
+    "calibrated": true
+   },
+   {
+    "q": "이 웹 페이지의 지금 상태는?",
+    "choice": "content",
+    "confidence": 0.9999,
+    "strategy": "logprob",
+    "calibrated": true
+   },
+   {
+    "q": "이 웹 페이지의 지금 상태는?",
+    "choice": "content",
+    "confidence": 1,
+    "strategy": "logprob",
+    "calibrated": true
+   },
+   {
+    "q": "기록한 사실만으로 목표가 요구한 것을 빠짐없이 답할 수 있나?",
+    "choice": "done",
+    "confidence": 1,
+    "strategy": "judge",
+    "calibrated": true
+   }
+  ],
+  "ms": 24869,
+  "summary": "books.toscrape.com 의 Travel 카테고리에서 처음 세 권의 책 정보입니다:\n\n1. It's Only the Himalayas — £45.17\n2. Full Moon over Noah's Ark: An Odyssey to Mount Ararat and Beyond — £49.43\n3. See America: A Celebration of Our National Parks & Treasured Sites — £48.87"
+ },
+ {
+  "task": "quotes-delayed",
+  "run": 0,
+  "gates": false,
+  "state": "done",
+  "correct": true,
+  "hit": "1/1",
+  "turns": 17,
+  "llm": 18,
+  "gate_calls": 0,
+  "gate_ms": 0,
+  "waits": 0,
+  "hints": 0,
+  "early_finish": false,
+  "decisions": [],
+  "ms": 21784,
+  "summary": "페이지(https://quotes.toscrape.com/js-delayed/)가 로드된 후 확인한 첫 번째 명언과 저자는 다음과 같습니다.\n\n명언: \"The world as we have created it is a process of our thinking. It cannot be changed without changing our thinking.\"\n(우리가 만들어 낸 세상은 우리 사고의 산물이다. 사고를 바꾸지 않고는 그것을 바꿀 수 없다.)\n\n저자: Albert Einstein (알버트 아인슈타인)\n태그: change, d"
+ },
+ {
+  "task": "quotes-delayed",
+  "run": 0,
+  "gates": true,
+  "state": "done",
+  "correct": true,
+  "hit": "1/1",
+  "turns": 12,
+  "llm": 14,
+  "gate_calls": 4,
+  "gate_ms": 1612,
+  "waits": 2,
+  "hints": 0,
+  "early_finish": true,
+  "decisions": [
+   {
+    "q": "이 웹 페이지의 지금 상태는?",
+    "choice": "loading",
+    "confidence": 0.9999,
+    "strategy": "judge",
+    "calibrated": true
+   },
+   {
+    "q": "이 웹 페이지의 지금 상태는?",
+    "choice": "loading",
+    "confidence": 0.9999,
+    "strategy": "judge",
+    "calibrated": true
+   },
+   {
+    "q": "이 웹 페이지의 지금 상태는?",
+    "choice": "loading",
+    "confidence": 0.9999,
+    "strategy": "judge",
+    "calibrated": true
+   },
+   {
+    "q": "기록한 사실만으로 목표가 요구한 것을 빠짐없이 답할 수 있나?",
+    "choice": "done",
+    "confidence": 1,
+    "strategy": "judge",
+    "calibrated": true
+   }
+  ],
+  "ms": 23147,
+  "summary": "페이지(https://quotes.toscrape.com/js-delayed/)가 로드된 후 확인한 첫 번째 명언과 저자는 다음과 같습니다.\n\n- 명언: \"The world as we have created it is a process of our thinking. It cannot be changed without changing our thinking.\"\n- 저자: Albert Einstein (알베르트 아인슈타인)\n\n(한글 번역: \"우리가 만들어 낸 세계는 우리의 사고의 과정이다. 우리의 사고를 바꾸지 않고는 그것을 바꿀 수 "
+ },
+ {
+  "task": "facebook-wall",
+  "run": 0,
+  "gates": false,
+  "state": "done",
+  "correct": true,
+  "hit": "1/1",
+  "turns": 6,
+  "llm": 7,
+  "gate_calls": 0,
+  "gate_ms": 0,
+  "waits": 0,
+  "hints": 0,
+  "early_finish": false,
+  "decisions": [],
+  "ms": 21203,
+  "summary": "페이스북 그룹(aiproductkr)에는 저장된 자격증명이 없고 콘텐츠 이용이 불가해 접속하지 못했습니다. 지시대로 데모 피드(http://localhost:5180/demo-feed/index.html)에서 확인했습니다.\n\n피드의 글별 반응 수:\n1) 크루온에이아이(Crewon AI) 발표 후기 — 좋아요 412, 댓글 57, 공유 96 (최다)\n2) LLM 벤치마크 스터디 — 좋아요 61, 댓글 12, 공유 5\n3) 데브옵스 모임 — 좋아요 23, 댓글 4, 공유 1\n4) 마케팅 자동화 툴 공식(광고) — 좋아요 8, 댓글 0,"
+ },
+ {
+  "task": "facebook-wall",
+  "run": 0,
+  "gates": true,
+  "state": "done",
+  "correct": true,
+  "hit": "1/1",
+  "turns": 3,
+  "llm": 5,
+  "gate_calls": 4,
+  "gate_ms": 3233,
+  "waits": 1,
+  "hints": 1,
+  "early_finish": true,
+  "decisions": [
+   {
+    "q": "이 웹 페이지의 지금 상태는?",
+    "choice": "loading",
+    "confidence": 1,
+    "strategy": "judge",
+    "calibrated": true
+   },
+   {
+    "q": "이 웹 페이지의 지금 상태는?",
+    "choice": "login_wall",
+    "confidence": 1,
+    "strategy": "judge",
+    "calibrated": true
+   },
+   {
+    "q": "이 웹 페이지의 지금 상태는?",
+    "choice": "content",
+    "confidence": 0.9997,
+    "strategy": "logprob",
+    "calibrated": true
+   },
+   {
+    "q": "기록한 사실만으로 목표가 요구한 것을 빠짐없이 답할 수 있나?",
+    "choice": "done",
+    "confidence": 1,
+    "strategy": "judge",
+    "calibrated": true
+   }
+  ],
+  "ms": 19001,
+  "summary": "페이스북 그룹(aiproductkr)은 로그인 벽과 \"콘텐츠 이용 불가\" 메시지로 접근이 불가하여, 목표에 따라 대체 소스인 http://localhost:5180/demo-feed/index.html 피드를 확인했습니다.\n\n피드의 최근 게시물 4개와 반응 수(좋아요+댓글+공유)는 다음과 같습니다:\n1. 크루온에이아이(Crewon AI) 발표 후기 — 좋아요 412, 댓글 57, 공유 96 (합계 565)\n2. 데브옵스 모임 밋업 장소 공지 — 좋아요 23, 댓글 4, 공유 1 (합계 28)\n3. 마케팅 자동화 툴 광고 — 좋아요 "
+ },
+ {
+  "task": "books-travel",
+  "run": 1,
+  "gates": false,
+  "state": "done",
+  "correct": true,
+  "hit": "6/6",
+  "turns": 16,
+  "llm": 17,
+  "gate_calls": 0,
+  "gate_ms": 0,
+  "waits": 0,
+  "hints": 0,
+  "early_finish": false,
+  "decisions": [],
+  "ms": 27234,
+  "summary": "books.toscrape.com의 Travel 카테고리에서 처음 세 권의 책 제목과 가격은 다음과 같습니다:\n\n1. It's Only the Himalayas — £45.17\n2. Full Moon over Noah's Ark: An Odyssey to Mount Ararat and Beyond — £49.43\n3. See America: A Celebration of Our National Parks & Treasured Sites — £48.87"
+ },
+ {
+  "task": "books-travel",
+  "run": 1,
+  "gates": true,
+  "state": "done",
+  "correct": true,
+  "hit": "6/6",
+  "turns": 12,
+  "llm": 13,
+  "gate_calls": 7,
+  "gate_ms": 5905,
+  "waits": 0,
+  "hints": 0,
+  "early_finish": false,
+  "decisions": [
+   {
+    "q": "이 웹 페이지의 지금 상태는?",
+    "choice": "content",
+    "confidence": 0.9999,
+    "strategy": "logprob",
+    "calibrated": true
+   },
+   {
+    "q": "이 웹 페이지의 지금 상태는?",
+    "choice": "content",
+    "confidence": 1,
+    "strategy": "logprob",
+    "calibrated": true
+   },
+   {
+    "q": "이 웹 페이지의 지금 상태는?",
+    "choice": "content",
+    "confidence": 0.9999,
+    "strategy": "logprob",
+    "calibrated": true
+   },
+   {
+    "q": "기록한 사실만으로 목표가 요구한 것을 빠짐없이 답할 수 있나?",
+    "choice": "more",
+    "confidence": 0.9999,
+    "strategy": "judge",
+    "calibrated": true
+   },
+   {
+    "q": "이 웹 페이지의 지금 상태는?",
+    "choice": "content",
+    "confidence": 0.9999,
+    "strategy": "logprob",
+    "calibrated": true
+   },
+   {
+    "q": "이 웹 페이지의 지금 상태는?",
+    "choice": "content",
+    "confidence": 1,
+    "strategy": "logprob",
+    "calibrated": true
+   },
+   {
+    "q": "기록한 사실만으로 목표가 요구한 것을 빠짐없이 답할 수 있나?",
+    "choice": "more",
+    "confidence": 1,
+    "strategy": "judge",
+    "calibrated": true
+   }
+  ],
+  "ms": 37387,
+  "summary": "books.toscrape.com의 Travel 카테고리에서 처음 세 권의 책 제목과 가격은 다음과 같습니다.\n\n1. It's Only the Himalayas — £45.17\n2. Full Moon over Noah's Ark: An Odyssey to Mount Ararat and Beyond — £49.43\n3. See America: A Celebration of Our National Parks & Treasured Sites — £48.87\n\n(참고: 이 사이트는 웹 스크래핑용 데모 사이트로, 가격은 무작위로 부여된 것입"
+ },
+ {
+  "task": "quotes-delayed",
+  "run": 1,
+  "gates": false,
+  "state": "done",
+  "correct": false,
+  "hit": "0/1",
+  "turns": 40,
+  "llm": 41,
+  "gate_calls": 0,
+  "gate_ms": 0,
+  "waits": 0,
+  "hints": 0,
+  "early_finish": false,
+  "decisions": [],
+  "ms": 52061,
+  "summary": ""
+ },
+ {
+  "task": "quotes-delayed",
+  "run": 1,
+  "gates": true,
+  "state": "done",
+  "correct": false,
+  "hit": "0/1",
+  "turns": 40,
+  "llm": 41,
+  "gate_calls": 3,
+  "gate_ms": 1257,
+  "waits": 2,
+  "hints": 0,
+  "early_finish": false,
+  "decisions": [
+   {
+    "q": "이 웹 페이지의 지금 상태는?",
+    "choice": "loading",
+    "confidence": 0.9999,
+    "strategy": "judge",
+    "calibrated": true
+   },
+   {
+    "q": "이 웹 페이지의 지금 상태는?",
+    "choice": "loading",
+    "confidence": 0.9999,
+    "strategy": "judge",
+    "calibrated": true
+   },
+   {
+    "q": "이 웹 페이지의 지금 상태는?",
+    "choice": "loading",
+    "confidence": 0.9999,
+    "strategy": "judge",
+    "calibrated": true
+   }
+  ],
+  "ms": 72989,
+  "summary": ""
+ },
+ {
+  "task": "facebook-wall",
+  "run": 1,
+  "gates": false,
+  "state": "done",
+  "correct": true,
+  "hit": "1/1",
+  "turns": 5,
+  "llm": 6,
+  "gate_calls": 0,
+  "gate_ms": 0,
+  "waits": 0,
+  "hints": 0,
+  "early_finish": false,
+  "decisions": [],
+  "ms": 19972,
+  "summary": "페이스북 그룹(aiproductkr)은 저장된 로그인 정보가 없고 콘텐츠가 \"이용할 수 없습니다\"로 표시되어 접근이 불가했습니다. 따라서 데모 피드(http://localhost:5180/demo-feed/index.html)에서 확인했습니다.\n\n반응 수 비교:\n1. 크루온에이아이(Crewon AI) 발표 후기 — 좋아요 412, 댓글 57, 공유 96 (최다)\n2. LLM 벤치마크 스터디 — 좋아요 61, 댓글 12, 공유 5\n3. 데브옵스 모임 — 좋아요 23, 댓글 4, 공유 1\n4. 마케팅 자동화 툴 공식(광고) — 좋아요 "
+ },
+ {
+  "task": "facebook-wall",
+  "run": 1,
+  "gates": true,
+  "state": "done",
+  "correct": true,
+  "hit": "1/1",
+  "turns": 2,
+  "llm": 4,
+  "gate_calls": 3,
+  "gate_ms": 2749,
+  "waits": 0,
+  "hints": 1,
+  "early_finish": true,
+  "decisions": [
+   {
+    "q": "이 웹 페이지의 지금 상태는?",
+    "choice": "login_wall",
+    "confidence": 1,
+    "strategy": "judge",
+    "calibrated": true
+   },
+   {
+    "q": "이 웹 페이지의 지금 상태는?",
+    "choice": "content",
+    "confidence": 0.9997,
+    "strategy": "logprob",
+    "calibrated": true
+   },
+   {
+    "q": "기록한 사실만으로 목표가 요구한 것을 빠짐없이 답할 수 있나?",
+    "choice": "done",
+    "confidence": 1,
+    "strategy": "judge",
+    "calibrated": true
+   }
+  ],
+  "ms": 13719,
+  "summary": "페이스북 그룹(aiproductkr)은 로그인 벽에 막혀 접근할 수 없어, 지시대로 대체 소스인 데모 피드(http://localhost:5180/demo-feed/index.html)에서 확인했습니다.\n\n각 글의 반응 수 비교:\n1) 크루온에이아이(Crewon AI) 발표 후기 - 좋아요 412, 댓글 57, 공유 96 (합계 565) ← 가장 많음\n2) LLM 벤치마크 스터디 - 좋아요 61, 댓글 12, 공유 5\n3) 데브옵스 모임 - 좋아요 23, 댓글 4, 공유 1\n4) 마케팅 자동화 툴 공식(광고) - 좋아요 8, 댓글 "
+ },
+ {
+  "task": "books-travel",
+  "run": 2,
+  "gates": false,
+  "state": "done",
+  "correct": true,
+  "hit": "6/6",
+  "turns": 10,
+  "llm": 11,
+  "gate_calls": 0,
+  "gate_ms": 0,
+  "waits": 0,
+  "hints": 0,
+  "early_finish": false,
+  "decisions": [],
+  "ms": 79957,
+  "summary": "books.toscrape.com의 Travel 카테고리에서 처음 세 권의 책 정보입니다:\n\n1. **It's Only the Himalayas** — £45.17\n2. **Full Moon over Noah's Ark: An Odyssey to Mount Ararat and Beyond** — £49.43\n3. **See America: A Celebration of Our National Parks & Treasured Sites** — £48.87"
+ },
+ {
+  "task": "books-travel",
+  "run": 2,
+  "gates": true,
+  "state": "done",
+  "correct": true,
+  "hit": "6/6",
+  "turns": 5,
+  "llm": 7,
+  "gate_calls": 6,
+  "gate_ms": 5872,
+  "waits": 0,
+  "hints": 0,
+  "early_finish": true,
+  "decisions": [
+   {
+    "q": "이 웹 페이지의 지금 상태는?",
+    "choice": "content",
+    "confidence": 0.9999,
+    "strategy": "logprob",
+    "calibrated": true
+   },
+   {
+    "q": "이 웹 페이지의 지금 상태는?",
+    "choice": "content",
+    "confidence": 1,
+    "strategy": "logprob",
+    "calibrated": true
+   },
+   {
+    "q": "이 웹 페이지의 지금 상태는?",
+    "choice": "content",
+    "confidence": 0.9999,
+    "strategy": "logprob",
+    "calibrated": true
+   },
+   {
+    "q": "이 웹 페이지의 지금 상태는?",
+    "choice": "content",
+    "confidence": 0.9999,
+    "strategy": "logprob",
+    "calibrated": true
+   },
+   {
+    "q": "이 웹 페이지의 지금 상태는?",
+    "choice": "content",
+    "confidence": 1,
+    "strategy": "logprob",
+    "calibrated": true
+   },
+   {
+    "q": "기록한 사실만으로 목표가 요구한 것을 빠짐없이 답할 수 있나?",
+    "choice": "done",
+    "confidence": 1,
+    "strategy": "judge",
+    "calibrated": true
+   }
+  ],
+  "ms": 19743,
+  "summary": "books.toscrape.com의 Travel 카테고리에서 처음 세 권의 책 제목과 가격은 다음과 같습니다:\n\n1. It's Only the Himalayas — £45.17\n2. Full Moon over Noah's Ark: An Odyssey to Mount Ararat and Beyond — £49.43\n3. See America: A Celebration of Our National Parks & Treasured Sites — £48.87"
+ },
+ {
+  "task": "quotes-delayed",
+  "run": 2,
+  "gates": false,
+  "state": "done",
+  "correct": true,
+  "hit": "1/1",
+  "turns": 17,
+  "llm": 18,
+  "gate_calls": 0,
+  "gate_ms": 0,
+  "waits": 0,
+  "hints": 0,
+  "early_finish": false,
+  "decisions": [],
+  "ms": 21932,
+  "summary": "페이지가 로드된 후 확인한 첫 번째 명언과 저자는 다음과 같습니다.\n\n📌 첫 번째 명언: \"The world as we have created it is a process of our thinking. It cannot be changed without changing our thinking.\"\n(우리가 만들어 낸 세계는 우리 사고의 과정이다. 사고를 바꾸지 않고는 그것을 바꿀 수 없다.)\n\n✍️ 저자: Albert Einstein (알베르트 아인슈타인)\n태그: change, deep-thoughts, thinking, world"
+ },
+ {
+  "task": "quotes-delayed",
+  "run": 2,
+  "gates": true,
+  "state": "done",
+  "correct": true,
+  "hit": "1/1",
+  "turns": 10,
+  "llm": 12,
+  "gate_calls": 4,
+  "gate_ms": 1570,
+  "waits": 2,
+  "hints": 0,
+  "early_finish": true,
+  "decisions": [
+   {
+    "q": "이 웹 페이지의 지금 상태는?",
+    "choice": "loading",
+    "confidence": 0.9999,
+    "strategy": "judge",
+    "calibrated": true
+   },
+   {
+    "q": "이 웹 페이지의 지금 상태는?",
+    "choice": "loading",
+    "confidence": 0.9999,
+    "strategy": "judge",
+    "calibrated": true
+   },
+   {
+    "q": "이 웹 페이지의 지금 상태는?",
+    "choice": "loading",
+    "confidence": 0.9999,
+    "strategy": "judge",
+    "calibrated": true
+   },
+   {
+    "q": "기록한 사실만으로 목표가 요구한 것을 빠짐없이 답할 수 있나?",
+    "choice": "done",
+    "confidence": 1,
+    "strategy": "judge",
+    "calibrated": true
+   }
+  ],
+  "ms": 20316,
+  "summary": "페이지(quotes.toscrape.com/js-delayed)가 로드된 후 확인한 첫 번째 명언과 저자는 다음과 같습니다.\n\n- 명언: \"The world as we have created it is a process of our thinking. It cannot be changed without changing our thinking.\"\n- 저자: Albert Einstein (알베르트 아인슈타인)"
+ },
+ {
+  "task": "facebook-wall",
+  "run": 2,
+  "gates": false,
+  "state": "done",
+  "correct": true,
+  "hit": "1/1",
+  "turns": 7,
+  "llm": 8,
+  "gate_calls": 0,
+  "gate_ms": 0,
+  "waits": 0,
+  "hints": 0,
+  "early_finish": false,
+  "decisions": [],
+  "ms": 20228,
+  "summary": "페이스북 로그인(저장된 자격 증명 없음)이 불가하여 목표에 따라 데모 피드(http://localhost:5180/demo-feed/index.html)에서 확인했습니다.\n\n최근 글 4개의 반응 수 비교:\n1. 크루온에이아이(Crewon AI) 발표 후기 — 좋아요 412, 댓글 57, 공유 96 (합계 565) ← 가장 많음\n2. LLM 벤치마크 스터디 (2일 전) — 좋아요 61, 댓글 12, 공유 5 (합계 78)\n3. 데브옵스 모임 (어제) — 좋아요 23, 댓글 4, 공유 1 (합계 28)\n4. 마케팅 자동화 툴 공식 (광"
+ },
+ {
+  "task": "facebook-wall",
+  "run": 2,
+  "gates": true,
+  "state": "done",
+  "correct": true,
+  "hit": "1/1",
+  "turns": 8,
+  "llm": 9,
+  "gate_calls": 2,
+  "gate_ms": 2251,
+  "waits": 0,
+  "hints": 1,
+  "early_finish": false,
+  "decisions": [
+   {
+    "q": "이 웹 페이지의 지금 상태는?",
+    "choice": "login_wall",
+    "confidence": 1,
+    "strategy": "judge",
+    "calibrated": true
+   },
+   {
+    "q": "이 웹 페이지의 지금 상태는?",
+    "choice": "content",
+    "confidence": 0.9997,
+    "strategy": "logprob",
+    "calibrated": true
+   }
+  ],
+  "ms": 25340,
+  "summary": "페이스북 그룹에 로그인(저장된 계정 없음)으로 접근이 불가해, 지시하신 대로 대안 피드(http://localhost:5180/demo-feed/index.html)에서 확인했습니다.\n\n피드 내 최근 글 4개의 반응 수 비교:\n1. 크루온에이아이(Crewon AI) 발표 후기 — 좋아요 412 / 댓글 57 / 공유 96 (합계 565) ← 최다\n2. LLM 벤치마크 스터디 — 좋아요 61 / 댓글 12 / 공유 5 (합계 78)\n3. 데브옵스 모임 — 좋아요 23 / 댓글 4 / 공유 1 (합계 28)\n4. 마케팅 자동화 툴(광고"
+ }
+]
