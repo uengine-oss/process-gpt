@@ -11,7 +11,9 @@ handover_events 를 읽기만 하고, 제안은 proc_def_version(draft) + PR 로
   GET  /organization     조직 마이닝 — 역할 클러스터·활동별 자격·네트워크
   GET  /eligibility      특정 활동을 수행할 자격이 있는 사람(근거 건수 포함)
   GET  /discovered       도출된 프로세스(정의 JSON 포함) — BPMN 모델러가 그대로 렌더
-  POST /mine             마이닝 실행(PR 생성). dry_run=true 면 제안만 계산
+  POST /mine             마이닝 실행(PR 생성). dry_run=true 면 제안만 계산. case_ids 로 패턴 하나만
+  GET  /patterns         반복 패턴 — 케이스를 활동 집합 유사도로 묶은 업무 묶음(패턴별 도출용)
+  POST /discover         case_ids 로 고른 케이스만 도출(PR 없음)
 """
 from __future__ import annotations
 
@@ -23,7 +25,7 @@ from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-from . import db, eventlog, miner, organizational
+from . import db, eventlog, miner, organizational, patterns as patterns_mod
 
 
 @asynccontextmanager
@@ -141,6 +143,36 @@ class MineRequest(BaseModel):
     name: str = "견적 처리 프로세스"
     min_freq: int = 1
     dry_run: bool = False
+    case_ids: Optional[list[str]] = None
+
+
+@app.get("/patterns")
+def patterns(tenant_id: str = Query(default="localhost"), min_cases: int = patterns_mod.MIN_CASES, similarity: float = patterns_mod.SIMILARITY):
+    """반복되는 업무 묶음. 이미 마이닝 PR 이 열린 패턴은 proposed 로 표시한다."""
+    found = patterns_mod.find(db.fetch_handover_events(tenant_id), min_cases=min_cases, similarity=similarity)
+    prs = {r["resource_id"]: r for r in db.open_mining_prs(tenant_id)}
+    for p in found:
+        pr = prs.get(p["process_id"])
+        p["proposed"] = {"pr_id": str(pr["id"]), "status": pr["status"], "branch": pr["branch_name"]} if pr else None
+    return {"count": len(found), "patterns": found}
+
+
+class DiscoverRequest(BaseModel):
+    tenant_id: str = "localhost"
+    process_id: str
+    name: str
+    case_ids: list[str]
+    min_freq: int = 1
+
+
+@app.post("/discover")
+def discover_cases(req: DiscoverRequest):
+    """고른 케이스만으로 도출한다(쓰기 없음)."""
+    result = miner.run(tenant_id=req.tenant_id, process_id=req.process_id, process_name=req.name,
+                       min_freq=req.min_freq, dry_run=True, case_ids=req.case_ids)
+    if not result.get("ok"):
+        raise HTTPException(status_code=422, detail=result.get("reason", "도출 실패"))
+    return {"stats": result["stats"], "tree": result["tree"], "definition": result["definition"]}
 
 
 @app.post("/mine")
@@ -152,6 +184,7 @@ def mine(req: MineRequest):
         process_name=req.name,
         min_freq=req.min_freq,
         dry_run=req.dry_run,
+        case_ids=req.case_ids,
     )
     if not result.get("ok"):
         raise HTTPException(status_code=422, detail=result.get("reason", "도출 실패"))

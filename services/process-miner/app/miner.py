@@ -72,9 +72,10 @@ def run(
     process_name: str,
     min_freq: int = 1,
     dry_run: bool = False,
+    case_ids: list[str] | None = None,
 ) -> dict:
-    """전체 파이프라인. dry_run 이면 PR 을 만들지 않는다."""
-    rows = db.fetch_handover_events(tenant_id)
+    """전체 파이프라인. dry_run 이면 PR 을 만들지 않는다. case_ids 를 주면 그 케이스(패턴 하나)만."""
+    rows = db.fetch_handover_events(tenant_id, case_ids=case_ids)
     result = analyze(rows, min_freq=min_freq)
     if not result["ok"]:
         return result

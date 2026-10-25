@@ -23,6 +23,9 @@ class Event:
     agent_orch: str | None
     occurred_at: object
     source: str
+    role: str = ""
+    tools: tuple = ()
+    skills: tuple = ()
 
 
 _WS = re.compile(r"\s+")
@@ -69,6 +72,19 @@ def pick_label(row: dict) -> str:
     return ""
 
 
+def _refs(row: dict) -> tuple[tuple, tuple]:
+    """산출물 참조에 적힌 도구(캐드크래프트·한글·엑셀 …)와 스킬. 단계마다 무엇으로 일했는지의 근거."""
+    tools, skills = [], []
+    for r in row.get("artifact_refs") or []:
+        if not isinstance(r, dict):
+            continue
+        if r.get("tool") and r["tool"] not in tools:
+            tools.append(str(r["tool"]))
+        if r.get("skill") and r["skill"] not in skills:
+            skills.append(str(r["skill"]))
+    return tuple(tools), tuple(skills)
+
+
 def build_events(rows: list[dict]) -> list[Event]:
     """handover_events 행 목록 → Event 목록 (시간순).
 
@@ -83,6 +99,7 @@ def build_events(rows: list[dict]) -> list[Event]:
         label = pick_label(r)
         if not label:
             continue
+        tools, skills = _refs(r)
         events.append(
             Event(
                 case_id=case_id,
@@ -93,6 +110,9 @@ def build_events(rows: list[dict]) -> list[Event]:
                 agent_orch=r.get("agent_orch"),
                 occurred_at=r.get("occurred_at"),
                 source=r.get("source") or "",
+                role=(r.get("to_role") or "").strip(),
+                tools=tools,
+                skills=skills,
             )
         )
     events.sort(key=lambda e: (e.case_id, str(e.occurred_at)))
@@ -116,9 +136,16 @@ def resource_profile(events: list[Event]) -> dict[str, dict]:
     for e in events:
         p = prof.setdefault(
             e.activity,
-            {"total": 0, "by_agent": 0, "resources": defaultdict(int), "names": {}, "orchs": defaultdict(int)},
+            {"total": 0, "by_agent": 0, "resources": defaultdict(int), "names": {}, "orchs": defaultdict(int),
+             "roles": defaultdict(int), "tools": defaultdict(int), "skills": defaultdict(int)},
         )
         p["total"] += 1
+        if e.role:
+            p["roles"][e.role] += 1
+        for t in e.tools:
+            p["tools"][t] += 1
+        for k in e.skills:
+            p["skills"][k] += 1
         if e.is_agent:
             p["by_agent"] += 1
             if e.agent_orch:

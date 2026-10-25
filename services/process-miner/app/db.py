@@ -44,20 +44,35 @@ def close() -> None:
     _local.conn = None
 
 
-def fetch_handover_events(tenant_id: str | None = None, limit: int = 5000) -> list[dict]:
+def fetch_handover_events(tenant_id: str | None = None, limit: int = 5000, case_ids: list[str] | None = None) -> list[dict]:
+    """인계 행. case_ids 를 주면 그 케이스(스레드 뿌리)만 — 패턴 하나를 따로 도출할 때 쓴다."""
     sql = """
         select id, tenant_id, case_id, origin_room_id, source, is_explicit,
                from_user_id, from_user_name, from_is_agent,
-               to_user_id, to_user_name, to_is_agent, agent_orch,
+               to_user_id, to_user_name, to_role, to_is_agent, agent_orch,
                activity_label, next_activity_label, norm_activity_label,
+               artifact_refs, proc_def_id,
                from_room_id, to_room_id, occurred_at, returned_at
         from public.handover_events
         where (%(tenant)s::text is null or tenant_id = %(tenant)s::text)
+          and (%(cases)s::text[] is null or coalesce(origin_room_id, case_id) = any(%(cases)s::text[]))
         order by origin_room_id, occurred_at
         limit %(limit)s
     """
     with connect().cursor() as cur:
-        cur.execute(sql, {"tenant": tenant_id, "limit": limit})
+        cur.execute(sql, {"tenant": tenant_id, "limit": limit, "cases": list(case_ids) if case_ids else None})
+        return list(cur.fetchall())
+
+
+def open_mining_prs(tenant_id: str) -> list[dict]:
+    """이미 제안된 마이닝 PR — 같은 패턴을 두 번 추천하지 않으려고 읽는다."""
+    with connect().cursor() as cur:
+        cur.execute(
+            """select id, resource_id, branch_name, title, status, created_at
+               from public.resource_pull_requests
+               where tenant_id = %s and resource_type = 'bpmn' and branch_name like 'mined-%%'""",
+            (tenant_id,),
+        )
         return list(cur.fetchall())
 
 

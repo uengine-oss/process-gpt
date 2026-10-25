@@ -65,7 +65,9 @@ class _Builder:
             return role_name, {}
 
         dominant = max(p["resources"].items(), key=lambda kv: kv[1])[0]
-        role_name = p["names"].get(dominant) or dominant or "담당자"
+        # 인계 때 적힌 역할(to_role)이 있으면 사람 이름 대신 그 역할로 — 다음 케이스는 다른 사람이 맡을 수 있다
+        roles = p.get("roles") or {}
+        role_name = (max(roles.items(), key=lambda kv: kv[1])[0] if roles else "") or p["names"].get(dominant) or dominant or "담당자"
         role = self.roles.setdefault(
             role_name,
             {"name": role_name, "endpoint": dominant, "resolutionRule": "핸드오버 로그에서 도출된 역할"},
@@ -85,18 +87,21 @@ class _Builder:
         aid = self._act_id()
         role_name, extras = self._role_for(label)
         p = self.profile.get(label, {})
+        top = lambda d: [k for k, _ in sorted((d or {}).items(), key=lambda kv: -kv[1])]  # noqa: E731
         activity = {
             "id": aid,
             "name": label,
             "role": role_name,
             "type": _ACTIVITY_TYPE,
             "tool": "",
+            # 관측된 도구·스킬(산출물 참조에서) — 정식 등록 때 단계에 묶을 스킬의 근거
+            "observedTools": top(p.get("tools")),
             "agent": extras.get("agent", ""),
             "agentMode": extras.get("agentMode", ""),
             "orchestration": extras.get("orchestration", ""),
             "process": "",
             "duration": 1,
-            "skills": [],
+            "skills": top(p.get("skills")),
             "inputData": [],
             "outputData": [f"{label} 결과"],  # 계약상 최소 1개
             "properties": "{}",
