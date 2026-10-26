@@ -74,7 +74,10 @@ def analyze(rows: list[dict], min_freq: int = 1, process_key: str | None = None,
     if len(traces) < MIN_CASES:
         return {"ok": False, "reason": f"케이스가 {len(traces)}건뿐입니다(최소 {MIN_CASES}건 필요)", "stats": stats}
 
-    tree = discover_from_traces(traces, min_freq=min_freq)
+    # 묶음 인계가 없는 케이스는 traces 와 같은 흐름이다. 있으면 갈래를 나눈 흐름과 동시 진행 쌍이 붙는다.
+    disc_traces, concurrent, multi = eventlog.discovery_log(events, cases)
+    stats["multi_instance_activities"] = sorted(multi)
+    tree = discover_from_traces(disc_traces, min_freq=min_freq, concurrent=concurrent)
     # 역할은 그 단계를 넘겨받아 수행한 리소스로 정한다(위임받아 도운 에이전트는 제외).
     profile = eventlog.resource_profile(flow_events)
 

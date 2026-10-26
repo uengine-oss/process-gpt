@@ -119,7 +119,7 @@ def _thread_steps(rows: list[dict]) -> list[dict]:
 
 
 @app.get("/threads")
-def threads(tenant: str = Depends(tenant_scope), limit: int = 50):
+def threads(tenant: str = Depends(tenant_scope), limit: int = 1000):
     """인계 스레드 묶음. 한 업무가 여러 방·담당자를 거쳐도 origin_room_id 로 한 줄기.
 
     스레드마다 업무 묶음(process_key)을 붙인다. 끝난 스레드는 속한 묶음, 진행 중 스레드는 가장
@@ -155,7 +155,10 @@ def threads(tenant: str = Depends(tenant_scope), limit: int = 50):
                 "steps": steps,
             }
         )
-    out.sort(key=lambda t: (-t["step_count"], t["origin_room_id"]))
+    # 최근에 인계가 일어난 스레드부터. 예전에는 단계 수로 정렬해 50건만 돌려줘, 새로 생긴 짧은
+    # 스레드가 목록에서 잘리고 화면의 업무별 스레드 수가 도출 케이스 수와 맞지 않았다.
+    last_at = {k: max(str(r.get("occurred_at")) for r in rs) for k, rs in grouped.items()}
+    out.sort(key=lambda t: (last_at[t["origin_room_id"]], t["origin_room_id"]), reverse=True)
     return {"count": len(out), "threads": out[:limit]}
 
 

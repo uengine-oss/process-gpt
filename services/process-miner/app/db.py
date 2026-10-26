@@ -81,7 +81,7 @@ def fetch_handover_events(tenant_id: str, limit: int = 5000) -> list[dict]:
                e.to_user_id, e.to_user_name, e.to_is_agent, e.agent_orch,
                e.activity_label, e.next_activity_label, e.norm_activity_label,
                e.from_room_id, e.to_room_id, e.to_task_id, e.occurred_at, e.returned_at,
-               e.closed_at, t.status as to_task_status
+               e.closed_at, e.group_id, t.status as to_task_status
         from public.handover_events e
         left join public.todolist t on t.id = e.to_task_id
         where e.tenant_id = %(tenant)s::text

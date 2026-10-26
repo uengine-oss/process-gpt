@@ -36,6 +36,11 @@ class Event:
     kind: str = STEP
     returned_at: object = None
     order: int = 1  # 같은 시각이면 START(0) 가 먼저
+    # 이 단계를 맡은 방과 넘겨준 방. 병렬 인계에서 갈래를 가르는 데 쓴다.
+    room: str = ""
+    from_room: str = ""
+    # 한 번의 인계로 여러 명에게 넘긴 묶음. 한 사람에게 넘겼으면 빈 값.
+    group_id: str = ""
 
     @property
     def in_control_flow(self) -> bool:
@@ -94,6 +99,15 @@ def case_key(row: dict) -> str:
     return row.get("origin_room_id") or row.get("case_id") or ""
 
 
+def _received_done(r: dict) -> bool:
+    """이 인계로 받은 일이 끝났는가. 에이전트에게 간 일은 넘긴 사람이 업무 종료를 눌러야 끝난다."""
+    if r.get("closed_at"):
+        return True
+    if r.get("to_is_agent"):
+        return False
+    return str(r.get("to_task_status") or "").upper() in DONE_STATUSES
+
+
 def thread_finished(rows: list[dict]) -> bool:
     """한 스레드가 끝났는가.
 
@@ -104,16 +118,20 @@ def thread_finished(rows: list[dict]) -> bool:
     남아 결과를 다음 사람에게 이어 줄 수 있다. 그래서 마지막 인계가 에이전트에게 간
     경우는 넘긴 사람이 '업무 종료' 를 눌러야(closed_at) 끝난 건이다.
     명시적 인계가 없는 스레드(위임만 있는 방)는 기다릴 할 일이 없어 끝난 것으로 본다.
+
+    한 번의 인계로 여러 명에게 나눠 준 스레드(group_id)는 갈래마다 마지막 담당자가 있다.
+    더 넘기지 않은 갈래 끝(받은 방에서 다시 넘긴 인계가 없는 행)이 모두 끝나야 끝난 건이다.
+    묶음이 없는 스레드는 예전 규칙(시간상 마지막 인계) 그대로다.
     """
     handovers = [r for r in rows if (r.get("source") or "") == "chat_handover"]
     if not handovers:
         return True
+    if any(r.get("group_id") for r in handovers):
+        handed_from = {r.get("from_room_id") for r in handovers if r.get("from_room_id")}
+        leaves = [r for r in handovers if not r.get("to_room_id") or r.get("to_room_id") not in handed_from]
+        return all(_received_done(r) for r in leaves)
     last = max(handovers, key=lambda r: str(r.get("occurred_at")))
-    if last.get("closed_at"):
-        return True
-    if last.get("to_is_agent"):
-        return False
-    return str(last.get("to_task_status") or "").upper() in DONE_STATUSES
+    return _received_done(last)
 
 
 def finished_rows(rows: list[dict]) -> tuple[list[dict], int]:
@@ -182,6 +200,7 @@ def build_events(rows: list[dict]) -> list[Event]:
                         source=first.get("source") or "",
                         kind=START,
                         order=0,
+                        room=first.get("from_room_id") or "",
                     )
                 )
                 holding[from_id] = done
@@ -213,6 +232,9 @@ def build_events(rows: list[dict]) -> list[Event]:
                     from_name=from_name,
                     kind=kind,
                     returned_at=r.get("returned_at"),
+                    room=r.get("to_room_id") or "",
+                    from_room=r.get("from_room_id") or "",
+                    group_id=str(r.get("group_id") or ""),
                 )
             )
             if kind == STEP and to_id:
@@ -233,6 +255,156 @@ def to_traces(events: list[Event]) -> dict[str, list[str]]:
             continue
         seq.append(e.activity)
     return dict(traces)
+
+
+def _fold(seq: list[str]) -> list[str]:
+    out: list[str] = []
+    for a in seq:
+        if a and (not out or out[-1] != a):
+            out.append(a)
+    return out
+
+
+def discovery_log(events: list[Event], cases) -> tuple[list[list[str]], set[tuple[str, str]], set[str]]:
+    """도출에 쓸 로그. (흐름 목록, 동시에 진행된 활동 쌍, 다중 인스턴스 활동)
+
+    묶음 인계가 없는 케이스는 to_traces 와 같은 시간순 흐름 하나다(예전 도출 결과가 그대로다).
+
+    한 번의 인계로 여러 명에게 나눠 준 케이스는 시간순으로 펴면 갈래가 섞인다 — 갈래 b 의
+    다음 단계가 갈래 c 의 첫 단계 뒤에 붙어 '순서' 로 읽힌다. 그래서 방을 따라(받은 방 → 그 방에서
+    다시 넘긴 인계) 갈래를 나누고, 묶음마다 갈래 순서를 돌려 가며 흐름을 여러 개 만든다.
+    각 갈래가 한 번씩 먼저 오므로 모든 갈래가 시작·끝을 갖는다. 또 서로 다른 갈래의 활동 쌍을
+    '동시에 진행됨' 으로 돌려준다 — 도출은 이 쌍을 양방향 직후관계로 보고 병렬 컷을 찾는다.
+
+    같은 묶음에서 같은 일을 여러 명에게 준 갈래는 한 활동으로 합치고 다중 인스턴스로 표시한다.
+    선택 단계 판정은 '모든 흐름에 있는가' 로만 하므로, 한 케이스가 흐름 여러 개를 내도 결과는 같다.
+    """
+    by_case: dict[str, list[Event]] = defaultdict(list)
+    for e in events:
+        if e.case_id in cases and e.in_control_flow:
+            by_case[e.case_id].append(e)
+
+    traces: list[list[str]] = []
+    concurrent: set[tuple[str, str]] = set()
+    multi: set[str] = set()
+    for case_id in sorted(by_case):
+        evs = by_case[case_id]
+        if not any(e.group_id for e in evs):
+            seq = _fold([e.activity for e in evs])
+            if seq:
+                traces.append(seq)
+            continue
+        log, conc, mi = _branch_traces(evs)
+        traces.extend(log)
+        concurrent |= conc
+        multi |= mi
+    return traces, concurrent, multi
+
+
+def _branch_traces(evs: list[Event]) -> tuple[list[list[str]], set[tuple[str, str]], set[str]]:
+    """묶음 인계가 있는 한 케이스를 갈래 나무로 펴서 흐름 여러 개를 만든다."""
+    root = next((e for e in evs if e.kind == START), None)
+    steps = [e for e in evs if e.kind == STEP]
+    rooms_with_step = {e.room for e in steps if e.room}
+
+    def children_of(room: str | None, is_root: bool) -> list[Event]:
+        out = [e for e in steps if e.from_room and e.from_room == room]
+        if is_root:
+            # 받은 방을 모르는(넘겨준 방이 어떤 단계의 방도 아닌) 단계는 시작에 붙인다
+            out += [e for e in steps if not e.from_room or (e.from_room not in rooms_with_step and e.from_room != room)]
+        return sorted(out, key=lambda e: str(e.occurred_at))
+
+    concurrent: set[tuple[str, str]] = set()
+    multi: set[str] = set()
+
+    class _Node:
+        def __init__(self, label: str, rooms: list[str]):
+            self.label = label
+            self.rooms = rooms
+
+    def groups_under(rooms: list[str], is_root: bool) -> list[list[_Node]]:
+        kids: list[Event] = []
+        for room in rooms:
+            kids += children_of(room, is_root)
+        kids.sort(key=lambda e: str(e.occurred_at))
+        ordered: list[list[Event]] = []
+        index: dict[str, int] = {}
+        for k in kids:
+            if k.group_id:
+                if k.group_id not in index:
+                    index[k.group_id] = len(ordered)
+                    ordered.append([])
+                ordered[index[k.group_id]].append(k)
+            else:
+                ordered.append([k])
+        out: list[list[_Node]] = []
+        for g in ordered:
+            by_label: dict[str, list[str]] = {}
+            for k in g:
+                by_label.setdefault(k.activity, []).append(k.room)
+            if len(g) > 1:
+                for label, rs in by_label.items():
+                    if len(rs) > 1:
+                        multi.add(label)
+            out.append([_Node(label, rs) for label, rs in by_label.items()])
+        return out
+
+    def spread(node: _Node, rot: int, seen: frozenset) -> tuple[list[str], set[str]]:
+        """이 노드부터 아래로 편 흐름과 그 안의 활동 집합."""
+        seq = [node.label]
+        acts = {node.label}
+        rooms = [r for r in node.rooms if r and r not in seen]
+        seen = seen | set(rooms)
+        for group in groups_under(rooms, False):
+            part, part_acts = _join(group, rot, seen)
+            seq += part
+            acts |= part_acts
+        return seq, acts
+
+    def _join(group: list[_Node], rot: int, seen: frozenset) -> tuple[list[str], set[str]]:
+        if len(group) == 1:
+            return spread(group[0], rot, seen)
+        branches = [spread(n, rot, seen) for n in group]
+        for i, (_, a) in enumerate(branches):
+            for _, b in branches[i + 1 :]:
+                for x in a:
+                    for y in b:
+                        if x != y:
+                            concurrent.add((x, y))
+                            concurrent.add((y, x))
+        k = rot % len(branches)
+        seq: list[str] = []
+        acts: set[str] = set()
+        for part, a in branches[k:] + branches[:k]:
+            seq += part
+            acts |= a
+        return seq, acts
+
+    root_rooms = [root.room] if root and root.room else []
+    top = groups_under(root_rooms, True)
+    width = max([len(g) for g in top] + [2])
+
+    def widest(rooms: list[str], is_root: bool, seen: frozenset) -> int:
+        w = 1
+        for g in groups_under(rooms, is_root):
+            w = max(w, len(g))
+            for n in g:
+                rs = [r for r in n.rooms if r and r not in seen]
+                w = max(w, widest(rs, False, seen | set(rs)))
+        return w
+
+    width = max(width, widest(root_rooms, True, frozenset(root_rooms)))
+    traces: list[list[str]] = []
+    for rot in range(width):
+        seq = [root.activity] if root else []
+        seen = frozenset(root_rooms)
+        for group in top:
+            part, _ = _join(group, rot, seen)
+            seq += part
+        seq = _fold(seq)
+        if seq:
+            traces.append(seq)
+    return traces, concurrent, multi
 
 
 def resource_profile(events: list[Event]) -> dict[str, dict]:

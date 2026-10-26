@@ -272,6 +272,7 @@ def _discover_log(
     min_freq: int,
     dependency_threshold: float,
     depth: int,
+    concurrent: set[tuple[str, str]] | None = None,
 ) -> Node:
     """하위 로그 하나에서 트리를 도출한다(표준 IM 재귀)."""
     from .dfg import build_dfg, filter_noise
@@ -289,14 +290,14 @@ def _discover_log(
     if depth > 24:  # 병리적 로그 방어
         return _flower(acts)
 
-    dfg = filter_noise(build_dfg(traces), min_freq=min_freq, dependency_threshold=dependency_threshold)
+    dfg = filter_noise(build_dfg(traces, concurrent), min_freq=min_freq, dependency_threshold=dependency_threshold)
     for kind, finder in ((XOR, _xor_cut), (SEQ, _seq_cut), (AND, _and_cut), (LOOP, _loop_cut)):
         parts = finder(acts, dfg)
         if not parts:
             continue
         children = []
         for p, sub_log in zip(parts, _split_log(kind, parts, traces)):
-            sub = _discover_log(sub_log, min_freq, dependency_threshold, depth + 1)
+            sub = _discover_log(sub_log, min_freq, dependency_threshold, depth + 1, concurrent)
             # 배타 분기는 갈래 자체가 선택이므로 다시 선택적으로 만들지 않는다
             if kind in (SEQ, AND):
                 sub = _make_optional(sub, p, sub_log)
@@ -347,5 +348,11 @@ def discover(
     return _flower(acts)
 
 
-def discover_from_traces(traces: list[list[str]], min_freq: int = 1, dependency_threshold: float = 0.0) -> Node:
-    return _discover_log([list(t) for t in traces], min_freq, dependency_threshold, 0)
+def discover_from_traces(
+    traces: list[list[str]],
+    min_freq: int = 1,
+    dependency_threshold: float = 0.0,
+    concurrent: set[tuple[str, str]] | None = None,
+) -> Node:
+    """concurrent: 서로 다른 갈래에서 동시에 진행된 활동 쌍(eventlog.discovery_log). 없으면 예전과 같다."""
+    return _discover_log([list(t) for t in traces], min_freq, dependency_threshold, 0, concurrent)

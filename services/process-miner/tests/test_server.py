@@ -119,3 +119,27 @@ def test_mine_does_not_write_proposals(monkeypatch, fetched):
     res = TestClient(server.app).post("/mine", json={"tenant_id": "acme", "dry_run": False})
     assert res.status_code == 410
     assert "새 프로세스로 제안" in res.json()["detail"]
+
+
+def test_threads_are_not_cut_and_newest_come_first(monkeypatch):
+    """스레드가 50건을 넘어도 잘리지 않고, 최근에 인계된 스레드가 먼저 온다(2026-10-23).
+
+    예전에는 단계 수로 정렬해 50건만 돌려줘, 새로 생긴 두 단계 스레드가 목록에서 빠졌다.
+    """
+    monkeypatch.setenv("MINER_AUTH", "off")
+    rows = []
+    for i in range(60):
+        rows.append(dict(id=i, tenant_id="acme", origin_room_id=f"long{i:02d}", source="chat_handover",
+                         from_user_id="a", to_user_id="b", activity_label="작성", next_activity_label="검토",
+                         occurred_at=f"2026-09-01T{i // 60:02d}:{i % 60:02d}"))
+        rows.append(dict(id=100 + i, tenant_id="acme", origin_room_id=f"long{i:02d}", source="chat_handover",
+                         from_user_id="b", to_user_id="c", activity_label="검토", next_activity_label="승인",
+                         occurred_at=f"2026-09-01T{i // 60:02d}:{i % 60:02d}:30"))
+    rows.append(dict(id=999, tenant_id="acme", origin_room_id="new-short", source="chat_handover",
+                     from_user_id="a", to_user_id="b", activity_label="작성", next_activity_label="검토",
+                     occurred_at="2026-10-23T09:00"))
+    monkeypatch.setattr(db, "fetch_handover_events", lambda tenant_id, limit=5000: rows)
+    body = TestClient(server.app).get("/threads?tenant_id=acme").json()
+    assert body["count"] == 61
+    assert len(body["threads"]) == 61
+    assert body["threads"][0]["origin_room_id"] == "new-short"

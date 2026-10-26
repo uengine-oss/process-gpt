@@ -51,8 +51,13 @@ class Dfg:
         return sub
 
 
-def build_dfg(traces: list[list[str]]) -> Dfg:
-    """케이스별 활동 시퀀스 목록 → DFG."""
+def build_dfg(traces: list[list[str]], concurrent: set[tuple[str, str]] | None = None) -> Dfg:
+    """케이스별 활동 시퀀스 목록 → DFG.
+
+    concurrent 는 한 번의 인계로 나눠 준 서로 다른 갈래에서 동시에 진행된 활동 쌍이다.
+    시간순 흐름에는 한쪽 순서만 남으므로, 이 로그에 둘 다 있으면 양방향 직후관계로 더해
+    병렬로 읽히게 한다.
+    """
     dfg = Dfg()
     for trace in traces:
         seq = [a for a in trace if a]
@@ -63,6 +68,9 @@ def build_dfg(traces: list[list[str]]) -> Dfg:
         dfg.starts[seq[0]] += 1
         dfg.ends[seq[-1]] += 1
         for a, b in zip(seq, seq[1:]):
+            dfg.edges[(a, b)] += 1
+    for a, b in concurrent or ():
+        if a in dfg.activities and b in dfg.activities and a != b:
             dfg.edges[(a, b)] += 1
     return dfg
 
