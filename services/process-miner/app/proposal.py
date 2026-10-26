@@ -49,32 +49,36 @@ def open_process_pr(
     description = "\n".join(_summary_lines(defn, stats))
     title = f"[마이닝] {proc_def_name}"
 
-    with conn.cursor() as cur:
-        cur.execute(
-            """
-            insert into public.proc_def_version
-                (arcv_id, proc_def_id, version, version_tag, definition, message, tenant_id, is_draft)
-            values (%s, %s, %s, 'minor', %s, %s, %s, true)
-            returning uuid
-            """,
-            (arcv_id, proc_def_id, version, json.dumps(defn, ensure_ascii=False), title, tenant_id),
-        )
-        version_uuid = cur.fetchone()["uuid"]
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                insert into public.proc_def_version
+                    (arcv_id, proc_def_id, version, version_tag, definition, message, tenant_id, is_draft)
+                values (%s, %s, %s, 'minor', %s, %s, %s, true)
+                returning uuid
+                """,
+                (arcv_id, proc_def_id, version, json.dumps(defn, ensure_ascii=False), title, tenant_id),
+            )
+            version_uuid = cur.fetchone()["uuid"]
 
-        pr_id = str(uuidlib.uuid4())
-        # requester_id 는 uuid[] 이고 users 를 참조하지 않는다(마이너는 사람이 아니다).
-        requesters = [requester_id] if requester_id else []
-        cur.execute(
-            """
-            insert into public.resource_pull_requests
-                (id, tenant_id, resource_type, resource_id, branch_name, base_branch,
-                 title, description, status, requester_id)
-            values (%s, %s, 'bpmn', %s, %s, 'main', %s, %s, 'OPEN', %s::uuid[])
-            returning id
-            """,
-            (pr_id, tenant_id, proc_def_id, f"mined-v{version}", title, description, requesters),
-        )
-        pr = cur.fetchone()
+            pr_id = str(uuidlib.uuid4())
+            # requester_id 는 uuid[] 이고 users 를 참조하지 않는다(마이너는 사람이 아니다).
+            requesters = [requester_id] if requester_id else []
+            cur.execute(
+                """
+                insert into public.resource_pull_requests
+                    (id, tenant_id, resource_type, resource_id, branch_name, base_branch,
+                     title, description, status, requester_id)
+                values (%s, %s, 'bpmn', %s, %s, 'main', %s, %s, 'OPEN', %s::uuid[])
+                returning id
+                """,
+                (pr_id, tenant_id, proc_def_id, f"mined-v{version}", title, description, requesters),
+            )
+            pr = cur.fetchone()
+    except Exception:
+        conn.rollback()  # a failed write must not leave the shared connection in an aborted transaction
+        raise
     conn.commit()
 
     return {

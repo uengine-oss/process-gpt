@@ -47,7 +47,10 @@ def health():
             cur.fetchone()
         return {"status": "ok"}
     except Exception as e:  # noqa: BLE001
+        db.close()  # a broken connection is dropped; the next request opens a new one
         return {"status": "degraded", "detail": str(e)}
+    finally:
+        db.end_read()
 
 
 @app.get("/threads")

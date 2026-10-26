@@ -37,6 +37,15 @@ def connect() -> psycopg.Connection:
     return conn
 
 
+def end_read(conn: psycopg.Connection | None = None) -> None:
+    """읽기만 한 트랜잭션을 닫는다. 연결은 스레드마다 재사용되는데, 읽은 뒤 열린 채(idle in transaction)
+    두면 handover_events 등의 공유 잠금이 계속 남아 스키마 변경(설치 번들 migrate 의 트리거 재생성)이
+    끝없이 기다리고, 그 뒤의 모든 쓰기도 줄을 선다."""
+    conn = conn or getattr(_local, "conn", None)
+    if conn is not None and not conn.closed and conn.info.transaction_status != psycopg.pq.TransactionStatus.IDLE:
+        conn.rollback()
+
+
 def close() -> None:
     conn: psycopg.Connection | None = getattr(_local, "conn", None)
     if conn is not None and not conn.closed:
@@ -59,29 +68,38 @@ def fetch_handover_events(tenant_id: str | None = None, limit: int = 5000, case_
         order by origin_room_id, occurred_at
         limit %(limit)s
     """
-    with connect().cursor() as cur:
-        cur.execute(sql, {"tenant": tenant_id, "limit": limit, "cases": list(case_ids) if case_ids else None})
-        return list(cur.fetchall())
+    try:
+        with connect().cursor() as cur:
+            cur.execute(sql, {"tenant": tenant_id, "limit": limit, "cases": list(case_ids) if case_ids else None})
+            return list(cur.fetchall())
+    finally:
+        end_read()
 
 
 def open_mining_prs(tenant_id: str) -> list[dict]:
     """이미 제안된 마이닝 PR — 같은 패턴을 두 번 추천하지 않으려고 읽는다."""
-    with connect().cursor() as cur:
-        cur.execute(
-            """select id, resource_id, branch_name, title, status, created_at
-               from public.resource_pull_requests
-               where tenant_id = %s and resource_type = 'bpmn' and branch_name like 'mined-%%'""",
-            (tenant_id,),
-        )
-        return list(cur.fetchall())
+    try:
+        with connect().cursor() as cur:
+            cur.execute(
+                """select id, resource_id, branch_name, title, status, created_at
+                   from public.resource_pull_requests
+                   where tenant_id = %s and resource_type = 'bpmn' and branch_name like 'mined-%%'""",
+                (tenant_id,),
+            )
+            return list(cur.fetchall())
+    finally:
+        end_read()
 
 
 def next_mined_version(proc_def_id: str, tenant_id: str) -> str:
     """이미 있는 마이닝 제안 다음 번호."""
-    with connect().cursor() as cur:
-        cur.execute(
-            "select count(*) as n from public.proc_def_version where proc_def_id = %s and tenant_id = %s",
-            (proc_def_id, tenant_id),
-        )
-        n = (cur.fetchone() or {}).get("n", 0)
-    return f"0.{int(n) + 1}"
+    try:
+        with connect().cursor() as cur:
+            cur.execute(
+                "select count(*) as n from public.proc_def_version where proc_def_id = %s and tenant_id = %s",
+                (proc_def_id, tenant_id),
+            )
+            n = (cur.fetchone() or {}).get("n", 0)
+        return f"0.{int(n) + 1}"
+    finally:
+        end_read()
