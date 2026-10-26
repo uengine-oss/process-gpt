@@ -26,6 +26,8 @@ class _Builder:
         self.events: list[dict] = []
         self.sequences: list[dict] = []
         self.roles: dict[str, dict] = {}
+        # 반복 판정 게이트웨이 id → 빠져나가는 선에 붙일 선택값
+        self.exit_conditions: dict[str, str] = {}
         self._n_act = 0
         self._n_gw = 0
         self._n_seq = 0
@@ -43,7 +45,11 @@ class _Builder:
         self._n_seq += 1
         return f"sequence_{self._n_seq:02d}"
 
-    def connect(self, source: str, target: str, condition: str = "", name: str = "") -> None:
+    def connect(self, source: str, target: str, condition: str = "", name: str = "", role: str = "") -> None:
+        """role 은 이 선이 분기에서 맡은 자리(branch · skip · redo · exit). 화면이 이름으로 짐작하지 않게 남긴다."""
+        if not condition and source in self.exit_conditions:
+            # 반복 판정에서 빠져나가는 선 — 반복 노드 밖(부모 순서)에서 이어지므로 여기서 값을 붙인다
+            condition, role = self.exit_conditions[source], "exit"
         self.sequences.append(
             {
                 "id": self._seq_id(),
@@ -51,7 +57,7 @@ class _Builder:
                 "source": source,
                 "target": target,
                 "condition": condition,
-                "properties": "{}",
+                "properties": json.dumps({"minedRole": role}) if role else "{}",
             }
         )
 
@@ -131,6 +137,18 @@ class _Builder:
         return gid
 
 
+def _branch_options(children: list[Node]) -> list[str]:
+    """배타 분기 갈래마다 고를 값. 첫 단계 이름을 쓰고, 빈 갈래는 '건너뜀', 겹치면 번호를 붙인다."""
+    out: list[str] = []
+    for i, child in enumerate(children):
+        acts = child.activities()
+        value = "건너뜀" if child.kind == TAU or not acts else acts[0]
+        if value in out:
+            value = f"{value} ({i + 1})"
+        out.append(value)
+    return out
+
+
 def _emit(node: Node, b: _Builder) -> tuple[str, str]:
     """서브트리를 그려 넣고 (입구, 출구) 노드 id 를 돌려준다."""
     if node.kind == ACT:
@@ -156,11 +174,13 @@ def _emit(node: Node, b: _Builder) -> tuple[str, str]:
     if node.kind in (XOR, AND):
         split = b.add_gateway(node.kind, "분기" if node.kind == XOR else "병렬 분기", "choice" if node.kind == XOR else "fork")
         join = b.add_gateway(node.kind, "합류" if node.kind == XOR else "병렬 합류", "join")
-        for i, child in enumerate(node.children):
+        options = _branch_options(node.children) if node.kind == XOR else [""] * len(node.children)
+        for child, cond in zip(node.children, options):
             cin, cout = _emit(child, b)
-            # 배타 분기는 각 갈래에 조건 자리를 남긴다(LLM 보강 단계에서 채운다)
-            cond = "" if node.kind == AND else f"조건{i + 1}"
-            b.connect(split, cin, condition=cond)
+            # 배타 분기는 갈래마다 실행 때 고를 값을 붙인다 — 그 갈래의 첫 단계 이름(빈 갈래는 '건너뜀').
+            # 생성 단계는 이 값을 그대로 직전 단계 폼의 선택지로 만들고, 엔진은 고른 값으로 선을 정한다.
+            role = "" if node.kind == AND else ("skip" if child.kind == TAU else "branch")
+            b.connect(split, cin, condition=cond, role=role)
             b.connect(cout, join)
         return split, join
 
@@ -176,15 +196,62 @@ def _emit(node: Node, b: _Builder) -> tuple[str, str]:
             bin_, bout = _emit(body, b)
             b.connect(entry, bin_)
             b.connect(bout, exit_gw)
+        # 반복 판정은 '되돌아감'과 '빠져나감' 두 값 중 하나를 고른다
+        b.exit_conditions[exit_gw] = "완료"
         if redo is not None and redo.kind != TAU:
             rin, rout = _emit(redo, b)
-            b.connect(exit_gw, rin, condition="재수행")
+            first = redo.activities()[0] if redo.activities() else "재수행"
+            b.connect(exit_gw, rin, condition=f"{first} 필요", role="redo")
             b.connect(rout, entry)
         else:
-            b.connect(exit_gw, entry, condition="재수행")
+            b.connect(exit_gw, entry, condition="다시 수행", role="redo")
         return entry, exit_gw
 
     raise ValueError(f"알 수 없는 노드 종류: {node.kind}")
+
+
+def _assign_lane_roles(b: _Builder, start_id: str) -> None:
+    """이벤트·게이트웨이에도 레인(역할)을 준다 — 시작은 첫 단계의 역할, 나머지는 바로 앞 노드의 역할.
+
+    다이어그램은 노드를 역할(레인)별로 놓는다. 역할이 빈 이벤트·게이트웨이는 어느 레인에도
+    들어가지 못해 엉뚱한 자리에 놓이고 연결선이 레인 밖으로 꺾인다. 식별 화면이 그릴 때만
+    채우던 규칙을 정의에 남겨, 전환·저장된 다이어그램도 같은 배치가 되게 한다.
+    흐름(단계·담당자·연결)은 바꾸지 않는다.
+    """
+    role: dict[str, str] = {a["id"]: a["role"] for a in b.activities}
+    outgoing: dict[str, list[str]] = {}
+    incoming: dict[str, list[str]] = {}
+    for s in b.sequences:
+        outgoing.setdefault(s["source"], []).append(s["target"])
+        incoming.setdefault(s["target"], []).append(s["source"])
+
+    # 시작: 처음 닿는 단계의 역할
+    seen, queue = {start_id}, list(outgoing.get(start_id, []))
+    while queue:
+        n = queue.pop(0)
+        if n in role:
+            role[start_id] = role[n]
+            break
+        if n not in seen:
+            seen.add(n)
+            queue.extend(outgoing.get(n, []))
+
+    # 게이트웨이·종료: 역할이 있는 앞 노드의 역할(앞 노드가 게이트웨이면 그것이 정해질 때까지 반복)
+    pending = [g["id"] for g in b.gateways] + [e["id"] for e in b.events if e["id"] != start_id]
+    changed = True
+    while changed:
+        changed = False
+        for n in pending:
+            if n in role:
+                continue
+            src = next((p for p in incoming.get(n, []) if p in role), None)
+            if src is not None:
+                role[n] = role[src]
+                changed = True
+
+    for node in b.gateways + b.events:
+        if not node.get("role") and node["id"] in role:
+            node["role"] = role[node["id"]]
 
 
 def to_process_definition(
@@ -209,6 +276,7 @@ def to_process_definition(
     entry, exit_ = _emit(tree, b)
     b.connect(start_id, entry)
     b.connect(exit_, end_id)
+    _assign_lane_roles(b, start_id)
 
     return {
         "processDefinitionId": process_id,
