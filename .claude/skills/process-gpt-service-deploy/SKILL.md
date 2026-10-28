@@ -51,6 +51,7 @@ description: >
 
 - 비밀값은 저장소 단위다. 새 저장소에는 `GHCR_PAT`·`GITOPS_PAT` 가 없다. `gh secret list -R uengine-oss/<repo>` 로 확인하고, 없으면 사용자에게 넣어 달라고 한다(값은 복사할 수 없다).
 - 이미지 태그는 `latest` 말고 short SHA 로 매니페스트에 고정한다.
+- **새 이미지 패키지는 비공개로 생긴다.** 클러스터 매니페스트에는 imagePullSecrets 가 없어 공개 패키지만 받는다(gateway·wms·deepagents 모두 공개). 첫 CI 뒤 `gh api /orgs/uengine-oss/packages/container/<image> --jq .visibility` 로 보고, `private` 이면 사용자에게 패키지 화면(Package settings → Danger Zone → Change visibility → Public)에서 바꿔 달라고 한다. API 로는 바꿀 수 없다. 이미지마다 따로 바꿔야 한다.
 
 ## 3. process-gpt-k8s: 매니페스트
 
@@ -78,6 +79,11 @@ description: >
 ```
 
 - vue3 main 푸시는 **프론트·게이트웨이 전체 재배포**다(`deploy.yaml`). 실패하면 `.deploy/last-good-*` 로 되돌리는 잡이 있다.
+- 푸시 전에 이 파이프라인이 살아 있는지 본다: `gh run list -R uengine-oss/process-gpt-vue3 --workflow deploy.yaml -L 5`. 오래 실패해 왔다면 운영 프론트·게이트웨이 이미지(k8s `deployments/frontend-deployment.yaml`, `gateway.yaml`)가 main 보다 한참 뒤에 있다. 고쳐서 배포하면 그동안 쌓인 커밋이 한꺼번에 나가므로(`git log <운영 태그>..origin/main`) 그 사실과 개수를 사용자에게 말하고 정하게 한다.
+- 2026-10-28 에 막혀 있던 것과 고친 방법(같은 증상이면 먼저 본다):
+  - "Run Vue SAST report" 에서 `semgrep-core exited with -11` → semgrep 을 `scripts/security/scan.sh` 와 같은 버전으로 고정, Python 3.12
+  - 같은 단계·빌드에서 vue-tsc `heap out of memory` → `NODE_OPTIONS=--max-old-space-size=6144` (빌드 스크립트 `package.json` 의 `build` 도)
+  - "Build Gateway JAR" 에서 `release version 17 not supported` → `setup-java` 를 17 로(게이트웨이는 Spring Boot 4)
 - `/api` 처럼 이미 쓰는 경로와 겹치는 접두어는 쓰지 않는다. 인그레스는 `/api`·`/vnc` 를 게이트웨이의 다른 포트로 보낸다.
 
 ## 5. 운영 DB
@@ -85,6 +91,7 @@ description: >
 - 새 스키마는 운영 Supabase 에 얹는다. 기존 테이블·함수를 바꾸는 문장(`alter table users …`, `create or replace function tenant_id()`, 트리거)은 따로 짚어서 보고한다.
 - 운영 스키마 기준은 `infra/process-gpt/process-gpt-infra-docker/volumes/db/{init,migration}.sql` 이다.
 - SQL Editor 는 psql 메타 명령(`\if`, `\gset`)을 못 쓴다. 한 파일로 만들고, 단일 테넌트용 문장(`where id = 'localhost'`)은 뺀다.
+- 운영 DB 는 기준 스키마와 다를 수 있다. 특히 enum 값: 운영 `todo_status` 에는 `CANCELLED` 가 없어 `status not in ('DONE','CANCELLED')` 가 쿼리 전체를 실패시켰다. 서비스 SQL 이 enum 컬럼과 비교하는 글자 값을 모아(`grep -rhoE "status[^']*'[A-Z_]+'"`), 로그인한 사용자 세션으로 운영 PostgREST 에 `/<table>?select=<col>&<col>=eq.<값>&limit=1` 을 보내 본다(22P02 = 없는 값). 없는 값과 비교하는 곳은 `::text` 로 바꾼다. 공개 주소와 anon 키는 ProcessGPT 첫 화면 HTML 의 `window._env_` 에 있다.
 - 넘기기 전에 일회용 DB 에서 시험한다. `docker run --rm -d -e POSTGRES_PASSWORD=… supabase/postgres:15.8.1.060` 에 기준 스키마를 적용한 뒤(init → migration → init), `psql -v ON_ERROR_STOP=1` 로 두 번 돌려 다시 실행해도 안전한지 본다. 끝나면 컨테이너를 지운다.
 
 ## 6. 순서와 검증
@@ -96,9 +103,21 @@ description: >
    - e2e 판정은 "화면에 글자가 나왔다"로 끝내지 않는다. Lite 에서는 요청 문장이 팀원에게 넘어가 안내 문장이 답처럼 보였다. 실제 처리한 서비스(예: deepagents `/chat/stream` 호출)까지 확인한다.
    - 서비스가 자기 `.env` 나 서브모듈 경로에서 키를 읽는 곳이 있는지 본다(Lite 받아쓰기의 `OPENAI_API_KEY`). 운영 이미지에는 그 파일이 없으므로 Secret 키로 넣는다.
 2. DB SQL 을 사용자에게 넘긴다. 운영에 적용됐다는 답을 받은 뒤 다음으로 간다.
-3. 사람이 운영 Secret(`<service>-env`)을 만든다.
-4. 확인받고 푸시한다: 앱 저장소 main → (CI 가 k8s 태그 갱신) → k8s 매니페스트 → vue3 게이트웨이. 라우트가 서비스보다 먼저 열리면 그 경로가 502 가 되므로 게이트웨이를 마지막에 푸시한다.
-5. 운영 확인: GitHub Actions 결과(`gh run list -R uengine-oss/<repo>`), k8s 저장소의 태그 커밋, 그리고 `https://<tenant>.process-gpt.io/<prefix>/` 화면(새로고침·직접 주소·`/<prefix>` 밖 경로가 그대로인지).
+3. 앱 저장소에 `GHCR_PAT`·`GITOPS_PAT` 를 사용자에게 넣어 달라고 한다. 전용 Secret 이 필요하면 그것도(없으면 공용 Secret 으로 시작, 3장).
+4. 확인받고 이 순서로 푸시한다: **k8s 매니페스트**(앱 CI 가 이 파일의 태그를 고치므로 먼저 있어야 한다) → **앱 저장소 main**(CI 성공·k8s 태그 커밋 확인) → 이미지 패키지 공개(2장) → **vue3 게이트웨이**(라우트가 서비스보다 먼저 열리면 그 경로가 5xx).
+5. 운영 확인. 응답 모양으로 어디서 막혔는지 가른다.
+   - `/<prefix>/` 가 ProcessGPT 화면(HTML 에 `window._env_`) → 게이트웨이가 아직 옛 버전이다. Argo CD 는 몇 분 간격으로 반영한다. 새 게이트웨이에만 있는 응답(예: 잘못된 토큰에 `"Invalid or expired token"`)으로 버전을 판별한다.
+   - 게이트웨이의 500 JSON(`{"path":"/<prefix>/…","status":500}`) → 라우트는 탔는데 뒤의 Service 에 닿지 못한다. 파드가 없다(이미지 비공개·받기 실패)는 뜻이 많다.
+   - nginx 의 502(`error code: 502`) → 화면 파드는 떴고 그 뒤 서버 파드가 없다. `Recreate` 배포는 교체하는 동안 잠깐 502 다.
+   - 서비스의 500 → 운영 DB 차이(5장)부터 본다. 브라우저 콘솔·네트워크의 실패 요청을 먼저 확인한다.
+   - 로그인이 필요한 확인은 Playwright MCP 로 보이는 브라우저를 열어 두고 사용자에게 로그인만 부탁한 뒤 이어서 한다. 사용자 계정의 개인 정보 입력(첫 방문 생년월일 등)도 사용자에게 맡긴다.
+   - 확인 항목: 새로고침·직접 주소, `/<prefix>` 밖 경로가 그대로인지, 로그인 뒤 핵심 기능(Lite 는 채팅 답과 새로고침 뒤 유지).
+
+## 로그인
+
+- 같은 Supabase 를 써도 로그인 화면은 서비스마다 따로 둘 수 있다. 로그인이 안 됐다고 ProcessGPT 메인으로 보내지 않는다. ProcessGPT 쿠키(`access_token`·`refresh_token`)가 있으면 넘겨받는 것은 편의로 둔다.
+- 서비스 자체 로그인이 메일 코드(`/auth/v1/otp`)면 `create_user: false` 로, 그 주소 테넌트에 이미 있는 계정(`public.users`)만 받는다. 아니면 아무 이메일로나 그 테넌트 사용자가 된다.
+- 메일은 운영 Supabase 의 SMTP 로 나간다. `Error sending magic link email` 이면 Supabase Logs → Auth 에서 error_id 로 원인을 찾는다. Gmail 의 `535 … BadCredentials` 는 계정 비밀번호 대신 앱 비밀번호가 필요하다는 뜻이다(사용자가 Supabase 대시보드에서 고친다).
 
 ## 되돌리기
 
