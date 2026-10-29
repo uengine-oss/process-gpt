@@ -54,3 +54,9 @@ def test_korean_tokens_ignore_particles():
 def test_search_terms_cut_korean_endings():
     from router.select import search_terms
     assert search_terms("부가세 납부했어, 리마인드 꺼줘")[:2] == ["부가세", "납부했"]
+
+
+def test_english_function_words_are_no_evidence():
+    # "Can you find ... for three ..." shares only filler with a welcome-note conversation
+    assert tokens("Can you find hotels in Singapore for three nights?") == {"hotels", "singapore", "nights"}
+    assert not tokens("Please draft a welcome note for the new hires") & tokens("Can you find hotels in Singapore for three nights?")

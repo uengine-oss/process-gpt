@@ -35,6 +35,19 @@ WARM_DAYS = float(os.getenv("ROUTER_WARM_DAYS", "7"))
 _WORD = re.compile(r"[0-9A-Za-z]+|[가-힣]+")
 # chat filler that says nothing about which work a message belongs to
 _STOP = {"해줘", "알려줘", "보여줘", "찾아줘", "확인해줘", "줄래", "좀", "그", "이", "저", "다시", "지금", "오늘", "같이", "어떻게", "뭐가", "얼마야", "있어", "해", "줘", "the", "a", "to"}
+# the same for English (compared lowercased): function words and request phrasing — with only the/a/to, any
+# shared "and", "for", "can", "please" counted as evidence and a new English topic joined an unrelated context
+_STOP_EN = {"a", "an", "the", "and", "or", "but", "of", "to", "in", "on", "at", "for", "from", "with", "about", "by", "as",
+            "into", "up", "out", "over", "is", "are", "was", "were", "be", "been", "it", "its", "this", "that", "these",
+            "those", "there", "here", "i", "me", "my", "we", "our", "us", "you", "your", "he", "she", "they", "them",
+            "their", "do", "does", "did", "can", "could", "would", "will", "should", "may", "might", "please", "pls",
+            "let", "lets", "want", "need", "like", "make", "show", "tell", "find", "check", "give", "get", "send",
+            "help", "some", "any", "all", "one", "two", "three", "what", "which", "how", "when", "where", "who", "why",
+            "if", "so", "not", "no", "yes", "ok", "okay", "thanks", "thank", "again", "now", "today", "also", "just"}
+
+
+def _stop(w: str) -> bool:
+    return w in _STOP or w.lower() in _STOP_EN
 
 
 # bigrams of request verbs and endings: "추천해줘" sharing 추천 with "추천을 요청함" says nothing
@@ -45,7 +58,7 @@ _STOP_BI = {"추천", "요청", "확인", "정리", "알려", "보여", "해줘"
 def tokens(text: str) -> set[str]:
     out: set[str] = set()
     for w in _WORD.findall(text or ""):
-        if w in _STOP:
+        if _stop(w):
             continue
         if w[0] >= "가":  # Korean: bigrams survive particles and endings (출장비는 ~ 출장)
             out.update(b for b in (w[i:i + 2] for i in range(max(1, len(w) - 1))) if b not in _STOP_BI)
@@ -89,7 +102,7 @@ def search_terms(message: str, limit: int = 6) -> list[str]:
     first characters so 납부했어 still finds 납부."""
     out: list[str] = []
     for w in _WORD.findall(message or ""):
-        if w in _STOP or w in _DEICTIC or len(w) < 2:
+        if _stop(w) or w in _DEICTIC or len(w) < 2:
             continue
         t = w[:3] if w[0] >= "가" and len(w) > 3 else w
         if t not in out:
@@ -152,7 +165,7 @@ def gist_of(prev_gist: str, prev_summary: str, limit: int = 120) -> str:
     m = re.search(r"최근 요청:\s*(.*)", prev_summary or "")
     words: list[str] = []
     for w in _WORD.findall(m.group(1) if m else "") + _WORD.findall(prev_gist or ""):
-        if w not in _STOP and len(w) > 1 and w not in words:
+        if not _stop(w) and len(w) > 1 and w not in words:
             words.append(w)
     out = ""
     for w in words:
