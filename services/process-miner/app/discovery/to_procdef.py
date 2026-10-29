@@ -17,10 +17,48 @@ from .process_tree import ACT, AND, LOOP, SEQ, TAU, XOR, Node
 
 _ACTIVITY_TYPE = "userTask"
 
+# 사람이 읽는 이름·설명은 요청한 쪽(테넌트·요청자)의 언어로 쓴다. 활동 이름은 기록된 그대로다.
+_TEXT = {
+    "ko": {
+        "assignee": "담당자", "role_rule": "핸드오버 로그에서 도출된 역할",
+        "activity": "핸드오버 로그에서 도출된 활동 (관측 {n}회)", "result": "{label} 결과",
+        "split": "분기", "join": "합류", "psplit": "병렬 분기", "pjoin": "병렬 합류",
+        "loop_in": "반복 진입", "loop_check": "반복 판정", "redo": "재수행", "skip": "건너뜀",
+        "start": "시작", "end": "종료", "process": "핸드오버 로그 {n}건에서 자동 도출된 프로세스",
+        "calls_for": "앞 단계 결과가 '{label}' 을(를) 요구한다",
+    },
+    "en": {
+        "assignee": "Assignee", "role_rule": "Role found in the handover records",
+        "activity": "Activity found in the handover records (seen {n} times)", "result": "{label} result",
+        "split": "Split", "join": "Join", "psplit": "Parallel split", "pjoin": "Parallel join",
+        "loop_in": "Loop entry", "loop_check": "Loop check", "redo": "Redo", "skip": "Skip",
+        "start": "Start", "end": "End", "process": "Process found automatically in {n} handover records",
+        "calls_for": "The previous step's result calls for '{label}'",
+    },
+}
+
+
+def lang_of(labels, lang: str | None = None) -> str:
+    """'ko' | 'en'. 정해 주지 않으면 기록된 활동 이름의 언어(한글이 있으면 ko)."""
+    v = str(lang or "").strip().lower()
+    if v.startswith("en"):
+        return "en"
+    if v.startswith("ko"):
+        return "ko"
+    return "ko" if any(any("\uac00" <= ch <= "\ud7a3" for ch in str(x or "")) for x in labels) else "en"
+
+
+def text(lang: str, key: str, **kw) -> str:
+    return _TEXT["en" if lang == "en" else "ko"][key].format(**kw)
+
 
 class _Builder:
-    def __init__(self, profile: dict[str, dict] | None):
+    def __init__(self, profile: dict[str, dict] | None, lang: str = "ko", case_count: int = 0):
         self.profile = profile or {}
+        self.lang = lang
+        self.case_count = case_count
+        self.loop_checks: set[str] = set()  # 반복 판정 게이트웨이 — 앞으로 나가는 흐름이 기본
+        self.redo_seqs: set[str] = set()
         self.activities: list[dict] = []
         self.gateways: list[dict] = []
         self.events: list[dict] = []
@@ -43,34 +81,77 @@ class _Builder:
         self._n_seq += 1
         return f"sequence_{self._n_seq:02d}"
 
-    def connect(self, source: str, target: str, condition: str = "", name: str = "") -> None:
-        self.sequences.append(
-            {
-                "id": self._seq_id(),
-                "name": name,
-                "source": source,
-                "target": target,
-                "condition": condition,
-                "properties": "{}",
-            }
-        )
+    def connect(self, source: str, target: str, condition: str = "", name: str = "") -> dict:
+        seq = {
+            "id": self._seq_id(),
+            "name": name,
+            "source": source,
+            "target": target,
+            "condition": condition,
+            "properties": "{}",
+        }
+        self.sequences.append(seq)
+        return seq
+
+    def t(self, key: str, **kw) -> str:
+        return text(self.lang, key, **kw)
+
+    # -- 배타 분기의 판단 ----------------------------------------------------
+    def _weight(self, child: Node) -> int:
+        """이 갈래로 간 케이스 수(갈래 활동 중 가장 많이 관측된 수). τ 는 나머지."""
+        return max((self.profile.get(a, {}).get("total", 0) for a in child.activities()), default=0)
+
+    def decide(self, branches: list[tuple[Node, dict]]) -> None:
+        """배타 분기의 갈래마다 엔진이 평가할 수 있는 조건과 기본 흐름을 둔다.
+
+        "조건1" 같은 자리표시 조건은 엔진(자연어 조건 평가)이 아무렇게나 참으로 읽어, 선택 단계를
+        건너뛰거나 두 갈래를 다 내준다. 인계 기록에는 판단 근거(금액 등)가 없으니:
+          - 선택적 단계(갈래 하나가 τ): 조건 없이 그 단계를 하는 갈래가 기본 — 건너뛰는 갈래는
+            실제 조건(예: 견적 금액 기준)을 정식 등록 때 붙이기 전까지 타지 않는다
+          - 실제 단계끼리의 갈래: "앞 단계 결과가 '반려' 을(를) 요구한다"처럼 앞 단계 산출물로
+            판단할 수 있는 조건, 아무것도 맞지 않으면 가장 많이 관측된 갈래(기본 흐름)
+        우선순위(priority)는 많이 관측된 순 — 둘 이상이 참이어도 하나만 간다."""
+        optional = any(c.kind == TAU for c, _ in branches)
+        weights = [self._weight(c) for c, _ in branches]
+        if optional and self.case_count:
+            rest = max(0, self.case_count - sum(w for (c, _), w in zip(branches, weights) if c.kind != TAU))
+            weights = [rest if c.kind == TAU else w for (c, _), w in zip(branches, weights)]
+        # 선택적 단계는 하는 쪽이 기본(빈 갈래 τ 는 맨 뒤) — 단계를 말없이 건너뛰지 않는 쪽이 안전하다.
+        # 실제 단계끼리는 많이 관측된 순.
+        order = sorted(range(len(branches)), key=lambda i: (branches[i][0].kind == TAU, -weights[i], i))
+        for rank, i in enumerate(order):
+            child, seq = branches[i]
+            first = next(iter(child.activities()), "")
+            seq["name"] = self.t("skip") if child.kind == TAU else first
+            seq["condition"] = "" if optional else self.t("calls_for", label=first)
+            props = {"priority": rank}
+            if rank == 0:
+                props["default"] = True
+            seq["properties"] = json.dumps(props, ensure_ascii=False)
+
+    def finish_loops(self) -> None:
+        """반복 판정: 앞으로 나가는 흐름이 기본이고, 다시 하는 흐름은 조건 없이는 타지 않는다."""
+        for s in self.sequences:
+            if s["source"] in self.loop_checks:
+                redo = s["id"] in self.redo_seqs
+                s["properties"] = json.dumps({"priority": 1} if redo else {"priority": 0, "default": True})
 
     # -- 역할 / 에이전트 ----------------------------------------------------
     def _role_for(self, label: str) -> tuple[str, dict]:
         """이 활동을 가장 많이 수행한 리소스를 역할로 삼는다."""
         p = self.profile.get(label)
         if not p or not p.get("resources"):
-            role_name = "담당자"
+            role_name = self.t("assignee")
             self.roles.setdefault(role_name, {"name": role_name, "endpoint": "", "resolutionRule": ""})
             return role_name, {}
 
         dominant = max(p["resources"].items(), key=lambda kv: kv[1])[0]
         # 인계 때 적힌 역할(to_role)이 있으면 사람 이름 대신 그 역할로 — 다음 케이스는 다른 사람이 맡을 수 있다
         roles = p.get("roles") or {}
-        role_name = (max(roles.items(), key=lambda kv: kv[1])[0] if roles else "") or p["names"].get(dominant) or dominant or "담당자"
+        role_name = (max(roles.items(), key=lambda kv: kv[1])[0] if roles else "") or p["names"].get(dominant) or dominant or self.t("assignee")
         role = self.roles.setdefault(
             role_name,
-            {"name": role_name, "endpoint": dominant, "resolutionRule": "핸드오버 로그에서 도출된 역할"},
+            {"name": role_name, "endpoint": dominant, "resolutionRule": self.t("role_rule")},
         )
 
         extras: dict = {}
@@ -103,11 +184,11 @@ class _Builder:
             "duration": 1,
             "skills": top(p.get("skills")),
             "inputData": [],
-            "outputData": [f"{label} 결과"],  # 계약상 최소 1개
+            "outputData": [self.t("result", label=label)],  # 계약상 최소 1개
             "properties": "{}",
             "attachments": [],
             "checkpoints": [],
-            "description": f"핸드오버 로그에서 도출된 활동 (관측 {p.get('total', 0)}회)",
+            "description": self.t("activity", n=p.get("total", 0)),
             "instruction": "",
             "attachedEvents": [],
             "customProperties": [],
@@ -155,30 +236,33 @@ def _emit(node: Node, b: _Builder) -> tuple[str, str]:
         return first_in, last_out
 
     if node.kind in (XOR, AND):
-        split = b.add_gateway(node.kind, "분기" if node.kind == XOR else "병렬 분기")
-        join = b.add_gateway(node.kind, "합류" if node.kind == XOR else "병렬 합류")
-        for i, child in enumerate(node.children):
+        split = b.add_gateway(node.kind, b.t("split") if node.kind == XOR else b.t("psplit"))
+        join = b.add_gateway(node.kind, b.t("join") if node.kind == XOR else b.t("pjoin"))
+        branches = []
+        for child in node.children:
             cin, cout = _emit(child, b)
-            # 배타 분기는 각 갈래에 조건 자리를 남긴다(LLM 보강 단계에서 채운다)
-            cond = "" if node.kind == AND else f"조건{i + 1}"
-            b.connect(split, cin, condition=cond)
+            branches.append((child, b.connect(split, cin)))
             b.connect(cout, join)
+        # 배타 분기: 엔진이 평가할 수 있는 조건과 기본 흐름(_Builder.decide)
+        if node.kind == XOR:
+            b.decide(branches)
         return split, join
 
     if node.kind == LOOP:
         body = node.children[0]
         redo = node.children[1] if len(node.children) > 1 else None
-        entry = b.add_gateway(XOR, "반복 진입")
-        exit_gw = b.add_gateway(XOR, "반복 판정")
+        entry = b.add_gateway(XOR, b.t("loop_in"))
+        exit_gw = b.add_gateway(XOR, b.t("loop_check"))
+        b.loop_checks.add(exit_gw)
         bin_, bout = _emit(body, b)
         b.connect(entry, bin_)
         b.connect(bout, exit_gw)
         if redo is not None and redo.kind != TAU:
             rin, rout = _emit(redo, b)
-            b.connect(exit_gw, rin, condition="재수행")
+            b.redo_seqs.add(b.connect(exit_gw, rin, name=b.t("redo"))["id"])
             b.connect(rout, entry)
         else:
-            b.connect(exit_gw, entry, condition="재수행")
+            b.redo_seqs.add(b.connect(exit_gw, entry, name=b.t("redo"))["id"])
         return entry, exit_gw
 
     raise ValueError(f"알 수 없는 노드 종류: {node.kind}")
@@ -191,21 +275,27 @@ def to_process_definition(
     process_name: str,
     description: str = "",
     profile: dict[str, dict] | None = None,
+    lang: str | None = None,
+    case_count: int = 0,
 ) -> dict:
-    """프로세스 트리를 ProcessGPT 가 실행할 수 있는 정의 JSON 으로 만든다."""
-    b = _Builder(profile)
+    """프로세스 트리를 ProcessGPT 가 실행할 수 있는 정의 JSON 으로 만든다.
+
+    lang: 사람이 읽는 이름·설명의 언어('ko' | 'en', 없으면 활동 이름의 언어).
+    case_count: 도출에 쓴 케이스 수 — 선택적 단계를 건너뛴 케이스 수를 셀 때 쓴다."""
+    b = _Builder(profile, lang_of(tree.activities(), lang), case_count)
 
     start_id, end_id = "start_event", "end_event"
     b.events.append(
-        {"id": start_id, "name": "시작", "role": "", "type": "startEvent", "process": "", "trigger": "", "properties": "{}", "description": ""}
+        {"id": start_id, "name": b.t("start"), "role": "", "type": "startEvent", "process": "", "trigger": "", "properties": "{}", "description": ""}
     )
     b.events.append(
-        {"id": end_id, "name": "종료", "role": "", "type": "endEvent", "process": "", "trigger": "", "properties": "{}", "description": ""}
+        {"id": end_id, "name": b.t("end"), "role": "", "type": "endEvent", "process": "", "trigger": "", "properties": "{}", "description": ""}
     )
 
     entry, exit_ = _emit(tree, b)
     b.connect(start_id, entry)
     b.connect(exit_, end_id)
+    b.finish_loops()
 
     return {
         "processDefinitionId": process_id,

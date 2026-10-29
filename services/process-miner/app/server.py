@@ -128,9 +128,10 @@ def discovered(
     process_id: str = Query(default="mined_quote_process"),
     name: str = Query(default="견적 처리 프로세스"),
     min_freq: int = 1,
+    lang: Optional[str] = Query(default=None),
 ):
     """도출된 프로세스. definition 은 ProcessGPT 표준 형식이라 BPMN 모델러가 그대로 렌더한다."""
-    result = miner.run(tenant_id=tenant_id, process_id=process_id, process_name=name, min_freq=min_freq, dry_run=True)
+    result = miner.run(tenant_id=tenant_id, process_id=process_id, process_name=name, min_freq=min_freq, dry_run=True, lang=lang)
     if not result.get("ok"):
         raise HTTPException(status_code=422, detail=result.get("reason", "도출 실패"))
     return {
@@ -147,6 +148,8 @@ class MineRequest(BaseModel):
     min_freq: int = 1
     dry_run: bool = False
     case_ids: Optional[list[str]] = None
+    # 이름·설명·PR 의 언어('ko' | 'en'): 요청한 테넌트·사람의 언어. 없으면 기록된 활동 이름의 언어
+    lang: Optional[str] = None
 
 
 @app.get("/patterns")
@@ -166,13 +169,14 @@ class DiscoverRequest(BaseModel):
     name: str
     case_ids: list[str]
     min_freq: int = 1
+    lang: Optional[str] = None
 
 
 @app.post("/discover")
 def discover_cases(req: DiscoverRequest):
     """고른 케이스만으로 도출한다(쓰기 없음)."""
     result = miner.run(tenant_id=req.tenant_id, process_id=req.process_id, process_name=req.name,
-                       min_freq=req.min_freq, dry_run=True, case_ids=req.case_ids)
+                       min_freq=req.min_freq, dry_run=True, case_ids=req.case_ids, lang=req.lang)
     if not result.get("ok"):
         raise HTTPException(status_code=422, detail=result.get("reason", "도출 실패"))
     return {"stats": result["stats"], "tree": result["tree"], "definition": result["definition"]}
@@ -188,6 +192,7 @@ def mine(req: MineRequest):
         min_freq=req.min_freq,
         dry_run=req.dry_run,
         case_ids=req.case_ids,
+        lang=req.lang,
     )
     if not result.get("ok"):
         raise HTTPException(status_code=422, detail=result.get("reason", "도출 실패"))
