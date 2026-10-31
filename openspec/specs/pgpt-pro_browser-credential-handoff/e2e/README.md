@@ -46,3 +46,12 @@ PRO_LLM_TRACE=/tmp/pgpt-trace.jsonl node openspec/specs/pgpt-pro_browser-credent
 - `independent_envelope_check`: 서버 키링의 KEK 로 DEK 를 풀고 DEK 로 항목을 풀었을 때 로그인·카드 모두 사용자가 입력한 값과 일치, 항목은 KEK 로 직접 풀리지 않음.
 - `database.plaintext_secrets_found_in_rows: 0`, `api_list_returns_secret_fields: false`, `api_proof.ok: true`.
 - 설정 화면: `11-settings-accounts.png`, `12-settings-wallet.png`, `13-settings-security.png`, `14-security-proof-detail.png`, `15-security-vault-activity.png`.
+
+## 작업 독 (요구사항 「일하는 브라우저 작업의 상시 표시」, 2026-11-01)
+
+영상(실제 브라우저 작업 녹화 · 테스트 상점 로그인 → 인증 코드 → 주문 내역, 1분 6초): https://youtu.be/X_tziV39e2M — 재생성 `pgpt-pro/demo/product/browser-dock-ko/` (`record.mjs` → `lib/edit.py browser-dock-ko --narrate --ko`).
+
+| 단계 | 무엇으로 | 모델 | 산출물 |
+|---|---|---|---|
+| Playwright | process-gpt-lite `e2e/tests/feature/browser-dock.spec.js` F-BD-01·02 (고정 작업 카드: 일하는 중·끝남·조치 필요) | 없음 | `results/browser-dock.txt` (2 통과) |
+| 실제 작업 | 위 영상의 녹화 스크립트: 원 → 가운데 카드(알약 "127.0.0.1에서 클릭 중"·"페이지 읽는 중") → 인증 코드에서 주황 테두리 → 답할 카드 → 끝나면 원이 사라짐을 단언 | 실제(회사 게이트웨이 모델) | 영상 |
