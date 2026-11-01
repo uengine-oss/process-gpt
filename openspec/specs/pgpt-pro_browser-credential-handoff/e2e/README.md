@@ -55,3 +55,22 @@ PRO_LLM_TRACE=/tmp/pgpt-trace.jsonl node openspec/specs/pgpt-pro_browser-credent
 |---|---|---|---|
 | Playwright | process-gpt-lite `e2e/tests/feature/browser-dock.spec.js` F-BD-01·02 (고정 작업 카드: 일하는 중·끝남·조치 필요) | 없음 | `results/browser-dock.txt` (2 통과) |
 | 실제 작업 | 위 영상의 녹화 스크립트: 원 → 가운데 카드(알약 "127.0.0.1에서 클릭 중"·"페이지 읽는 중") → 인증 코드에서 주황 테두리 → 답할 카드 → 끝나면 원이 사라짐을 단언 | 실제(회사 게이트웨이 모델) | 영상 |
+
+## 메일로 온 일회용 코드 (요구사항 「메일로 온 일회용 코드의 자동 입력」, 2026-11-01)
+
+영상(실제 브라우저 작업·실제 모델 녹화, 1분): https://youtu.be/OqXlJt5n27M — 재생성 `pgpt-pro/demo/product/mail-otp-ko/`.
+테스트 상점의 이메일 모드(`SHOP_OTP=mail`, 로그인마다 새 코드)가 시험용 서버의 `/api/mail/demo-inbound` 로 데모 메일함에 메일을 보낸다.
+
+| 단계 | 무엇으로 | 모델 | 산출물 |
+|---|---|---|---|
+| 단위 | process-gpt-lite `server/test/mail-code.test.js` — 코드 꺼내기 사례 15(`mail-code-cases.json`: 전화·날짜·금액·주문 번호·연도 사이, G-123456, 영숫자), 사이트 판별, 고르기 | 없음 | `results/mail-code.test.txt` (19 통과) |
+| 통합 | `server/test/browser-mail-otp.test.js` (Chromium + 이메일 모드 상점 + 데모 메일함 + 모델 대역) | 대역(모든 요청 기록) | `results/browser-mail-otp.test.txt` (5 통과) |
+| Playwright | `e2e/tests/feature/mail-otp.spec.js` F-MO-01…03 (카드 상태·설정·데모 메일함 길) | 없음 | `results/mail-otp.spec.txt` |
+
+| 스펙 시나리오 | 시험 |
+|---|---|
+| 메일로 온 인증 코드 | 통합 1 · F-MO-01 · 영상 |
+| 사람이 먼저 넣음 | 통합 2 |
+| 다른 사이트의 메일 | 통합 3 · 단위(사이트 판별·고르기) |
+| 끈 경우 | 통합 4 · F-MO-02 |
+| 무인 실행 | 통합 5 |
