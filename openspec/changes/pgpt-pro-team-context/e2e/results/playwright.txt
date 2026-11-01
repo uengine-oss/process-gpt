@@ -1,0 +1,7 @@
+Running 5 tests using 1 worker
+  ✓  1 [feature] › tests/feature/team-context.spec.js:10:1 › F-TC-01 자동 참고 칩: 사람 메시지 아래에 참고한 맥락(주인·깊이), 원문 요청·빼기·고정·자동 참고 끄기 (2.7s)
+  ✓  2 [feature] › tests/feature/team-context.spec.js:39:1 › F-TC-02 요청 후보: 답 아래에 제목·주인만, 요청 상태(요청함·허락됨)와 「지금 반영해 다시 답하기」 (3.9s)
+  ✓  3 [feature] › tests/feature/team-context.spec.js:66:1 › F-TC-03 홈 카드: 팀원의 참고 요청을 카드 안에서 깊이·기간을 정해 허락하면 카드가 내려가고 요청자에게 결과가 간다 (2.9s)
+  ✓  4 [feature] › tests/feature/team-context.spec.js:94:1 › F-TC-04 팀 탭: 팀 활동 화면이 뜨고, 조직도에 없는 사람에게는 공유된 활동이 없다고 말한다 (1.9s)
+  ✓  5 [feature] › tests/feature/team-context.spec.js:104:1 › F-TC-05 설정 › 공유와 허락: 기본 등급, 자동 허용 규칙(민감 줄 고정), 쓰인 곳·본 기록 칸 (1.1s)
+  5 passed (13.3s)
