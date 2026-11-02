@@ -1,0 +1,79 @@
+name: __SERVICE__-build-and-deploy
+
+# __BRANCH__ → ghcr.io/uengine-oss/__SERVICE__:<short sha> → its tag in process-gpt-k8s, which Argo CD applies.
+# Repository secret: GITOPS_PAT (the image is pushed with GITHUB_TOKEN). The cluster pulls without a
+# secret, so the package must be public: check it after the first run.
+on:
+  push:
+    branches:
+      - __BRANCH__
+  workflow_dispatch:
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Compute image tag
+        run: |
+          IMAGE_TAG=$(echo $GITHUB_SHA | cut -c1-7)
+          echo "IMAGE_TAG=$IMAGE_TAG" >> $GITHUB_ENV
+          echo "IMAGE=ghcr.io/uengine-oss/__SERVICE__:$IMAGE_TAG" >> $GITHUB_ENV
+
+      # A page served under a prefix also needs build-args: VITE_BASE_PATH=/<prefix>/
+      - name: Build and push image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          platforms: linux/amd64
+          tags: |
+            ${{ env.IMAGE }}
+            ghcr.io/uengine-oss/__SERVICE__:latest
+
+      - name: Checkout GitOps repository
+        uses: actions/checkout@v4
+        with:
+          repository: uengine-oss/process-gpt-k8s
+          token: ${{ secrets.GITOPS_PAT }}
+          path: gitops-repo
+
+      - name: Install yq
+        run: |
+          sudo wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
+          sudo chmod +x /usr/local/bin/yq
+
+      - name: Update the image tag in GitOps repository
+        run: |
+          cd gitops-repo
+          yq eval -i '
+            (select(.kind == "Deployment" and .metadata.name == "__SERVICE__") | .spec.template.spec.containers[0].image) = "'$IMAGE'"
+          ' deployments/__SERVICE__.yaml
+          grep -n "image:" deployments/__SERVICE__.yaml
+
+      # other services' workflows push to the same repository at the same time
+      - name: Commit and push changes
+        run: |
+          cd gitops-repo
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add .
+          git commit -m "Update __SERVICE__ image to $IMAGE_TAG" || exit 0
+          for i in 1 2 3; do git pull --rebase && git push && exit 0; sleep 5; done
+          exit 1

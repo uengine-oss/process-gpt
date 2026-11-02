@@ -1,0 +1,72 @@
+# __SERVICE__ (uengine-oss/__REPO__)
+#
+# Image: the app repository's workflow builds it on the default branch and commits its short SHA here.
+# Do not edit the image line by hand. The first commit points at :latest, which does not exist until
+# that workflow has run once; the Pod stays in ImagePullBackOff until then.
+#
+# __SERVICE__-env (optional, manually provisioned, never committed) can add:
+#   <KEY>      <what it is for>
+# Explicit env below wins over it: to move a key there, delete its env entry here.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: __SERVICE__
+  labels:
+    app.kubernetes.io/name: __SERVICE__
+spec:
+  # Process state or a ReadWriteOnce volume: keep replicas: 1 and add strategy: {type: Recreate}
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: __SERVICE__
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: __SERVICE__
+    spec:
+      containers:
+        - name: __SERVICE__
+          image: ghcr.io/uengine-oss/__SERVICE__:latest
+          imagePullPolicy: Always
+          ports:
+            - name: http
+              containerPort: __PORT__
+          env:
+            - name: SUPABASE_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: my-config
+                  key: SUPABASE_URL
+            - name: SUPABASE_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: my-secrets
+                  key: SUPABASE_KEY
+            - name: SERVICE_ROLE_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: my-secrets
+                  key: SERVICE_ROLE_KEY
+          envFrom:
+            - secretRef:
+                name: __SERVICE__-env
+                optional: true
+          readinessProbe:
+            httpGet:
+              path: __HEALTH_PATH__
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          livenessProbe:
+            httpGet:
+              path: __HEALTH_PATH__
+              port: http
+            initialDelaySeconds: 60
+            periodSeconds: 30
+            failureThreshold: 5
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              memory: 1Gi

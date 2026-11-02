@@ -1,0 +1,15 @@
+# The name the gateway route and other Pods call: http://__SERVICE__:__PORT__
+apiVersion: v1
+kind: Service
+metadata:
+  name: __SERVICE__
+  labels:
+    app.kubernetes.io/name: __SERVICE__
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: __SERVICE__
+  ports:
+    - name: http
+      port: __PORT__
+      targetPort: http
