@@ -124,7 +124,7 @@
 
 - `sensitive`: 주인이 민감 표시를 했는가
 - `topic`: 제목·한 줄 목적·맥락 요약을 읽은 민감할 수 있는 주제(pgpt-pro_guardrail-reading). 주인이 그 맥락의 민감 표시 제안을 무시했으면 비운다
-- `topic_source`, `topic_p`, `topic_model`: 판별 방법(`format`·`logprob`·`regex`), 민감할 확률, 모델 이름
+- `topic_source`, `topic_p`, `topic_model`: 판별 방법(`format`·`logprob`·`regex`·`unread`), 민감할 확률, 모델 이름
 - `relation`: 주인 입장에서 요청자(같은 팀·같은 부서·같은 회사·조직도 밖)
 - `depth`: 요청한 깊이
 - `owner_rule`: 주인 규칙의 답(`allow|ask|deny`)
