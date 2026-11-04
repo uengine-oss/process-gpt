@@ -303,5 +303,10 @@ Please refer to the [Local Installation Guide](docs/local-installation-guide.md)
 ---
 
 ## User Manual
-📖 [Process-GPT User Manual](https://docs.process-gpt.io/)
+📖 [Process GPT 튜토리얼 / Tutorials](https://www.uengine.org/docs/process-gpt/)
 
+## 라이선스 / License
+
+조직 안에서는 Process GPT License에 따라 무료로 설치·학습·사용하실 수 있습니다. 판매·라이선스 제공·배포·호스팅(SaaS 포함)을 상업적으로 하려면 UENGINE Inc.의 서면 허락이나 별도 계약이 필요합니다(문의: license@uengine.org). 이전에 MIT로 공개한 커밋들은 MIT 라이선스를 그대로 유지합니다.
+
+Under the Process GPT License, you may install, learn from, and use the software within your organization free of charge. Selling, licensing, distributing, or hosting the software (including SaaS) as part of a commercial offering requires written permission from UENGINE Inc. or a separate agreement (contact: license@uengine.org). Earlier commits released under MIT remain under the MIT License.
