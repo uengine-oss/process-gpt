@@ -13,9 +13,12 @@ handover_events 를 읽기만 하고, 제안은 proc_def_version(draft) + PR 로
   GET  /processes        업무 묶음 목록 — 서로 다른 업무를 갈라 묶음마다 도출한다
   GET  /discovered       도출된 프로세스(정의 JSON 포함) — BPMN 모델러가 그대로 렌더. process_key 로 묶음 지정
   POST /mine             도출 결과(dry_run=true 만). 제안은 식별 화면이 버전 저장 → 병합 요청으로 만든다
+  GET  /patterns         Process GPT Lite — 반복 패턴(활동 집합이 비슷한 케이스 묶음)
+  POST /discover         Process GPT Lite — case_ids 로 고른 케이스만 도출(쓰기 없음)
 """
 from __future__ import annotations
 
+import asyncio
 import os
 from collections import defaultdict
 from contextlib import asynccontextmanager
@@ -26,6 +29,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from . import db, eventlog, grouping, miner, organizational
+from .lite import miner as lite_miner
+from .lite import patterns as lite_patterns
 
 
 @asynccontextmanager
@@ -46,28 +51,58 @@ def _auth_required() -> bool:
     return os.environ.get("MINER_AUTH", "required").strip().lower() not in ("off", "false", "0", "disabled")
 
 
+async def _requested_tenant(request: Request) -> str:
+    """요청이 보낸 tenant_id(쿼리 또는 JSON 본문). 없으면 400."""
+    tenant = (request.query_params.get("tenant_id") or "").strip()
+    if not tenant and request.method == "POST":
+        try:
+            tenant = str((await request.json()).get("tenant_id") or "").strip()
+        except Exception:  # noqa: BLE001
+            tenant = ""
+    if not tenant:
+        raise HTTPException(status_code=400, detail="tenant_id 가 필요합니다")
+    return tenant
+
+
+def _bearer(request: Request) -> str:
+    auth = request.headers.get("authorization") or ""
+    return auth[7:].strip() if auth.lower().startswith("bearer ") else ""
+
+
 async def tenant_scope(request: Request) -> str:
     """요청이 볼 수 있는 테넌트 하나.
 
     기본은 요청자의 Supabase JWT 를 검증해 그 사용자가 속한 테넌트만 허용한다
     (agent SDK 의 tenant_auth 와 같은 규칙). 요청이 보낸 tenant_id 는 그 집합 안에 있을
-    때만 통과한다. MINER_AUTH=off 는 로컬 단위 확인용이며, 그때도 tenant_id 는 필수다.
+    때만 통과한다.
+
+    서버 간 호출(Process GPT Lite 의 주기적 찾기처럼 사용자 없이 도는 일)은 Supabase
+    service_role 키를 Bearer 로 보낸다. 서명이 검증된 service_role 토큰이면 요청한
+    tenant_id 를 허용한다 — 그 키는 이미 DB 전체 권한이라 권한이 넓어지지 않는다.
+    anon 키나 사용자 토큰은 이 길로 들어오지 못한다.
+
+    MINER_AUTH=off 는 로컬 단위 확인용이며, 그때도 tenant_id 는 필수다.
     어느 경우에도 tenant_id 없이 전체 테넌트 기록을 돌려주지 않는다.
     """
     if not _auth_required():
-        tenant = (request.query_params.get("tenant_id") or "").strip()
-        if not tenant and request.method == "POST":
-            try:
-                tenant = str((await request.json()).get("tenant_id") or "").strip()
-            except Exception:  # noqa: BLE001
-                tenant = ""
-        if not tenant:
-            raise HTTPException(status_code=400, detail="tenant_id 가 필요합니다")
+        tenant = await _requested_tenant(request)
         request.state.tenant_id = tenant
         request.state.user_id = ""
         return tenant
 
-    from processgpt_agent_sdk.tenant_auth import TenantAuthError, authorize_tenant
+    from processgpt_agent_sdk.tenant_auth import TenantAuthError, authorize_tenant, verify_token
+
+    token = _bearer(request)
+    if token:
+        try:
+            claims = await asyncio.to_thread(verify_token, token)
+        except TenantAuthError as e:
+            raise HTTPException(status_code=e.status_code, detail=e.message) from e
+        if claims.get("role") == "service_role":
+            tenant = await _requested_tenant(request)
+            request.state.tenant_id = tenant
+            request.state.user_id = ""
+            return tenant
 
     try:
         await authorize_tenant(request)
@@ -266,3 +301,37 @@ def mine(req: MineRequest, tenant: str = Depends(tenant_scope)):
     if not result.get("ok"):
         raise HTTPException(status_code=422, detail=result.get("reason", "도출 실패"))
     return result
+
+
+# ---------- Process GPT Lite (app.lite) ----------
+
+
+@app.get("/patterns")
+def patterns(
+    tenant: str = Depends(tenant_scope),
+    min_cases: int = lite_patterns.MIN_CASES,
+    similarity: float = lite_patterns.SIMILARITY,
+):
+    """반복되는 업무 묶음. 이미 정의된 프로세스에서 나온 기록은 뺀다(Lite 가 추천할 후보)."""
+    found = lite_patterns.find(lite_miner.fetch_events(tenant), min_cases=min_cases, similarity=similarity)
+    return {"count": len(found), "patterns": found}
+
+
+class DiscoverRequest(BaseModel):
+    tenant_id: Optional[str] = None
+    process_id: str
+    name: str
+    case_ids: list[str]
+    min_freq: int = 1
+    # 이름·설명의 언어('ko' | 'en'): 요청한 쪽의 언어. 없으면 기록된 활동 이름의 언어
+    lang: Optional[str] = None
+
+
+@app.post("/discover")
+def discover_cases(req: DiscoverRequest, tenant: str = Depends(tenant_scope)):
+    """고른 케이스만으로 도출한다(쓰기 없음)."""
+    result = lite_miner.run(tenant_id=tenant, process_id=req.process_id, process_name=req.name,
+                            case_ids=req.case_ids, min_freq=req.min_freq, lang=req.lang)
+    if not result.get("ok"):
+        raise HTTPException(status_code=422, detail=result.get("reason", "도출 실패"))
+    return {"stats": result["stats"], "tree": result["tree"], "definition": result["definition"]}
