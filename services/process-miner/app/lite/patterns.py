@@ -100,13 +100,19 @@ def find(rows: list[dict], *, min_cases: int = MIN_CASES, similarity: float = SI
         if len(comp) >= min_cases:
             groups.append((comp, None))
 
-    out = [_describe(comp, key, sets, traces, by_case) for comp, key in groups]
+    taken = {f["key"] for f in flows}
+    out = [_describe(comp, key, sets, traces, by_case, taken) for comp, key in groups]
     out.sort(key=lambda p: (-p["case_count"], p["last_seen"] or ""), reverse=False)
     return out
 
 
-def _describe(comp: list[str], key: str | None, sets: dict, traces: dict, by_case: dict) -> dict:
-    """케이스 묶음 하나 → 패턴(핵심 활동·주 변형·단계별 담당·도구). key 가 없으면 핵심 활동의 해시."""
+def _describe(comp: list[str], key: str | None, sets: dict, traces: dict, by_case: dict, taken: set = frozenset()) -> dict:
+    """케이스 묶음 하나 → 패턴(핵심 활동·주 변형·단계별 담당·도구). key 가 없으면 핵심 활동의 해시.
+
+    taken: 결정된 흐름의 키. 결정된 흐름의 키는 그 흐름이 처음 찾아졌을 때의 핵심 활동으로 만든 것이라, 그 흐름을
+    따르지 않는 새 묶음도 핵심 활동이 같으면 같은 키가 나온다. 그러면 Lite 가 새 묶음을 그 결정된 흐름으로 보고
+    사례 목록을 덮어쓴다. 새 묶음은 결정된 흐름의 키를 쓰지 않는다.
+    """
     freq = Counter(a for x in comp for a in sets[x])
     core = [a for a, n in freq.items() if n * 2 >= len(comp)]
     variants = Counter(tuple(traces[x]) for x in comp)
@@ -128,7 +134,10 @@ def _describe(comp: list[str], key: str | None, sets: dict, traces: dict, by_cas
             "tools": [t for t, _ in Counter(t for e in mine for t in e.tools).most_common()],
             "skills": [k for k, _ in Counter(k for e in mine for k in e.skills).most_common()],
         })
-    key = key or pattern_key(core)
+    if not key:
+        key = pattern_key(core)
+        if key in taken:
+            key = pattern_key([*core, f"~not:{key}"])
     return {
         "key": key,
         "process_id": f"mined_{key}",

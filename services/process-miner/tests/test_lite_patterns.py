@@ -144,3 +144,18 @@ def test_two_registered_flows_each_keep_their_cases():
     assert {"A", "B"} <= keys and len(found) == 4
     news = sorted(sorted(p["case_ids"]) for p in found if p["key"] not in ("A", "B"))
     assert news == [[f"dv{i}" for i in range(4)], [f"ev{i}" for i in range(4)]]
+
+
+def test_a_new_group_never_takes_a_decided_flows_key():
+    # 결정된 흐름(보류)의 키는 처음 찾아졌을 때의 핵심 활동(접수·견적서)으로 만든 것. 그 흐름의 지금 사례는 회신까지
+    # 거쳐 핵심이 달라졌고, 견적서까지만 온 새 사례들의 핵심이 옛 핵심과 같아도 그 흐름의 키를 받으면 안 된다.
+    early = ["요청 메일 접수", "견적서 작성"]
+    held = [f"h{i}" for i in range(6)]
+    rows = [r for i, c in enumerate(held) for r in _rows(c, early + ["고객 회신"], t0=i % 5)]
+    rows += [r for i in range(5) for r in _rows(f"n{i}", early, t0=i)]
+    old_key = patterns.pattern_key(early)
+    found = patterns.find(rows, min_cases=4, known=[_known(held, old_key)])
+    by_key = {p["key"]: sorted(p["case_ids"]) for p in found}
+    assert by_key[old_key] == sorted(held)
+    new = [p for p in found if p["key"] != old_key]
+    assert len(new) == 1 and sorted(new[0]["case_ids"]) == [f"n{i}" for i in range(5)]
