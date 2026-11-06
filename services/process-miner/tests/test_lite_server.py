@@ -26,6 +26,9 @@ def _case(case, acts, tenant="acme"):
 ROWS = {
     "acme": [r for c in ("c1", "c2", "c3") for r in _case(c, ["견적 요청 접수", "견적 작성", "회신"])],
     "other": [r for c in ("x1", "x2", "x3") for r in _case(c, ["비밀 업무", "비밀 검토"], tenant="other")],
+    # 정식 등록된 흐름(r*)과, 그 흐름에서 검토 단계 하나만 다른 업무(v*)
+    "reg": [r for c in ("r1", "r2", "r3", "r4") for r in _case(c, ["접수", "견적서 작성", "계약 검토", "회신"], tenant="reg")]
+    + [r for c in ("v1", "v2", "v3", "v4") for r in _case(c, ["접수", "견적서 작성", "재무 검토", "회신"], tenant="reg")],
 }
 
 
@@ -79,6 +82,27 @@ def test_patterns_read_only_the_requested_tenant(monkeypatch, fetched):
     assert body["count"] == 1
     assert body["patterns"][0]["main_variant"] == ["견적 요청 접수", "견적 작성", "회신"]
     assert "비밀 업무" not in res.text
+
+
+def test_post_patterns_without_token_is_rejected(monkeypatch, fetched):
+    monkeypatch.delenv("MINER_AUTH", raising=False)
+    res = TestClient(server.app).post("/patterns", json={"tenant_id": "reg", "known": []})
+    assert res.status_code == 401
+    assert fetched == []
+
+
+def test_post_patterns_keeps_a_decided_flow_apart(monkeypatch, fetched):
+    monkeypatch.setenv("MINER_AUTH", "off")
+    client = TestClient(server.app)
+    # 결정된 흐름을 모르면 단계 하나 다른 업무가 그 사례들과 한 묶음
+    assert client.get("/patterns?tenant_id=reg&min_cases=4").json()["count"] == 1
+    res = client.post("/patterns", json={"tenant_id": "reg", "min_cases": 4,
+                                         "known": [{"key": "regkey", "case_ids": ["r1", "r2", "r3", "r4"]}]})
+    assert res.status_code == 200, res.text
+    found = {p["key"]: sorted(p["case_ids"]) for p in res.json()["patterns"]}
+    assert found.pop("regkey") == ["r1", "r2", "r3", "r4"]
+    assert list(found.values()) == [["v1", "v2", "v3", "v4"]]
+    assert fetched == ["reg", "reg"]
 
 
 def test_discover_draws_only_and_writes_nothing(monkeypatch, fetched):
