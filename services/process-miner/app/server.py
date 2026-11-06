@@ -14,7 +14,6 @@ handover_events 를 읽기만 하고, 제안은 proc_def_version(draft) + PR 로
   GET  /discovered       도출된 프로세스(정의 JSON 포함) — BPMN 모델러가 그대로 렌더. process_key 로 묶음 지정
   POST /mine             도출 결과(dry_run=true 만). 제안은 식별 화면이 버전 저장 → 병합 요청으로 만든다
   GET  /patterns         Process GPT Lite — 반복 패턴(활동 집합이 비슷한 케이스 묶음)
-  POST /patterns         같은 찾기에 이미 결정된 흐름(known)을 함께 넘김 — 그 흐름의 사례는 따로 돌려준다
   POST /discover         Process GPT Lite — case_ids 로 고른 케이스만 도출(쓰기 없음)
 """
 from __future__ import annotations
@@ -315,27 +314,6 @@ def patterns(
 ):
     """반복되는 업무 묶음. 이미 정의된 프로세스에서 나온 기록은 뺀다(Lite 가 추천할 후보)."""
     found = lite_patterns.find(lite_miner.fetch_events(tenant), min_cases=min_cases, similarity=similarity)
-    return {"count": len(found), "patterns": found}
-
-
-class KnownFlow(BaseModel):
-    key: str
-    case_ids: list[str]
-
-
-class PatternsRequest(BaseModel):
-    tenant_id: Optional[str] = None
-    min_cases: int = lite_patterns.MIN_CASES
-    similarity: float = lite_patterns.SIMILARITY
-    # 이미 결정된(정식 등록·보류) 흐름: 그 흐름의 사례·그 흐름을 그대로 따른 사례는 새 묶음에 끼지 않는다
-    known: list[KnownFlow] = []
-
-
-@app.post("/patterns")
-def patterns_with_known(req: PatternsRequest, tenant: str = Depends(tenant_scope)):
-    """GET /patterns 와 같은 찾기. 결정된 흐름의 사례가 다리가 되어 다른 업무를 끌어들이지 않게 먼저 떼어 낸다."""
-    found = lite_patterns.find(lite_miner.fetch_events(tenant), min_cases=req.min_cases, similarity=req.similarity,
-                               known=[k.model_dump() for k in req.known])
     return {"count": len(found), "patterns": found}
 
 
