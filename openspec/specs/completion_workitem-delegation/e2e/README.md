@@ -42,6 +42,10 @@ node --test src/utils/workItemAccess.test.js src/utils/agentDelegation.test.js
 - **서버 강제 없음 ✗**: todolist의 UPDATE 정책이 `tenant_id = tenant_id()`뿐이다. 그래서 같은 조직 사람이면 API로 남의 업무를 바꿀 수 있다. 막는 정책은 `openspec/changes/ux-review-1109/design.md`에 제안했고 아직 적용하지 않았다.
 
 ## 증거
+- 시연 영상 (일부 공개): https://youtu.be/INr4A-ePE2c (`INr4A-ePE2c`)
+  - 같은 계정 · 같은 업무로 화면을 밟았다.
+  - 박서연 장면은 쓰기 요청 0건을 단언했다.
+  - 김민지 장면은 실제로 맡겨 대기열 등록까지 보인다. VM 딥 에이전트는 `mcp_python_code` 표가 없어 곧 실패한다. 녹화 뒤 업무는 되돌렸다.
 - `results/ux-review-playwright.txt`: 회귀 묶음 12/12 통과(이 스펙과 함께 고친 첫 화면 · 사이드바 · 조직도 · 목록 시험 포함)
 - `results/unit-workitem-access.txt`: 단위 11/11
 - `shots/01-other-participant-readonly.png`: 박서연이 남의 업무를 연 화면. 위임 수단이 없고 에이전트 탭에 안내가 보인다
