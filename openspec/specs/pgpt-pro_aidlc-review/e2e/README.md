@@ -1,6 +1,6 @@
 # E2E — pgpt-pro_aidlc-review
 
-검토 보드·볼트 보드·산출물 보기(Lite 앱 규약 v1의 앱 셋)를 실제 서버와 실제 DB에 대고 확인한다. 세션은 `pgpt-pro_aidlc-team` 과 같은 대역(tmux 안에서 Claude Code 선택 창 화면을 그리고 받은 키를 적는 스크립트)이라 모델 호출이 없다. 실제 Claude Code + AI-DLC 2.11.2 classic 한 판(「팀 회의실 예약」, 유닛 6개)은 영상 판(`pgpt-pro/demo/product/robo-dlc-review-ko`)에서 같은 흐름으로 돌렸고, 그 화면을 `results/real-*.png` 에 두었다. 결과 파일은 저장소 `.gitignore` 라 올라가지 않으며 사본이 `pgpt-pro/docs/robo-dlc/results/review/` 에 있다.
+검토 보드·볼트 보드·산출물 보기(Lite 앱 규약의 앱 셋, v2 는 `pgpt-pro_mcp-apps`)를 실제 서버와 실제 DB에 대고 확인한다. 세션은 `pgpt-pro_aidlc-team` 과 같은 대역(tmux 안에서 Claude Code 선택 창 화면을 그리고 받은 키를 적는 스크립트)이라 모델 호출이 없다. 실제 Claude Code + AI-DLC 2.11.2 classic 한 판(「팀 회의실 예약」, 유닛 6개)은 영상 판(`pgpt-pro/demo/product/robo-dlc-review-ko`)에서 같은 흐름으로 돌렸고, 그 화면을 `results/real-*.png` 에 두었다. 결과 파일은 저장소 `.gitignore` 라 올라가지 않으며 사본이 `pgpt-pro/docs/robo-dlc/results/review/` 에 있다.
 
 ```bash
 cd /Users/uengine/uengine-platform/process-gpt-lite-robodlc/server
@@ -15,8 +15,6 @@ cd ../e2e && PGPT_URL=http://127.0.0.1:5197 API_URL=http://127.0.0.1:8798 npx pl
 
 | 스펙 시나리오 | 시험 | 증거 |
 |---|---|---|
-| 잘못된 매니페스트 | 단위 「앱 규약: 잘못된 매니페스트…」, 「한 앱이 깨져도…」 | `results/unit.txt` |
-| 앱이 허락되지 않은 것을 부른다 | 단위 「앱 브리지…」, 「앱 서버 코드는 호스트 모듈을 import 하지 않는다」 | `results/unit.txt` |
 | AI-DLC 폴더의 앱 단추 | E2E 준비(`/apps/for/:folder`), F-RD-06 | `results/e2e.txt`, `results/playwright.txt` |
 | 검토자마다 자기 카드 | E2E 2·3단계 | `results/e2e.txt` |
 | 이의는 이유와 함께 | E2E 3단계 | `results/e2e.txt` |
