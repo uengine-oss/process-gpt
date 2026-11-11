@@ -19,20 +19,22 @@ node --test mobile/src/lib/authGate.test.js
   GoTrue 관리 API 로 계정을 만들고 `/factors` 로 TOTP 를 등록 · 검증한 뒤 비밀을 계정 파일에만 쓴다(출력하지 않는다).
 - 승인 업무 id 는 한 번도 저장하지 않은 것을 쓴다. 이미 「반려」를 저장한 업무면 F-MV-11 이 실패한다(값이 미리 골라져 보이므로).
 
-- 실행 환경: 튜토리얼 설치본(colima-pgtut, 192.168.64.3), 프런트는 process-gpt-vue3 `fix/phone-web-auth` 를 튜토리얼 빌드(`tutorial/combined-1110`)에 얹어 빌드해 올림, 계정은 관리자 · 2단계 인증 계정(mfa-phone).
+- 실행 환경: 튜토리얼 설치본(colima-pgtut, 192.168.64.3), 프런트는 process-gpt-vue3 `feat/phone-desktop-default-install-bar` 를 튜토리얼 빌드(`tutorial/combined-1110`)에 얹어 빌드해 올림, 계정은 관리자 · 2단계 인증 계정(mfa-phone).
 - Playwright 설정의 `Desktop Chrome` 프로젝트가 `screen` 1920×1080 을 물려주므로 휴대폰 컨텍스트에는 `screen` 을 꼭 정한다.
 
 ## 스펙 시나리오 ↔ 시험
 
-| 스펙 시나리오 | 시험 | 결과(2026-11-11 휴대폰 웹 배포 판) |
+| 스펙 시나리오 | 시험 | 결과(2026-11-11 데스크톱 기본 · 홈 화면 띠 판) |
 |---|---|---|
-| 로그인한 뒤(→ 휴대폰 웹 할 일, 로그인은 390px 포털) | F-MV-01 | ✅ |
-| 업무 주소로 바로 들어옴 | F-MV-10 (`MV_TASK_ID`) · 단위 `phoneWeb.test.js` | ✅ |
+| 로그인한 뒤(→ 데스크톱 화면 1280px, 로그인은 390px 포털) | F-MV-01 · 단위 `phoneWeb.test.js` · `mobileView.test.js` | ✅ |
+| 라이트 버전으로 업무 주소에 바로 들어옴 | F-MV-10 (`MV_TASK_ID`) · 단위 `phoneWeb.test.js` | ✅ |
 | 컴퓨터 | F-MV-07 | ✅ |
 | 승인 · 반려(휴대폰 웹) | F-MV-12 (`MV_APPROVAL_TASK_ID`) · 휴대폰 웹 E2E 반려 9/9 | ✅ |
-| 데스크톱 화면으로 | F-MV-02 | ✅ |
-| 휴대폰 웹으로 돌아가기 | F-MV-03 | ✅ |
+| 라이트 버전으로 | F-MV-03 | ✅ |
+| 데스크톱 화면으로 돌아가기 | F-MV-02 | ✅ |
 | iPhone 안내 · 매니페스트와 아이콘 | F-MV-06 | ✅ |
+| 띠에서 추가(위쪽 막대는 띠 아래) | F-MV-15 · 단위 `mobileView.test.js` | ✅ |
+| 다시 보지 않기(휴대폰 웹 · 포털 모두) | F-MV-15 · F-MV-16 · 단위 `mobileView.test.js` | ✅ |
 | 좁은 창에서 관리 주소 | F-MV-09 | ✅ |
 | 좁은 창 사이드바 | F-MV-08 | ✅ |
 | (결정 칸 — 포털 데스크톱) | F-MV-11 | ✅ |
@@ -41,12 +43,15 @@ node --test mobile/src/lib/authGate.test.js
 | (필수인데 미등록 → 등록 화면 → 휴대폰 웹, 앱은 로그아웃하고 알림) | 단위 `authGate.test.js` | ✅ (E2E 없음) |
 | (PAL · uEngine · 네이티브 앱은 옮기지 않음, 운영 run.sh 주입 뒤에도 규칙이 남음) | 단위 `phoneWeb.test.js` · `indexHtml.test.js` | ✅ |
 
-설치본(VM)은 프런트 컨테이너가 옛 run.sh 라 `/m/index.html` 에 `window._env_` 를 넣지 않는다 — 시험 때는 같은 블록을 손으로 넣었다(새 이미지의 run.sh 는 두 index.html 에 넣는다).
+설치본(VM)은 프런트 컨테이너가 옛 run.sh 라 `/m/index.html` 에 `window._env_` 를 넣지 않는다 — 시험 때는 같은 블록을 손으로 넣었다(새 이미지의 run.sh 는 두 index.html 에 넣는다). 컨테이너를 다시 시작한 직후에는 옛 파일이 남아 있어, run.sh 가 끝나 http-server 가 PID 1 이 된 뒤에 넣어야 덮이지 않는다.
+
+- 띠 안내 시험(F-MV-15 · 16)은 iPhone UA 로 돈다 — 헤드리스 크로미움은 설치 창(beforeinstallprompt)을 띄우지 않으므로 기기별 안내가 나온다.
 
 ## 증거
 
 `results/` 는 저장소에 올리지 않는다(.gitignore). 위 명령을 다시 돌리면 같은 자리에 생긴다. 2026-11-11 실행 결과:
 
+- 데스크톱 기본 · 홈 화면 띠 판: F-MV-01~16 14개 모두 통과(43초, `mobile-view-default-e2e.txt`), 단위 34개 통과, 전체 단위 1101 통과 · 15 실패(main 과 같은 15개 — 채팅 시험).
 - 인증 관문 고친 판: F-MV-01~14 12개 모두 통과(33초, `mobile-view-auth-e2e.txt`), 단위 31개 통과(`unit-auth.txt`).
   고치기 전 판의 F-MV-13 · 14 실패 기록은 `mfa-before-fix.txt`.
 
