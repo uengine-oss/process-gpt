@@ -21,8 +21,10 @@ npm run test:unit
 | F-RV-B02 말한 칸만 | `F-RV-B02`(채우기 응답 흉내, 요청 내용은 실제) · `F-RV-B05`(실제 언어 모델, `RV_LIVE_LLM=1`) | ✅ |
 | F-RV-B03 받아쓰기 장애 · 권한 거부 | `F-RV-B03` | ✅ |
 | F-RV-B04 채우기 장애 | `F-RV-B04` | ✅ |
+| F-RV-B06 채우는 동안 친 글 | `F-RV-B06`(채우기 응답을 잡아 두고 그사이 입력) · 단위 `mergeFill` | ✅ (코드 검토 뒤 추가) |
+| F-RV-B07 안내의 칸 이름 | `F-RV-B07` · 단위 `presentedFieldLabels` | ✅ (코드 검토 뒤 추가) |
 
 ## 증거
 
-`results/`(.gitignore): `devserver-rev1111-b.txt`(개발 서버) · `vm-rev1111-b.txt`(VM 반영 뒤) · 고치기 전/후 사진(`before-*` · `after-*`).
+`results/`(.gitignore): `devserver-rev1111-b.txt`(개발 서버) · `vm-rev1111-b.txt`(VM 반영 뒤) · `vm2-rev1111-b.txt`(코드 검토 반영 뒤 VM — 6 통과 · 1 건너뜀) · 고치기 전/후 사진(`before-*` · `after-*`).
 단위 시험은 합친 브랜치에서 1164 중 1149 통과, 실패 15 는 origin/main 과 같은 것(Node 25 localStorage · ChatRoomPage.serverContent).
