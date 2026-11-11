@@ -27,6 +27,9 @@ node --test src/shared/mobileView/*.test.js
 | iPhone 안내 · 매니페스트와 아이콘 | F-MV-06 | ✅ |
 | (PAL · uEngine 은 묻지도 폭을 바꾸지도 않는다) | 단위 「PAL · uEngine 모드(규칙 꺼짐)…」 | ✅ |
 | (운영 run.sh 가 환경 변수를 끼운 뒤에도 규칙이 남는다) | 단위 `indexHtml.test.js` | ✅ |
+| 관리 주소로 바로 들어옴 | F-MV-09 | ✅ (2026-11-11 2차) |
+| 휴대폰 사이드바 | F-MV-08 | ✅ |
+| (휴대폰 업무 화면의 「에이전트에 맡기기」) | F-MV-10 (`MV_TASK_ID`) | ✅ |
 
 ## 증거
 
