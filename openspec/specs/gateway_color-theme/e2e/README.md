@@ -1,10 +1,10 @@
 # 색상 테마 — 시험
 
-화면 시험은 process-gpt-vue3의 `playwright/e2e/rev1112b/`에 있다. 대비는 `contrast.ts`가 화면의 각 글자색과 가장 가까운 불투명 바탕색을 기준으로 계산한다.
+화면 시험은 process-gpt-vue3의 `playwright/e2e/rev1112b/`(다크 테마 글자)와 `playwright/e2e/rev1112c/`(테마 설정 화면)에 있다. 대비는 `contrast.ts`가 화면의 각 글자색과 가장 가까운 불투명 바탕색을 기준으로 계산한다.
 
 ```bash
 BASE_URL=http://localhost:8088 UX_BASE_URL=http://localhost:8088 UX_HOST_MAP="MAP localhost 192.168.64.3" \
-UX_ACCOUNTS=~/.config/pgtut/local-accounts.json npx playwright test playwright/e2e/rev1112b
+UX_ACCOUNTS=~/.config/pgtut/local-accounts.json npx playwright test playwright/e2e/rev1112b playwright/e2e/rev1112c
 ```
 
 실행 환경: 튜토리얼 VM(colima pgtut, 192.168.64.3:8088), 계정 `~/.config/pgtut/local-accounts.json`의 admin, 대화방 `RV_CHAT_ROOM`(기본: VM 「영업 제안서 승인 프로세스 설계」 방). 데이터는 읽기만 한다.
@@ -17,6 +17,11 @@ UX_ACCOUNTS=~/.config/pgtut/local-accounts.json npx playwright test playwright/e
 | F-RV-E02 다크 테마의 대화방 | `dark-theme.spec.ts` F-RV-E02 | ✅ (수정 전 빌드 ✗) |
 | F-RV-E03 다크 테마의 로고 | `dark-theme.spec.ts` F-RV-E03 | ✅ (수정 전 빌드 ✗) |
 | F-RV-E04 라이트 테마 | `dark-theme.spec.ts` F-RV-E04 | ✅ (수정 전 빌드도 ✅) |
+| F-RV-G01 다크 테마로 테마 설정 열기 | `theme-settings.spec.ts` F-RV-G01 | ✅ (수정 전 빌드 ✗ — 사이드바 · 상단바가 흰색) |
+| F-RV-G02 테마를 고른 뒤 다시 열기 | `theme-settings.spec.ts` F-RV-G02 | ✅ (수정 전 빌드 ✗) |
+| F-RV-G03 라이트 테마로 테마 설정 열기 | `theme-settings.spec.ts` F-RV-G03 | ✅ (수정 전 빌드 ✗) |
+
+`theme-settings.spec.ts`는 기기에 저장된 예전 테마 이름을 일부러 어긋나게 심고 테마 설정을 연 뒤, 사이드바 · 상단바 · 본문 바탕의 밝기를 잰다. 테마는 그 브라우저의 저장소에만 남는다.
 
 ## 함께 둔 점검 시험(이 스펙 밖)
 

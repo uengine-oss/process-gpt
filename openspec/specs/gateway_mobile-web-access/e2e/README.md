@@ -27,10 +27,15 @@ node --test mobile/src/lib/authGate.test.js
 | 스펙 시나리오 | 시험 | 결과(2026-11-11 데스크톱 기본 · 홈 화면 띠 판) |
 |---|---|---|
 | 로그인한 뒤(→ 데스크톱 화면 1280px, 로그인은 390px 포털) | F-MV-01 · 단위 `phoneWeb.test.js` · `mobileView.test.js` | ✅ |
-| 라이트 버전으로 업무 주소에 바로 들어옴 | F-MV-10 (`MV_TASK_ID`) · 단위 `phoneWeb.test.js` | ✅ |
+| 모바일 버전으로 업무 주소에 바로 들어옴 | F-MV-10 (`MV_TASK_ID`) · 단위 `phoneWeb.test.js` | ✅ |
+| 라이트 모드로 포털 주소에 들어옴 | F-MV-18 · 단위 `phoneWeb.test.js` · `indexHtml.test.js` | ✅ (11-12, `/lite/`는 시험용 대체 화면) |
 | 컴퓨터 | F-MV-07 | ✅ |
 | 승인 · 반려(휴대폰 웹) | F-MV-12 (`MV_APPROVAL_TASK_ID`) · 휴대폰 웹 E2E 반려 9/9 | ✅ |
-| 라이트 버전으로 | F-MV-03 | ✅ |
+| 세 가지 선택지 | F-MV-17 | ✅ (11-12) |
+| 모바일 버전으로 | F-MV-03 | ✅ |
+| 라이트 모드로 | F-MV-18 | ✅ (11-12, `/lite/`는 시험용 대체 화면) |
+| Lite가 없는 서버에서 라이트 모드 | F-MV-19 · 단위 `mobileView.test.js` | ✅ (11-12) |
+| 라이트 모드에서 데스크톱 화면으로 돌아가기 | F-MV-20 · Lite 쪽 F-PT-01~03(process-gpt-lite `e2e/tests/feature/portal-link.spec.js`) | ✅ (11-12) |
 | 데스크톱 화면으로 돌아가기 | F-MV-02 | ✅ |
 | iPhone 안내 · 매니페스트와 아이콘 | F-MV-06 | ✅ |
 | 띠에서 추가(위쪽 막대는 띠 아래) | F-MV-15 · 단위 `mobileView.test.js` | ✅ |
@@ -47,9 +52,20 @@ node --test mobile/src/lib/authGate.test.js
 
 - 띠 안내 시험(F-MV-15 · 16)은 iPhone UA 로 돈다 — 헤드리스 크로미움은 설치 창(beforeinstallprompt)을 띄우지 않으므로 기기별 안내가 나온다.
 
+- 튜토리얼 설치본에는 Process GPT Lite가 없다. F-MV-18 · 20은 `/lite/` 문서만 시험용 대체 화면으로 바꿔 실행하고(포털 문서는 건드리지 않는다), F-MV-19는 Lite가 없는 서버에서만 실행한다. 실제 Lite로 이동하는 동작은 운영에서 따로 확인한다.
+- 시험 러너(Node)는 `UX_HOST_MAP`을 모른다. 설치본 화면 주소(`localhost:8088`)의 파일을 시험에서 받을 때는 `page.request`가 아니라 브라우저 안의 `fetch`로 받는다.
+
 ## 증거
 
-`results/` 는 저장소에 올리지 않는다(.gitignore). 위 명령을 다시 돌리면 같은 자리에 생긴다. 2026-11-11 실행 결과:
+`results/` 는 저장소에 올리지 않는다(.gitignore). 위 명령을 다시 돌리면 같은 자리에 생긴다.
+
+2026-11-12 실행 결과(휴대폰 화면 세 가지 판, process-gpt-vue3 #259):
+
+- 설치본(VM): `playwright/e2e/mobile-view` + `playwright/e2e/rev1112c` 18개 통과 · 3개 건너뜀(1.1분 — 업무 id가 필요한 F-MV-10 · 11 · 12). 처음에는 F-MV-06 · 18 · 19 · 20이 `ECONNREFUSED`로 실패했다(러너가 `localhost:8088`에 연결하지 못함). 브라우저 안의 `fetch`로 바꾼 뒤 통과했다.
+- 단위 `src/shared/mobileView/*.test.js` 29개 통과. 전체 단위 1250 통과 · 15 실패(main과 같은 15개).
+- Lite 쪽: `/lite/` 아래로 빌드한 Lite에서 F-PT-01 · 03 통과(F-PT-02 건너뜀), 루트 빌드에서 F-PT-01 · 02 통과(F-PT-03 건너뜀).
+
+2026-11-11 실행 결과:
 
 - 데스크톱 기본 · 홈 화면 띠 판: F-MV-01~16 14개 모두 통과(43초, `mobile-view-default-e2e.txt`), 단위 34개 통과, 전체 단위 1101 통과 · 15 실패(main 과 같은 15개 — 채팅 시험).
 - 인증 관문 고친 판: F-MV-01~14 12개 모두 통과(33초, `mobile-view-auth-e2e.txt`), 단위 31개 통과(`unit-auth.txt`).
@@ -61,5 +77,6 @@ node --test mobile/src/lib/authGate.test.js
 
 ## 아직 확인하지 않은 것
 
+- 「라이트 모드」를 고른 뒤 실제 Process GPT Lite(`/lite/`)가 열리는지, Lite가 포털의 로그인 상태를 그대로 받는지 — Lite가 있는 운영 서버에서만 확인할 수 있다.
 - 실제 휴대폰(iPhone Safari · 안드로이드 크롬)에서의 화면 폭 전환과 설치 창 — 에뮬레이션으로만 확인했다.
 - 「필수인데 미등록 → 등록 → 휴대폰 웹」 흐름과 네이티브 앱의 로그아웃 안내 — 단위 시험만 있다.
