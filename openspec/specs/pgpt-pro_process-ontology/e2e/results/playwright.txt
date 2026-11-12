@@ -1,0 +1,13 @@
+
+Running 8 tests using 1 worker
+
+  ✓  1 [feature] › e2e/tests/feature/process-ontology.spec.js:17:1 › F-PO-01 지도 — 일 · 관계 · 묶음과 자동 값(θ · 반감기 · 띠)이 근거와 함께 (208ms)
+  ✓  2 [feature] › e2e/tests/feature/process-ontology.spec.js:33:1 › F-PO-02 배운 조건 · 드문 경로 · 은퇴 후보 (23ms)
+  ✓  3 [feature] › e2e/tests/feature/process-ontology.spec.js:47:1 › F-PO-03 시점 고르기 — 9월 1일의 지도 (56ms)
+  ✓  4 [feature] › e2e/tests/feature/process-ontology.spec.js:56:1 › F-PO-04 스냅샷 — 같은 키는 같은 정의를 다시 쓴다, 맨 앞은 요청 접수 (145ms)
+  ✓  5 [feature] › e2e/tests/feature/process-ontology.spec.js:72:1 › F-PO-05 앞날짜 고정 — 그날 뒤 스냅샷에만 재무 검토가 반드시, 결정 원장, 관리자만 (340ms)
+  ✓  6 [feature] › e2e/tests/feature/process-ontology.spec.js:100:1 › F-PO-06 검토 안건 — 은퇴 후보는 근거 숫자와 함께, 은퇴는 관리자만 (71ms)
+  ✓  7 [feature] › e2e/tests/feature/process-ontology.spec.js:110:1 › F-PO-07 일 정의 — SKILL.md 형식을 읽고 쓰기가 되돌아온다 (293ms)
+  ✓  8 [feature] › e2e/tests/feature/process-ontology.spec.js:125:1 › F-PO-08 화면 — 지도 · θ · 값 보기 · 검토 안건 · 스냅샷이 오류 없이 (2.0s)
+
+  8 passed (4.1s)

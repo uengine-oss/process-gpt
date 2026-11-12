@@ -67,5 +67,5 @@ cd ../e2e && PGPT_URL=http://ax.localhost:5191 API_URL=http://ax.localhost:8790 
 ## 증거
 - `results/ontology-map.txt` · `results/ontology-run.txt` · `results/ontology-review.txt` — 세 시나리오 시험 출력
 - `results/unit.txt` — 단위 시험, `results/playwright.txt` — 회귀 묶음
-- `results/frame-*.png` — 녹화 영상 프레임(지도 · 배운 조건 · 은퇴 후보 · 시작 일 카드 · 견적서와 점검 항목 · 박서연의 재무 검토 · 오늘/다음 달 1일 스냅샷 · 결정 원장). 영상 녹화 실행의 수치: 메일 483 → 일 메일 437, 일 20 · 관계 52 · 묶음 3, 시작 일 p 0.54, 견적 97,680,000원 · 점검 5개 중 4개(비고 빈칸 ✗), 원장 「고정: 재무 검토 (2026-12-01부터)」
+- `results/frame-*.jpg` — 녹화 영상 프레임(지도 · 배운 조건 · 은퇴 후보 · 시작 일 카드 · 견적서와 점검 항목 · 박서연의 재무 검토 · 오늘/다음 달 1일 스냅샷 · 결정 원장). 영상 녹화 실행의 수치: 메일 483 → 일 메일 437, 일 20 · 관계 52 · 묶음 3, 시작 일 p 0.54, 견적 97,680,000원 · 점검 5개 중 4개(비고 빈칸 ✗), 원장 「고정: 재무 검토 (2026-12-01부터)」
 - 녹화 도구 `pgpt-pro/demo/product/onto-{map,run,review}-ko/`(record.mjs · NOTES.md)
