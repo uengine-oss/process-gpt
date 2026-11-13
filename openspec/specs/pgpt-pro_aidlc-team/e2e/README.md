@@ -7,6 +7,7 @@ cd /Users/uengine/uengine-platform/process-gpt-lite-robodlc/server
 node --test test/aidlc.test.js                                               # 선택 창 읽기(승인·요약·답하는 방식·권한), 답 쓰기
 PRO_E2E_API=http://127.0.0.1:8798/api node --test test/aidlc-team.e2e.test.js   # 실제 서버 3단계 (PRO_AIDLC_WATCH=1)
 cd ../e2e && PGPT_URL=http://127.0.0.1:5197 API_URL=http://127.0.0.1:8798 npx playwright test tests/feature/robo-dlc.spec.js -g "F-RD-0[45]"
+node --test test/aidlc-ask.test.js                                           # P4 대화로 물은 것·훅·멈춘 화면 (16)
 ```
 
 실행 환경: Supabase(Docker) + 기능 브랜치 BFF(`feat/robo-dlc`, `PRO_PORT=8798 PRO_BACKGROUND=0 PRO_AIDLC_WATCH=1 PRO_AIDLC_PATH=<aidlc CLI>`) + `vite preview --port 5197`. 세션 tmux 소켓 `pgpt-aidlc`.
@@ -27,3 +28,8 @@ cd ../e2e && PGPT_URL=http://127.0.0.1:5197 API_URL=http://127.0.0.1:8798 npx pl
 | 수정 요청과 그 글 | 실제 세션(탐색 판·영상 판) | 영상 |
 | 질문 세 개의 답 · 기록 밖 경로 | E2E 3단계, 단위 「질문 파일에 합의한 답 쓰기」 | `results/e2e.txt`, `results/unit.txt` |
 | 몹 정교화 | 실제 서버 + 실제 세션(회의 받아쓰기는 typed lines): 합의 Q1~Q5, 보류한 Q6 은 비움 | 이 README, 영상 |
+| 대화로 물은 승인 (P4) | E2E 4단계(훅 → 카드 → 「Approve」 가 입력창에), F-RD-14(훅 없이 화면만), 단위 사례 9개(실제 판 2 의 말) | `results/e2e-p4.txt`, `results/playwright-p4.txt`, `results/unit-p4-ask.txt` |
+| 글이 필요한 선택지 (P4) | F-RD-14(「Request Changes」 → 입력칸에 「Request Changes: 」), 단위 사례 needsText | `results/playwright-p4.txt`, `results/unit-p4-ask.txt` |
+| 말하고 멈춘 세션 (P4) | 단위 사례 「코드 생성으로 넘어가겠습니다.」, 실제 판 3(세션을 다시 띄운 뒤 빈 화면 → 「멈춰 있어요」 → 「계속 진행해 주세요」 → 다시 일함) | `results/unit-p4-ask.txt`, 이 README |
+| 훅이 알리면 곧바로 (P4) | E2E 4단계(훅 뒤 6초 안 카드, 서명 없는 알림 403), 실제 판 3(실제 Claude Code 2.1.325 의 UserPromptSubmit·Stop 이 서버에 옴, `PRO_AIDLC_HOOK_LOG=1`) | `results/e2e-p4.txt`, 이 README |
+| 일하는 중이거나 적는 중 (P4) | 단위 「화면」(녹화한 스피너 `✶ …(14s · ↓ 1.0k tokens)` · 백그라운드 대기 · 적는 중 · 흐린 제안 「Try "…"」은 적는 중이 아님) | `results/unit-p4-ask.txt` |
