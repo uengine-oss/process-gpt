@@ -7,7 +7,7 @@ cd /Users/uengine/uengine-platform/process-gpt-lite-robodlc/server
 node --test test/aidlc.test.js                                               # 선택 창 읽기(승인·요약·답하는 방식·권한), 답 쓰기
 PRO_E2E_API=http://127.0.0.1:8798/api node --test test/aidlc-team.e2e.test.js   # 실제 서버 3단계 (PRO_AIDLC_WATCH=1)
 cd ../e2e && PGPT_URL=http://127.0.0.1:5197 API_URL=http://127.0.0.1:8798 npx playwright test tests/feature/robo-dlc.spec.js -g "F-RD-0[45]"
-node --test test/aidlc-ask.test.js                                           # P4 대화로 물은 것·훅·멈춘 화면 (16)
+node --test test/aidlc-ask.test.js                                           # P4 대화로 물은 것·훅·멈춘 화면·막힌 세션 (19)
 ```
 
 실행 환경: Supabase(Docker) + 기능 브랜치 BFF(`feat/robo-dlc`, `PRO_PORT=8798 PRO_BACKGROUND=0 PRO_AIDLC_WATCH=1 PRO_AIDLC_PATH=<aidlc CLI>`) + `vite preview --port 5197`. 세션 tmux 소켓 `pgpt-aidlc`.
@@ -33,3 +33,6 @@ node --test test/aidlc-ask.test.js                                           # P
 | 말하고 멈춘 세션 (P4) | 단위 사례 「코드 생성으로 넘어가겠습니다.」, 실제 판 3(세션을 다시 띄운 뒤 빈 화면 → 「멈춰 있어요」 → 「계속 진행해 주세요」 → 다시 일함) | `results/unit-p4-ask.txt`, 이 README |
 | 훅이 알리면 곧바로 (P4) | E2E 4단계(훅 뒤 6초 안 카드, 서명 없는 알림 403), 실제 판 3(실제 Claude Code 2.1.325 의 UserPromptSubmit·Stop 이 서버에 옴, `PRO_AIDLC_HOOK_LOG=1`) | `results/e2e-p4.txt`, 이 README |
 | 일하는 중이거나 적는 중 (P4) | 단위 「화면」(녹화한 스피너 `✶ …(14s · ↓ 1.0k tokens)` · 백그라운드 대기 · 적는 중 · 흐린 제안 「Try "…"」은 적는 중이 아님) | `results/unit-p4-ask.txt` |
+| 로그인이 풀린 세션 (P4) | E2E 5단계(StopFailure 훅 → 폴더 주인에게 「세션이 로그인되어 있지 않아요」, PO 에게는 없음), F-RD-16(훅 없이 실제 판 3 의 막힌 화면), 단위 「막힌 세션(화면)」, 실제 판 3(2026-11-14 10:11~10:29 KST 로그아웃 — 고치기 전 판은 이를 「멈춰 있어요」로 읽어 「계속」 100번) | `results/e2e-p4b.txt`, `results/playwright-p4b.txt`, `results/unit-p4b-ask.txt` |
+| 오류 해결 전에 반복해서 보낸 「계속」 (P4) | E2E 5단계(두 번째 429, 입력창에 한 번), F-RD-16(두 번째 「방금 보냈어요」), 단위(같은 오류는 같은 카드) | `results/e2e-p4b.txt`, `results/playwright-p4b.txt`, `results/unit-p4b-ask.txt` |
+| 오류 후 응답을 재개한 세션 · 도구의 오류 출력 (P4) | 단위 「막힌 세션(화면)」(오류 뒤 ⏺ 말이 있으면 null, `⏺ Bash(npm test)` 아래 「Error: 2 tests failed」는 null) | `results/unit-p4b-ask.txt` |
