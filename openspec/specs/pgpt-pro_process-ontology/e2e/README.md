@@ -175,7 +175,7 @@ cd ../e2e && PGPT_URL=http://ax.localhost:5191 API_URL=http://ax.localhost:8790 
 - 같은 메일에서도 시작 일 확률이 56% · 62%로 달라져, 50% 근처에서는 묻는 카드가 나올 수 있다.
 
 ### 2026-11-19 — 병목 보기 · 고쳐 보기 · 개선안 · 건 화면에서 내기
-Lite `feat/process-ontology` a2b091e · 4b8bf06 · cd2c961, 데모 테넌트 ax-demo, 시험 자료 `server/scripts/seed-flow-demo.mjs`(지난 6주 지도 엔진 건 시뮬레이션 — 디자이너 1명에 평면도 작성이 쌓임). 단위 22/22(`results/unit-1119.txt`, 고쳐 보기 10 · 흐름 12 — improve · ontology 단위 233 통과), HTTP 병목 보기 S1~S5(`results/ontology-flow.txt`) · 고쳐 보기 · 개선안 S6~S10(`results/ontology-improve.txt`) · 건 화면에서 내기 C1~C4, Playwright `process-ontology.spec.js` 19/19 · `process-flow-plan.spec.js` 2/2 · `improve.spec.js` 7/7.
+Lite `feat/process-ontology` a2b091e · 9105fd8 · 89263ef, 데모 테넌트 ax-demo, 시험 자료 `server/scripts/seed-flow-demo.mjs`(지난 6주 지도 엔진 건 시뮬레이션 — 디자이너 1명에 평면도 작성이 쌓임). 단위 22/22(`results/unit-1119.txt`, 고쳐 보기 10 · 흐름 12 — improve · ontology 단위 233 통과), HTTP 병목 보기 S1~S5(`results/ontology-flow.txt`) · 고쳐 보기 · 개선안 S6~S10(`results/ontology-improve.txt`) · 건 화면에서 내기 C1~C4, Playwright `process-ontology.spec.js` 19/19 · `process-flow-plan.spec.js` 2/2 · `improve.spec.js` 7/7.
 
 | 묶음 | 핵심 수치 |
 |---|---|
