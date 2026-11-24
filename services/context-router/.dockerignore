@@ -1,0 +1,11 @@
+.env
+.env.*
+.venv*/
+__pycache__/
+**/__pycache__/
+*.pyc
+.pytest_cache/
+eval/
+tests/
+sql/
+judge_server.py
