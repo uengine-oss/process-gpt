@@ -21,7 +21,7 @@ import uvicorn
 from dotenv import load_dotenv
 from starlette.applications import Starlette
 from starlette.requests import Request
-from starlette.responses import JSONResponse, StreamingResponse
+from starlette.responses import JSONResponse, Response, StreamingResponse
 from starlette.routing import Route
 
 load_dotenv()
@@ -44,6 +44,15 @@ DEFAULT_TARGET = os.getenv("ROUTER_DEFAULT_TARGET", "deepagents")
 #: Routing is opt-in per request (metadata.auto_route): a client whose rooms are already fixed
 #: conversations (process-gpt chat rooms) must not have them switched underneath it.
 AUTO_ROUTE_DEFAULT = os.getenv("ROUTER_AUTO_ROUTE_DEFAULT", "false").lower() == "true"
+
+
+#: request headers that belong to this hop, not to the agent's
+_HOP = ("host", "content-length", "connection", "transfer-encoding", "keep-alive", "upgrade")
+
+
+def _forwarded(request: Request, *drop: str) -> dict:
+    skip = _HOP + tuple(d.lower() for d in drop)
+    return {k: v for k, v in request.headers.items() if k.lower() not in skip}
 
 
 async def decide_ep(request: Request):
@@ -75,30 +84,44 @@ async def chat_ep(request: Request):
         routing = r.as_dict()
         logger.info("routed → %s (%s, %s %.2f)", r.conversation_id[:12], r.action, r.decision.get("strategy"), r.decision.get("confidence", 0))
     target = TARGETS.get(md.get("agent") or DEFAULT_TARGET, TARGETS[DEFAULT_TARGET])
-    headers = {"Content-Type": "application/json"}
-    if request.headers.get("authorization"):
-        headers["Authorization"] = request.headers["authorization"]
+    # the agent gets what the client sent it (the tenant, a person's own model key...), as if called directly
+    headers = {**_forwarded(request, "content-type", "accept-encoding"), "Content-Type": "application/json"}
+    client = httpx.AsyncClient(timeout=None)
+    try:
+        up = await client.send(client.build_request("POST", target, headers=headers, json=b), stream=True)
+    except httpx.HTTPError as exc:
+        await client.aclose()
+        logger.warning("agent %s unreachable: %s", target, exc)
+        return JSONResponse({"error": "agent unreachable"}, status_code=503)
+    # a refusal (401, 429, 5xx...) keeps its status, so the client handles it as from the agent itself
+    if up.status_code >= 400:
+        body = await up.aread()
+        await up.aclose()
+        await client.aclose()
+        return Response(body, status_code=up.status_code, media_type=up.headers.get("content-type"))
 
     async def stream():
-        if routing:
-            yield f"event: metadata\ndata: {json.dumps({'conversation_id': b['conversation_id'], 'routing': routing}, ensure_ascii=False)}\n\n".encode()
         answer, buf = "", ""
-        async with httpx.AsyncClient(timeout=None) as client:
-            async with client.stream("POST", target, headers=headers, json=b) as up:
-                async for chunk in up.aiter_bytes():
-                    yield chunk
-                    buf += chunk.decode("utf-8", "ignore")
-                    *lines, buf = buf.split("\n")
-                    for line in lines:
-                        if line.startswith("data:"):
-                            try:
-                                j = json.loads(line[5:])
-                            except Exception:  # noqa: BLE001
-                                continue
-                            if j.get("type") in ("token", "text") and j.get("content"):
-                                answer += j["content"]
-                            elif j.get("type") == "done" and j.get("content"):
-                                answer = j["content"]
+        try:
+            if routing:
+                yield f"event: metadata\ndata: {json.dumps({'conversation_id': b['conversation_id'], 'routing': routing}, ensure_ascii=False)}\n\n".encode()
+            async for chunk in up.aiter_bytes():
+                yield chunk
+                buf += chunk.decode("utf-8", "ignore")
+                *lines, buf = buf.split("\n")
+                for line in lines:
+                    if line.startswith("data:"):
+                        try:
+                            j = json.loads(line[5:])
+                        except Exception:  # noqa: BLE001
+                            continue
+                        if j.get("type") in ("token", "text") and j.get("content"):
+                            answer += j["content"]
+                        elif j.get("type") == "done" and j.get("content"):
+                            answer = j["content"]
+        finally:
+            await up.aclose()
+            await client.aclose()
         if routing and tenant and user:
             prev = routing.get("context") or {}
             title = prev.get("title") or message.strip().splitlines()[0][:60]
@@ -117,7 +140,7 @@ async def passthrough(request: Request):
     url = f"{base}/{request.path_params['path']}"
     if request.url.query:
         url += f"?{request.url.query}"
-    headers = {k: v for k, v in request.headers.items() if k.lower() not in ("host", "content-length")}
+    headers = _forwarded(request)
     body = await request.body()
     client = httpx.AsyncClient(timeout=None)
     up = await client.send(client.build_request(request.method, url, headers=headers, content=body), stream=True)
