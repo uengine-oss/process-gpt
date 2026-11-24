@@ -1,0 +1,93 @@
+name: context-router-build-and-deploy
+
+# main → ghcr.io/uengine-oss/context-router:<short sha> → its tag in process-gpt-k8s, which Argo CD applies.
+# Built from services/context-router only, and only when that folder (or this file) changes.
+# Repository secret: GITOPS_PAT (the image is pushed with GITHUB_TOKEN). The cluster pulls without a
+# secret, so the package must be public: check it after the first run.
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - services/context-router/**
+      - .github/workflows/context-router.yml
+  workflow_dispatch:
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Test
+        working-directory: services/context-router
+        run: |
+          pip install -r requirements-dev.txt
+          python -m pytest -q
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Compute image tag
+        run: |
+          IMAGE_TAG=$(echo $GITHUB_SHA | cut -c1-7)
+          echo "IMAGE_TAG=$IMAGE_TAG" >> $GITHUB_ENV
+          echo "IMAGE=ghcr.io/uengine-oss/context-router:$IMAGE_TAG" >> $GITHUB_ENV
+
+      - name: Build and push image
+        uses: docker/build-push-action@v6
+        with:
+          context: services/context-router
+          push: true
+          platforms: linux/amd64
+          tags: |
+            ${{ env.IMAGE }}
+            ghcr.io/uengine-oss/context-router:latest
+
+      - name: Checkout GitOps repository
+        uses: actions/checkout@v4
+        with:
+          repository: uengine-oss/process-gpt-k8s
+          token: ${{ secrets.GITOPS_PAT }}
+          path: gitops-repo
+
+      - name: Install yq
+        run: |
+          sudo wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
+          sudo chmod +x /usr/local/bin/yq
+
+      - name: Update the image tag in GitOps repository
+        run: |
+          cd gitops-repo
+          yq eval -i '
+            (select(.kind == "Deployment" and .metadata.name == "context-router") | .spec.template.spec.containers[0].image) = "'$IMAGE'"
+          ' deployments/context-router.yaml
+          grep -n "image:" deployments/context-router.yaml
+
+      # other services' workflows push to the same repository at the same time
+      - name: Commit and push changes
+        run: |
+          cd gitops-repo
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add .
+          git commit -m "Update context-router image to $IMAGE_TAG" || exit 0
+          for i in 1 2 3; do git pull --rebase && git push && exit 0; sleep 5; done
+          exit 1

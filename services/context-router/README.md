@@ -9,7 +9,7 @@
 
 ## 실행
 ```bash
-uv venv .venv && uv pip install --python .venv/bin/python -r requirements.txt
+uv venv .venv && uv pip install --python .venv/bin/python -r requirements-dev.txt
 psql ... < sql/001_context_threads.sql
 cp .env.example .env   # DECIDE_*, SUPABASE_*
 .venv/bin/python server.py            # :8895
