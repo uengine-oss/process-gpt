@@ -59,6 +59,22 @@ async def search(tenant_id: str, user_id: str, terms: list[str], limit: int = 30
         return []
 
 
+async def row_of(tenant_id: str, user_id: str, conversation_id: str) -> dict | None:
+    """The row of that conversation as it is now ({title, summary, gist, kind}), or None (no row, or it could not be read)."""
+    url, h = _rest()
+    try:
+        async with httpx.AsyncClient(timeout=5) as c:
+            r = await c.get(f"{url}/context_threads", headers=h, params={
+                "tenant_id": f"eq.{tenant_id}", "user_id": f"eq.{user_id}", "conversation_id": f"eq.{conversation_id}",
+                "select": "title,summary,gist,kind", "limit": "1"})
+            r.raise_for_status()
+            rows = r.json()
+            return rows[0] if rows else None
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("context_threads row read failed: %s", exc)
+        return None
+
+
 async def touch(tenant_id: str, user_id: str, conversation_id: str, *, title: str, summary: str, gist: str = "",
                 kind: str = "conversation", turns: int = 1) -> None:
     url, h = _rest()
