@@ -76,30 +76,33 @@ def test_a_routed_message_says_where_it_went_first_and_is_recorded(agent, monkey
     assert args[:3] == ("t1", "u1", "c9") and kw["title"] == "출장 준비" and "hi" in kw["summary"]
 
 
-def test_an_unsure_message_that_stays_keeps_the_conversations_title(agent, monkeypatch):
-    """A "stay" whose conversation was not among the candidates carries no context: the row keeps its own title, not the
-    message's first line (Process GPT Lite 2026-11-27 — 「…로 해서 보내」 became the conversation's title)."""
+def test_an_unsure_message_that_stays_keeps_the_conversations_row(agent, monkeypatch):
+    """A "stay" whose conversation was not among the candidates carries no context: the row it has is the previous context, whole —
+    its title and kind kept, its last request folded into the gist — not the message's first line as a new title (Process GPT Lite
+    2026-11-27 — 「…로 해서 보내」 became the conversation's title)."""
     async def fake_route(decider, **kw):
         return RouteResult("c0", "stay", None, {"strategy": "fake", "choice": "__new__", "confidence": 0.4})
 
-    async def title_of(tenant, user, conv):
+    async def row_of(tenant, user, conv):
         assert (tenant, user, conv) == ("t1", "u1", "c0")
-        return "의자 견적 회신"
+        return {"title": "의자 견적 회신", "summary": "최근 요청: 사무용 의자 견적 정리\n최근 답: 정리했어요", "gist": "납품", "kind": "mail"}
     monkeypatch.setattr(server, "route", fake_route)
-    monkeypatch.setattr(server.store, "title_of", title_of)
+    monkeypatch.setattr(server.store, "row_of", row_of)
     TestClient(server.app).post("/chat/stream", json=body(auto_route=True, route_text="900101으로 해서 보내"))
     (args, kw), = agent["touched"]
-    assert args[:3] == ("t1", "u1", "c0") and kw["title"] == "의자 견적 회신"
+    assert args[:3] == ("t1", "u1", "c0") and kw["title"] == "의자 견적 회신" and kw["kind"] == "mail"
+    assert "견적" in kw["gist"] and "납품" in kw["gist"]
+    assert "900101으로 해서 보내" in kw["summary"]
 
 
 def test_a_stay_in_a_conversation_with_no_row_yet_is_named_after_the_message(agent, monkeypatch):
     async def fake_route(decider, **kw):
         return RouteResult("c0", "stay", None, {"strategy": "fake", "choice": "__new__", "confidence": 0.4})
 
-    async def title_of(*_a):
+    async def row_of(*_a):
         return None
     monkeypatch.setattr(server, "route", fake_route)
-    monkeypatch.setattr(server.store, "title_of", title_of)
+    monkeypatch.setattr(server.store, "row_of", row_of)
     TestClient(server.app).post("/chat/stream", json=body(auto_route=True, route_text="처음 하는 말"))
     (_args, kw), = agent["touched"]
     assert kw["title"] == "처음 하는 말"
