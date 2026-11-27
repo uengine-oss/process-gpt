@@ -124,7 +124,12 @@ async def chat_ep(request: Request):
             await client.aclose()
         if routing and tenant and user:
             prev = routing.get("context") or {}
-            title = prev.get("title") or message.strip().splitlines()[0][:60]
+            # An unsure message stays in the conversation the user is in ("stay"); when that conversation was not among the
+            # candidates the routing carries no context — its title is the row's own, never this message's first line
+            # (Process GPT Lite 2026-11-27: a conversation was renamed to the follow-up 「…로 해서 보내」, and the next answer's label
+            # read as if it answered that message again).
+            title = prev.get("title") or (await store.title_of(tenant, user, b["conversation_id"]) if routing.get("action") == "stay" else None) \
+                or message.strip().splitlines()[0][:60]
             summary = f"최근 요청: {message.strip()[:200]}\n최근 답: {answer.strip()[:300]}"
             # the request being replaced survives as keywords in the gist
             gist = gist_of(prev.get("gist") or "", prev.get("summary") or "")
